@@ -832,6 +832,16 @@ a:hover {
   font-weight: 500;
 }
 
+.theme-name a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.theme-name a:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
 .theme-version {
   opacity: 0.6;
 }

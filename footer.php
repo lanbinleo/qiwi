@@ -35,8 +35,8 @@
                 </div>
                 
                 <div class="theme-info">
-                    <span class="theme-name">Qiwi Theme</span>
-                    <span class="theme-version">v0.0.1</span>
+                    <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi">Qiwi Theme</a></span>
+                    <span class="theme-version">v1.0.0</span>
                 </div>
             </div>
         </div>
