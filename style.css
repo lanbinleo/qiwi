@@ -283,6 +283,34 @@ a:hover {
   gap: var(--spacing-xs);
 }
 
+/* ===== POST EDIT BUTTON STYLES ===== */
+.post-edit-btn {
+  margin-left: var(--spacing-xs);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  /* 一行内显示 */
+  display: inline-flex;
+  align-items: center;
+}
+
+.post-edit-btn:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.post-edit-btn svg {
+  color: var(--color-text-muted);
+}
+
+.post-edit-btn a {
+  color: var(--color-text-muted);
+}
+
+.post-edit-btn a:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
 .post-excerpt {
   color: var(--color-text-secondary);
   line-height: var(--line-height-base);
