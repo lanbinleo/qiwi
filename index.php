@@ -69,7 +69,7 @@ $this->need('header.php');
                 <?php if ($this->fields->excerpt): ?>
                   <?php echo $this->fields->excerpt; ?>
                 <?php else: ?>
-                  <?php $this->content(200, '...'); ?>
+                  <?php $this->excerpt(200, '...'); ?>
                 <?php endif; ?>
               </div>
             </article>

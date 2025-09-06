@@ -38,7 +38,7 @@ function themeFields($layout) {
 	0, _t('LaTeX 渲染'), _t('默认关闭增加网页访问速度，如文章内存在LaTeX语法则需要启用'));
 
     // 设置文章简介
-    $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示'));
+    $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符'));
 
     // 设置头图URL
     $thumbnail = new Typecho_Widget_Helper_Form_Element_Text('thumbnail', null, null, _t('文章头图'), _t('在这里填写文章的头图URL地址'));
@@ -46,9 +46,9 @@ function themeFields($layout) {
     // 是否展示头图（不展示，首页展示，文章页展示，都展示）
     $showThumbnail = new Typecho_Widget_Helper_Form_Element_Radio('showThumbnail',
         array(0 => _t('不展示'),
+              3 => _t('都展示'),
               1 => _t('首页展示'),
-              2 => _t('文章页展示'),
-              3 => _t('都展示')),
+              2 => _t('文章页展示')),
         1, _t('展示头图'), _t('是否在文章列表中展示头图'));
 
     // 是否开启过期保护
