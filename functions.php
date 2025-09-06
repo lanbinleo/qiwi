@@ -36,7 +36,12 @@ function themeFields($layout) {
 	array(1 => _t('启用'),
 	0 => _t('关闭')),
 	0, _t('LaTeX 渲染'), _t('默认关闭增加网页访问速度，如文章内存在LaTeX语法则需要启用'));
+
+    // 设置文章简介
+    $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示'));
+    
 	$layout->addItem($isLatex);
+    $layout->addItem($excerpt);
 }
 
 
