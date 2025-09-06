@@ -39,9 +39,31 @@ function themeFields($layout) {
 
     // 设置文章简介
     $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示'));
-    
+
+    // 设置头图URL
+    $thumbnail = new Typecho_Widget_Helper_Form_Element_Text('thumbnail', null, null, _t('文章头图'), _t('在这里填写文章的头图URL地址'));
+
+    // 是否展示头图
+    $showThumbnail = new Typecho_Widget_Helper_Form_Element_Radio('showThumbnail',
+        array(1 => _t('是'),
+              0 => _t('否')),
+        1, _t('展示头图'), _t('是否在文章列表中展示头图'));
+
+    // 是否开启过期保护
+    $enableExpiryProtection = new Typecho_Widget_Helper_Form_Element_Radio('enableExpiryProtection',
+        array(1 => _t('是'),
+              0 => _t('否')),
+        0, _t('开启过期保护'), _t('是否开启文章过期保护'));
+
+    // 过期时长
+    $expiryDuration = new Typecho_Widget_Helper_Form_Element_Text('expiryDuration', null, 180, _t('过期时长'), _t('在这里填写文章的过期时长，例如：30，单位是天'));
+
 	$layout->addItem($isLatex);
     $layout->addItem($excerpt);
+    $layout->addItem($showThumbnail);
+    $layout->addItem($thumbnail);
+    $layout->addItem($enableExpiryProtection);
+    $layout->addItem($expiryDuration);
 }
 
 
