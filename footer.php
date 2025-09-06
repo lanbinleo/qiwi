@@ -39,7 +39,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
                 
                 <div class="theme-info">
                     <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi">Qiwi Theme</a></span>
-                    <span class="theme-version">v<?php echo $VERSION; ?></span>
+                    <span class="theme-version">v<?php if (!defined('__TYPECHO_ROOT_DIR__')) exit; $this->need('version.php'); ?></span>
                 </div>
             </div>
         </div>

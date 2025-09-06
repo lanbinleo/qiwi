@@ -1,10 +1,10 @@
 <?php
 /**
- * Qiwi Theme, a personalized theme for Typecho
+ * Qiwi Theme, a personalized theme for Typecho. Version number will not be changed until next major update.
  *
  * @package Qiwi
  * @author MaXiwi
- * @version 1.0.1
+ * @version 1.0.0
  * @link http://mura.ink
  */
 
