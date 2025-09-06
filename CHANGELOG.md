@@ -39,3 +39,24 @@ This is the first stable release of the Qiwi theme for Typecho, transitioning fr
 - Search is basic; advanced search not implemented yet.
 
 This release establishes Qiwi as a robust, feature-complete theme for Typecho users seeking a modern dark interface.
+
+## [1.0.2-alpha] - 2025-09-06
+### Pre-release Updates
+
+This alpha release includes enhancements to excerpt handling, thumbnail display, user editing capabilities, and licensing updates.
+
+### Added
+- Support for custom post excerpts in theme
+- Enhanced thumbnail display options and styles for posts
+- Edit button for logged-in users on post and archive pages
+- Options for thumbnail display and expiry properties in theme fields
+- LICENSE and SECURITY files with copyright and reporting information
+
+### Fixed
+- Excerpt display logic to use the correct method for rendering
+- Theme version updated to 1.0.1 in footer and index files
+- Theme version updated to 1.0.0 and added version.php for dynamic version display
+- License header corrected to include "MIT LICENSE"
+
+### Changed
+- Added version name "Qiwer" to the initial stable release in CHANGELOG
