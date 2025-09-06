@@ -1,4 +1,7 @@
-<?php if (!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
+<?php 
+$VERSION = '1.0.1';
+if (!defined('__TYPECHO_ROOT_DIR__')) exit; 
+?>
 
 <footer class="site-footer" role="contentinfo">
     <div class="container">
@@ -36,7 +39,7 @@
                 
                 <div class="theme-info">
                     <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi">Qiwi Theme</a></span>
-                    <span class="theme-version">v1.0.0</span>
+                    <span class="theme-version">v<?php echo $VERSION; ?></span>
                 </div>
             </div>
         </div>
