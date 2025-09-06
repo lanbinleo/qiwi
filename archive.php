@@ -69,7 +69,11 @@
                             </header>
                             
                             <div class="post-excerpt" itemprop="articleBody">
-                                <?php $this->excerpt(200, '...'); ?>
+                                <?php if ($this->fields->excerpt): ?>
+                  <?php echo $this->fields->excerpt; ?>
+                <?php else: ?>
+                  <?php $this->excerpt(200, '...'); ?>
+                <?php endif; ?>
                             </div>
                         </article>
                     </li>
