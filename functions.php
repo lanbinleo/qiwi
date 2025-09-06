@@ -43,10 +43,12 @@ function themeFields($layout) {
     // 设置头图URL
     $thumbnail = new Typecho_Widget_Helper_Form_Element_Text('thumbnail', null, null, _t('文章头图'), _t('在这里填写文章的头图URL地址'));
 
-    // 是否展示头图
+    // 是否展示头图（不展示，首页展示，文章页展示，都展示）
     $showThumbnail = new Typecho_Widget_Helper_Form_Element_Radio('showThumbnail',
-        array(1 => _t('是'),
-              0 => _t('否')),
+        array(0 => _t('不展示'),
+              1 => _t('首页展示'),
+              2 => _t('文章页展示'),
+              3 => _t('都展示')),
         1, _t('展示头图'), _t('是否在文章列表中展示头图'));
 
     // 是否开启过期保护

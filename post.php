@@ -5,6 +5,15 @@
   <main class="content-area">
     <article class="single-post" itemscope itemtype="http://schema.org/BlogPosting">
       
+      <?php
+      $showThumbnail = $this->fields->showThumbnail;
+      $thumbnail = $this->fields->thumbnail;
+      if (($showThumbnail == 2 || $showThumbnail == 3) && !empty($thumbnail)): ?>
+      <div class="post-thumbnail-single">
+        <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
+      </div>
+      <?php endif; ?>
+      
       <!-- Post Header -->
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">

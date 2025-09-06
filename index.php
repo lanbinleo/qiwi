@@ -19,6 +19,17 @@ $this->need('header.php');
         <?php while($this->next()): ?>
           <li class="post-list-item">
             <article class="post-preview post-card" data-href="<?php $this->permalink() ?>">
+              <?php
+              $showThumbnail = $this->fields->showThumbnail;
+              $thumbnail = $this->fields->thumbnail;
+              if (($showThumbnail == 1 || $showThumbnail == 3) && !empty($thumbnail)): ?>
+              <div class="post-thumbnail">
+                <a href="<?php $this->permalink() ?>">
+                  <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
+                </a>
+              </div>
+              <?php endif; ?>
+              
               <header class="post-preview-header">
                 <h2 class="post-title">
                   <a href="<?php $this->permalink() ?>"><?php $this->title() ?></a>
