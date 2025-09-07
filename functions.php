@@ -60,7 +60,7 @@ function themeFields($layout) {
               3 => _t('都展示'),
               1 => _t('首页展示'),
               2 => _t('文章页展示')),
-        1, _t('展示头图'), _t('是否在文章列表中展示头图'));
+        3, _t('展示头图'), _t('是否在文章列表中展示头图'));
 
     // 是否开启过期保护
     $enableExpiryProtection = new Typecho_Widget_Helper_Form_Element_Radio('enableExpiryProtection',
