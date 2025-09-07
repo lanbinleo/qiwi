@@ -13,7 +13,7 @@
         ], '', ' - '); ?><?php $this->options->title(); ?></title>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="<?php $this->options->themeUrl('style.css'); ?>">
+    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">
