@@ -27,6 +27,17 @@ function themeConfig($form)
     );
 
     $form->addInput($sidebarBlock->multiMode());
+
+    // 自定义CSS / JS / 页脚信息 / JS追踪代码
+    $customCSS = new Typecho_Widget_Helper_Form_Element_Textarea('customCSS', null, null, _t('自定义 CSS'), _t('在这里填写自定义 CSS 代码'));
+    $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS代码'));
+    $footerInfo = new Typecho_Widget_Helper_Form_Element_Text('footerInfo', null, null, _t('页脚信息'), _t('在这里填写页脚信息，支持 HTML'));
+    $trackingCode = new Typecho_Widget_Helper_Form_Element_Text('trackingCode', null, null, _t('JS 追踪代码'), _t('在这里填写第三方统计 JS 代码'));
+
+    $form->addInput($customCSS);
+    $form->addInput($customJS);
+    $form->addInput($footerInfo);
+    $form->addInput($trackingCode);
 }
 
 	

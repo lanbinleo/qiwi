@@ -35,6 +35,13 @@
 
 
 
+    <!-- Custom CSS -->
+    <?php if ($this->options->customCSS): ?>
+    <style type="text/css">
+        <?php echo $this->options->customCSS; ?>
+    </style>
+    <?php endif; ?>
+
     <!-- Typecho Header -->
     <?php $this->header(); ?>
 </head>

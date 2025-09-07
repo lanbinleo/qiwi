@@ -7,12 +7,15 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
     <div class="container">
         <div class="footer-content">
             <div class="footer-info">
-                <p>&copy; <?php echo date('Y'); ?> <a href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>. 
+                <p>&copy; <?php echo date('Y'); ?> <a href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>.
                 <?php _e('由 <a href="https://typecho.org" target="_blank" rel="noopener">Typecho</a> 强力驱动'); ?>.</p>
                 
-                <?php if ($this->options->description): ?>
-                    <p class="site-description"><?php $this->options->description(); ?></p>
+                <?php if ($this->options->footerInfo): ?>
+                    <p class="site-description"><?php $this->options->footerInfo() ?></p>
+                <?php elseif ($this->options->description): ?>
+                    <p class="site-description"><?php $this->options->description() ?></p>
                 <?php endif; ?>
+                
             </div>
             
             <div class="footer-meta">
@@ -131,6 +134,19 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
   });
 </script>
 <?php endif; ?>
+
+<!-- Custom JavaScript -->
+<?php if ($this->options->customJS): ?>
+<script type="text/javascript">
+    <?php echo $this->options->customJS; ?>
+</script>
+<?php endif; ?>
+
+<!-- Tracking Code -->
+<?php if ($this->options->trackingCode): ?>
+<?php echo $this->options->trackingCode; ?>
+<?php endif; ?>
+
 <?php $this->footer(); ?>
 </body>
 </html>
