@@ -1,3 +1,3 @@
 <?php
-echo "1.0.3-alpha";
+echo "1.0.4-alpha";
 ?>

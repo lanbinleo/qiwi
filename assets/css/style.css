@@ -283,6 +283,40 @@ a:hover {
   gap: var(--spacing-xs);
 }
 
+/* ===== POST TAGS META STYLES ===== */
+.post-tags-meta {
+  color: var(--color-text-muted);
+}
+
+.post-tags-meta a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.post-tags-meta a:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+/* ===== POST READING INFO STYLES ===== */
+.post-reading-info {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  background-color: var(--color-bg-tertiary);
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.post-reading-info:hover {
+  background-color: var(--color-border-light);
+  border-color: var(--color-accent);
+  color: var(--color-text-secondary);
+}
+
 /* ===== POST EDIT BUTTON STYLES ===== */
 .post-edit-btn {
   margin-left: var(--spacing-xs);
