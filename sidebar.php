@@ -34,7 +34,7 @@
     <ul class="widget-list">
         <?php 
         // 获取说说页面的cid（你需要替换为实际的页面缩略名）
-        $shuoshuoSlug = 'tm'; // 你的说说页面缩略名
+        $shuoshuoSlug = 'talk'; // 你的说说页面缩略名
         
         // 获取数据库实例
         $db = \Typecho\Db::get();
