@@ -32,8 +32,34 @@
         最近评论
     </h3>
     <ul class="widget-list">
-        <?php \Widget\Comments\Recent::alloc()->to($comments); ?>
+        <?php 
+        // 获取说说页面的cid（你需要替换为实际的页面缩略名）
+        $shuoshuoSlug = 'tm'; // 你的说说页面缩略名
+        
+        // 获取数据库实例
+        $db = \Typecho\Db::get();
+        $shuoshuoCid = $db->fetchObject($db->select('cid')->from('table.contents')->where('slug = ?', $shuoshuoSlug));
+        // echo $shuoshuoCid ? $shuoshuoCid->cid : '说说页面未找到';   
+        $excludeCid = $shuoshuoCid ? $shuoshuoCid->cid : 0;
+        
+        // 创建评论widget，排除说说页面的评论
+        \Widget\Comments\Recent::alloc('pageSize=5&ignoreAuthor=false')->to($comments);
+        ?>
+        
+        <?php $commentCount = 0; ?>
         <?php while ($comments->next()): ?>
+            <?php 
+            // 跳过说说页面的评论
+            if ($comments->cid == $excludeCid) {
+                continue;
+            }
+            
+            // 限制显示数量
+            if ($commentCount >= 5) {
+                break;
+            }
+            $commentCount++;
+            ?>
             <li class="comment-item">
                 <div class="comment-meta">
                     <a href="<?php $comments->permalink(); ?>" class="comment-author">
@@ -46,9 +72,14 @@
                 </div>
             </li>
         <?php endwhile; ?>
+        
+        <?php if ($commentCount == 0): ?>
+            <li class="no-comments">暂无评论</li>
+        <?php endif; ?>
     </ul>
 </section>
 <?php endif; ?>
+
 
 <!-- Categories Widget -->
 <?php if (!empty($this->options->sidebarBlock) && in_array('ShowCategory', $this->options->sidebarBlock)) : ?>
