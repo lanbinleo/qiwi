@@ -1,0 +1,785 @@
+<?php 
+/**
+ * 时光机
+ *
+ * @package custom
+ */
+
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+
+$this->need('header.php');
+
+// 检查是否有评论提交
+$commentSubmitted = false;
+if (isset($_POST['text']) && !empty($_POST['text'])) {
+    $commentSubmitted = true;
+}
+
+// 获取当前页面ID用于评论查询
+$pageId = $this->cid;
+$pageSize = 10; // 每页显示的说说数量
+$currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+// 获取当前页面作者信息
+$authorUid = $this->author->uid;
+$authorName = $this->author->screenName;
+$authorMail = $this->author->mail;
+$authorUrl = $this->author->url;
+
+// 获取数据库实例
+if (class_exists('Typecho_Db')) {
+    $db = Typecho_Db::get();
+    $prefix = $db->getPrefix();
+} else {
+    $db = \Typecho\Db::get();
+    $prefix = $db->getPrefix();
+}
+
+// 获取该页面的作者评论（说说）
+$select = $db->select()->from($prefix.'comments')
+    ->where('cid = ?', $pageId)
+    ->where('status = ?', 'approved')
+    ->where('authorId = ?', $authorUid)
+    ->order('created', $db::SORT_DESC)
+    ->page($currentPage, $pageSize);
+
+$comments = $db->fetchAll($select);
+
+// 获取总数
+$totalSelect = $db->select('COUNT(coid) AS total')->from($prefix.'comments')
+    ->where('cid = ?', $pageId)
+    ->where('status = ?', 'approved')
+    ->where('authorId = ?', $authorUid);
+
+$totalResult = $db->fetchRow($totalSelect);
+$total = $totalResult ? $totalResult['total'] : 0;
+$totalPages = ceil($total / $pageSize);
+
+// Ajax请求处理
+if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
+    header('Content-Type: application/json');
+    
+    $result = [
+        'success' => true,
+        'data' => [],
+        'pagination' => [
+            'current' => $currentPage,
+            'total' => $totalPages,
+            'hasNext' => $currentPage < $totalPages
+        ]
+    ];
+    
+    foreach ($comments as $comment) {
+        $result['data'][] = [
+            'id' => $comment['coid'],
+            'content' => $comment['text'],
+            'created' => $comment['created'],
+            'date' => date('Y年m月d日 H:i', $comment['created']),
+            'authorName' => $authorName
+        ];
+    }
+    
+    echo json_encode($result);
+    exit;
+}
+
+// Markdown渲染函数（支持图片）
+function renderMarkdown($text) {
+    if (empty($text)) return '';
+    
+    $text = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    
+    // 处理代码块
+    $text = preg_replace_callback('/```(.*?)```/s', function($matches) {
+        return '<pre><code>' . trim($matches[1]) . '</code></pre>';
+    }, $text);
+    
+    // 处理图片（新增）
+    $text = preg_replace_callback('/!\[([^\]]*)\]\(([^\)]+)\)/', function($matches) {
+        $altText = trim($matches[1]);
+        $imageUrl = trim($matches[2]);
+        
+        if (empty($imageUrl)) return $altText;
+        
+        return '<img src="' . htmlspecialchars($imageUrl, ENT_QUOTES) . '" alt="' . htmlspecialchars($altText, ENT_QUOTES) . '" class="timemachine-image" loading="lazy">';
+    }, $text);
+    
+    // 处理粗体
+    $text = preg_replace('/\*\*((?:(?!\*\*).)+?)\*\*/', '<strong>$1</strong>', $text);
+    $text = preg_replace('/__((?:(?!__).)+?)__/', '<strong>$1</strong>', $text);
+    
+    // 处理斜体
+    $text = preg_replace('/(?<!\*)\*([^\*\n]+?)\*(?!\*)/', '<em>$1</em>', $text);
+    $text = preg_replace('/(?<!_)_([^_\n]+?)_(?!_)/', '<em>$1</em>', $text);
+    
+    // 处理行内代码
+    $text = preg_replace('/`([^`\n]+?)`/', '<code>$1</code>', $text);
+    
+    // 处理链接
+    $text = preg_replace_callback('/\[([^\]]*)\]\(([^\)]+)\)/', function($matches) {
+        $linkText = trim($matches[1]);
+        $linkUrl = trim($matches[2]);
+        
+        if (empty($linkUrl) || preg_match('/^javascript:/i', $linkUrl)) {
+            return $linkText;
+        }
+        
+        if (!preg_match('/^https?:\/\//', $linkUrl) && !preg_match('/^\//', $linkUrl)) {
+            $linkUrl = 'http://' . $linkUrl;
+        }
+        
+        return '<a href="' . htmlspecialchars($linkUrl, ENT_QUOTES) . '" target="_blank" rel="noopener noreferrer">' . $linkText . '</a>';
+    }, $text);
+    
+    // 处理换行
+    $text = nl2br($text);
+    
+    return $text;
+}
+?>
+
+<div class="container main-wrapper">
+  <main class="content-area">
+    <article class="single-page timemachine-page" itemscope itemtype="http://schema.org/WebPage">
+
+      <!-- 页面头部 -->
+      <header class="page-header">
+        <h1 class="page-title" itemprop="name headline">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12,6 12,12 16,14"></polyline>
+          </svg>
+          <?php $this->title() ?>
+        </h1>
+        
+        <?php if ($this->content()): ?>
+        <div class="page-content" itemprop="text">
+          <?php $this->content(); ?>
+        </div>
+        <?php endif; ?>
+        
+        <div class="timemachine-stats">
+          <span class="stats-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"></path>
+            </svg>
+            共 <?php echo $total; ?> 条说说
+          </span>
+          
+          <!-- 一键到底部按钮 -->
+          <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
+          <button id="go-to-publisher" class="go-to-publisher-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 13l3 3 7-7"></path>
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+            </svg>
+            写说说
+          </button>
+          <?php endif; ?>
+        </div>
+      </header>
+
+      <!-- 说说列表 -->
+      <div class="timemachine-content">
+        <?php if ($total > 0): ?>
+        <div id="timemachine-list" class="timemachine-list">
+          <?php foreach ($comments as $comment): ?>
+          <article class="timemachine-item" data-id="<?php echo $comment['coid']; ?>">
+            <div class="timemachine-meta">
+              <div class="author-avatar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <div class="meta-info">
+                <span class="author-name"><?php echo htmlspecialchars($authorName, ENT_QUOTES); ?></span>
+                <time class="publish-time" datetime="<?php echo date('c', $comment['created']); ?>">
+                  <?php echo date('Y年m月d日 H:i', $comment['created']); ?>
+                </time>
+              </div>
+            </div>
+            
+            <div class="timemachine-text">
+              <?php echo renderMarkdown($comment['text']); ?>
+            </div>
+            
+            <div class="timemachine-actions">
+              <span class="action-time">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12,6 12,12 16,14"></polyline>
+                </svg>
+                <?php 
+                $timeAgo = time() - $comment['created'];
+                if ($timeAgo < 3600) {
+                    echo floor($timeAgo / 60) . ' 分钟前';
+                } elseif ($timeAgo < 86400) {
+                    echo floor($timeAgo / 3600) . ' 小时前';
+                } elseif ($timeAgo < 2592000) {
+                    echo floor($timeAgo / 86400) . ' 天前';
+                } else {
+                    echo date('Y年m月d日', $comment['created']);
+                }
+                ?>
+              </span>
+            </div>
+          </article>
+          <?php endforeach; ?>
+        </div>
+        
+        <!-- 分页加载 -->
+        <?php if ($totalPages > 1): ?>
+        <div class="timemachine-pagination">
+          <?php if ($currentPage < $totalPages): ?>
+          <button id="load-more-btn" class="load-more-btn" data-page="<?php echo $currentPage + 1; ?>">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6,9 12,15 18,9"></polyline>
+            </svg>
+            加载更多说说
+            <span class="loading-text" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="loading-icon">
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+              </svg>
+              加载中...
+            </span>
+          </button>
+          <?php endif; ?>
+          
+          <div class="pagination-info">
+            第 <?php echo $currentPage; ?> 页 / 共 <?php echo $totalPages; ?> 页
+          </div>
+        </div>
+        <?php endif; ?>
+        
+        <?php else: ?>
+        <div class="empty-timemachine">
+          <div class="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+          </div>
+          <h3>还没有任何说说</h3>
+          <p>时光机还是空的，快来记录第一条想法吧！</p>
+        </div>
+        <?php endif; ?>
+      </div>
+
+      <br><br>
+
+      <!-- 说说发布区域（移到底部） -->
+      <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
+      <div id="timemachine-publisher" class="timemachine-publisher">
+        <div class="publisher-header">
+          <h3>发布新的说说</h3>
+          <p>记录此刻的想法和感受...</p>
+          <button id="open-settings" class="settings-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="m12 1 1.88 4.06L18 6.94l-1.06 4.12L21 12l-4.06 1.88L15.06 18l-4.12-1.06L12 21l-1.88-4.06L6 15.06l1.06-4.12L3 12l4.06-1.88L8.94 6l4.12 1.06L12 1z"></path>
+            </svg>
+            图床设置
+          </button>
+        </div>
+        
+        <?php if ($this->allow('comment')): ?>
+        <div class="timemachine-form-wrapper">
+          <form method="post" action="<?php $this->commentUrl() ?>" id="timemachine-form" class="timemachine-form" role="form">
+            <div class="publisher-content">
+              <textarea name="text" id="timemachine-textarea" placeholder="想说些什么呢？支持 Markdown 语法和图片上传（粘贴图片自动上传）..." rows="6" required><?php $this->remember('text'); ?></textarea>
+              <div class="upload-progress" id="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                  <div class="progress-fill"></div>
+                </div>
+                <span class="progress-text">上传中...</span>
+              </div>
+            </div>
+            
+            <!-- 隐藏字段 -->
+            <input type="hidden" name="author" value="<?php echo htmlspecialchars($authorName, ENT_QUOTES); ?>">
+            <input type="hidden" name="mail" value="<?php echo htmlspecialchars($authorMail, ENT_QUOTES); ?>">
+            <input type="hidden" name="url" value="<?php echo htmlspecialchars($authorUrl, ENT_QUOTES); ?>">
+            
+            <?php 
+            if (class_exists('Typecho_Widget_Helper_Form_Element_Hidden')) {
+                $security = new Typecho_Widget_Helper_Form_Element_Hidden('_');
+                $security->value($this->security->getToken($this->request->getReferer()));
+                echo '<input type="hidden" name="_" value="' . $security->value . '">';
+            } else if (method_exists($this, 'security')) {
+                echo '<input type="hidden" name="_" value="' . $this->security->getToken($this->request->getReferer()) . '">';
+            } else {
+                $widget = $this->widget('Widget_Security');
+                echo '<input type="hidden" name="_" value="' . $widget->getToken($this->request->getReferer()) . '">';
+            }
+            ?>
+            
+            <div class="publisher-actions">
+              <div class="publisher-tips">
+                <span class="tip-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14,2 14,8 20,8"></polyline>
+                  </svg>
+                  支持 Markdown
+                </span>
+                <span class="tip-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21,15 16,10 5,21"></polyline>
+                  </svg>
+                  粘贴上传图片
+                </span>
+              </div>
+              <button type="submit" class="publish-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+                </svg>
+                发布说说
+              </button>
+            </div>
+          </form>
+        </div>
+        <?php else: ?>
+        <div class="comment-closed-notice">
+          <p>评论功能已关闭，无法发布说说。请在后台开启该页面的评论功能。</p>
+        </div>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+
+    </article>
+  </main>
+
+  <aside class="sidebar">
+    <?php $this->need('sidebar.php'); ?>
+  </aside>
+</div>
+
+<!-- 设置Modal -->
+<div id="settings-modal" class="settings-modal" style="display: none;">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>图床设置</h3>
+      <button class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="settings-form">
+        <div class="form-group">
+          <label for="base-url">图床API地址:</label>
+          <input type="url" id="base-url" placeholder="https://p.maxqi.top/api/v1" value="https://p.maxqi.top/api/v1">
+        </div>
+        <div class="form-group">
+          <label for="email">邮箱:</label>
+          <input type="email" id="email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label for="password">密码:</label>
+          <input type="password" id="password" placeholder="密码">
+        </div>
+        <div class="form-group">
+          <label for="token">Token (自动生成):</label>
+          <input type="text" id="token" placeholder="将根据邮箱密码自动生成" readonly>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="generate-token" class="btn-primary">生成Token</button>
+          <button type="submit" class="btn-success">保存设置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// 时光机类 - 重构代码结构
+class Timemachine {
+    constructor() {
+        this.loadStoredSettings();
+        this.initEventListeners();
+    }
+
+    // 加载本地存储的设置
+    loadStoredSettings() {
+        const settings = localStorage.getItem('timemachine_settings');
+        if (settings) {
+            this.settings = JSON.parse(settings);
+        } else {
+            this.settings = {
+                baseUrl: 'https://p.maxqi.top/api/v1',
+                email: '',
+                password: '',
+                token: ''
+            };
+        }
+    }
+
+    // 保存设置到本地存储
+    saveSettings() {
+        localStorage.setItem('timemachine_settings', JSON.stringify(this.settings));
+    }
+
+    // 初始化事件监听
+    initEventListeners() {
+        // 一键到底部按钮
+        const goToPublisherBtn = document.getElementById('go-to-publisher');
+        if (goToPublisherBtn) {
+            goToPublisherBtn.addEventListener('click', () => {
+                document.getElementById('timemachine-publisher').scrollIntoView({ 
+                    behavior: 'smooth' 
+                });
+            });
+        }
+
+        // 加载更多按钮
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', this.loadMore.bind(this));
+        }
+
+        // 设置Modal相关
+        this.initSettingsModal();
+
+        // 表单提交
+        const form = document.getElementById('timemachine-form');
+        if (form) {
+            form.addEventListener('submit', this.handleFormSubmit.bind(this));
+        }
+
+        // 粘贴图片上传
+        const textarea = document.getElementById('timemachine-textarea');
+        if (textarea) {
+            textarea.addEventListener('paste', this.handlePaste.bind(this));
+        }
+
+        // 检查提交成功状态
+        <?php if ($commentSubmitted): ?>
+        setTimeout(() => {
+            window.location.href = window.location.pathname;
+        }, 1000);
+        <?php endif; ?>
+    }
+
+    // 初始化设置Modal
+    initSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        const openBtn = document.getElementById('open-settings');
+        const closeBtn = modal.querySelector('.modal-close');
+        const overlay = modal.querySelector('.modal-overlay');
+        const form = document.getElementById('settings-form');
+        const generateBtn = document.getElementById('generate-token');
+
+        // 填充已保存的设置
+        this.fillSettingsForm();
+
+        openBtn.addEventListener('click', () => {
+            modal.style.display = 'block';
+        });
+
+        [closeBtn, overlay].forEach(el => {
+            el.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        });
+
+        generateBtn.addEventListener('click', this.generateToken.bind(this));
+        form.addEventListener('submit', this.saveSettingsForm.bind(this));
+    }
+
+    // 填充设置表单
+    fillSettingsForm() {
+        document.getElementById('base-url').value = this.settings.baseUrl;
+        document.getElementById('email').value = this.settings.email;
+        document.getElementById('password').value = this.settings.password;
+        document.getElementById('token').value = this.settings.token;
+    }
+
+    // 生成Token
+    async generateToken() {
+        const baseUrl = document.getElementById('base-url').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        if (!baseUrl || !email || !password) {
+            alert('请填写完整的图床地址、邮箱和密码');
+            return;
+        }
+
+        const generateBtn = document.getElementById('generate-token');
+        const originalText = generateBtn.textContent;
+        generateBtn.textContent = '生成中...';
+        generateBtn.disabled = true;
+
+        try {
+            const response = await fetch(`${baseUrl}/tokens`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (data.status && data.data && data.data.token) {
+                document.getElementById('token').value = data.data.token;
+                alert('Token生成成功！');
+            } else {
+                throw new Error(data.message || '生成Token失败');
+            }
+        } catch (error) {
+            console.error('生成Token失败:', error);
+            alert('生成Token失败: ' + error.message);
+        } finally {
+            generateBtn.textContent = originalText;
+            generateBtn.disabled = false;
+        }
+    }
+
+    // 保存设置表单
+    saveSettingsForm(e) {
+        e.preventDefault();
+        
+        this.settings = {
+            baseUrl: document.getElementById('base-url').value,
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+            token: document.getElementById('token').value
+        };
+
+        this.saveSettings();
+        document.getElementById('settings-modal').style.display = 'none';
+        alert('设置已保存！');
+    }
+
+    // 处理粘贴事件
+    async handlePaste(e) {
+        const items = e.clipboardData.items;
+        
+        for (let item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                await this.uploadImage(file);
+                break;
+            }
+        }
+    }
+
+    // 上传图片
+    async uploadImage(file) {
+        if (!this.settings.token) {
+            alert('请先配置图床设置！');
+            return;
+        }
+
+        const progressEl = document.getElementById('upload-progress');
+        const progressFill = progressEl.querySelector('.progress-fill');
+        const progressText = progressEl.querySelector('.progress-text');
+        const textarea = document.getElementById('timemachine-textarea');
+
+        progressEl.style.display = 'block';
+        progressText.textContent = '上传中...';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${this.settings.baseUrl}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.settings.token}`,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.status && data.data && data.data.links) {
+                const imageUrl = data.data.links.url;
+                const markdown = `![${data.data.name}](${imageUrl})`;
+                
+                // 插入到光标位置
+                const cursorPos = textarea.selectionStart;
+                const textBefore = textarea.value.substring(0, cursorPos);
+                const textAfter = textarea.value.substring(textarea.selectionEnd);
+                textarea.value = textBefore + markdown + textAfter;
+                
+                // 更新光标位置
+                textarea.selectionStart = textarea.selectionEnd = cursorPos + markdown.length;
+                textarea.focus();
+                
+                progressText.textContent = '上传成功！';
+                setTimeout(() => {
+                    progressEl.style.display = 'none';
+                }, 1000);
+            } else {
+                throw new Error(data.message || '上传失败');
+            }
+        } catch (error) {
+            console.error('上传失败:', error);
+            progressText.textContent = '上传失败: ' + error.message;
+            setTimeout(() => {
+                progressEl.style.display = 'none';
+            }, 3000);
+        }
+    }
+
+    // 处理表单提交
+    handleFormSubmit(e) {
+        const textarea = document.getElementById('timemachine-textarea');
+        const submitBtn = e.target.querySelector('.publish-btn');
+        
+        if (textarea.value.trim() === '') {
+            e.preventDefault();
+            alert('请输入说说内容！');
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="loading-icon">
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+            </svg>
+            发布中...
+        `;
+    }
+
+    // 加载更多功能
+    async loadMore() {
+        const btn = document.getElementById('load-more-btn');
+        const page = parseInt(btn.dataset.page);
+        const loadingText = btn.querySelector('.loading-text');
+        const normalContent = btn.childNodes[0];
+        
+        btn.disabled = true;
+        loadingText.style.display = 'inline-flex';
+        normalContent.style.display = 'none';
+        
+        try {
+            const response = await fetch(`<?php echo $this->permalink(); ?>?ajax=1&page=${page}`);
+            const data = await response.json();
+            
+            if (data.success && data.data.length > 0) {
+                const timemachineList = document.getElementById('timemachine-list');
+                
+                data.data.forEach(item => {
+                    const itemHTML = this.createTimemachineItem(item);
+                    timemachineList.insertAdjacentHTML('beforeend', itemHTML);
+                });
+                
+                if (data.pagination.hasNext) {
+                    btn.dataset.page = data.pagination.current + 1;
+                    btn.disabled = false;
+                    loadingText.style.display = 'none';
+                    normalContent.style.display = 'inline';
+                } else {
+                    btn.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('加载失败:', error);
+            btn.disabled = false;
+            loadingText.style.display = 'none';
+            normalContent.style.display = 'inline';
+            normalContent.textContent = '加载失败，点击重试';
+        }
+    }
+
+    // 创建说说项目HTML
+    createTimemachineItem(item) {
+        const timeAgo = this.getTimeAgo(item.created);
+        return `
+        <article class="timemachine-item" data-id="${item.id}">
+            <div class="timemachine-meta">
+                <div class="author-avatar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <div class="meta-info">
+                    <span class="author-name">${item.authorName}</span>
+                    <time class="publish-time" datetime="${new Date(item.created * 1000).toISOString()}">
+                        ${item.date}
+                    </time>
+                </div>
+            </div>
+            
+            <div class="timemachine-text">
+                ${this.renderSimpleMarkdown(item.content)}
+            </div>
+            
+            <div class="timemachine-actions">
+                <span class="action-time">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12,6 12,12 16,14"></polyline>
+                    </svg>
+                    ${timeAgo}
+                </span>
+            </div>
+        </article>
+        `;
+    }
+
+    // 简单的相对时间计算
+    getTimeAgo(timestamp) {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = now - timestamp;
+        
+        if (diff < 3600) {
+            return Math.floor(diff / 60) + ' 分钟前';
+        } else if (diff < 86400) {
+            return Math.floor(diff / 3600) + ' 小时前';
+        } else if (diff < 2592000) {
+            return Math.floor(diff / 86400) + ' 天前';
+        } else {
+            return new Date(timestamp * 1000).getFullYear() + '年' + 
+                   (new Date(timestamp * 1000).getMonth() + 1) + '月' + 
+                   new Date(timestamp * 1000).getDate() + '日';
+        }
+    }
+
+    // 简单的客户端Markdown渲染（支持图片）
+    renderSimpleMarkdown(text) {
+        return text.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#x27;')
+                  .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="timemachine-image" loading="lazy">')
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/(?<!\*)\*(.*?)\*(?!\*)/g, '<em>$1</em>')
+                  .replace(/`([^`]+?)`/g, '<code>$1</code>')
+                  .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                  .replace(/\n/g, '<br>');
+    }
+}
+
+// 初始化时光机
+document.addEventListener('DOMContentLoaded', function() {
+    new Timemachine();
+});
+</script>
+
+
+<?php $this->need('footer.php'); ?>
