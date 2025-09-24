@@ -11,7 +11,14 @@ $this->need('header.php');
 
 // 检查是否有评论提交
 $commentSubmitted = false;
+$submissionError = null;
 if (isset($_POST['text']) && !empty($_POST['text'])) {
+    // Debug: 记录提交信息
+    error_log("TimeMachine Debug - 收到评论提交: " . date('Y-m-d H:i:s'));
+    error_log("TimeMachine Debug - POST数据: " . json_encode($_POST));
+    error_log("TimeMachine Debug - Referer: " . ($this->request->getReferer() ?? 'null'));
+    error_log("TimeMachine Debug - 请求方法: " . $_SERVER['REQUEST_METHOD']);
+
     $commentSubmitted = true;
 }
 
@@ -58,7 +65,7 @@ $totalPages = ceil($total / $pageSize);
 // Ajax请求处理
 if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
     header('Content-Type: application/json');
-    
+
     $result = [
         'success' => true,
         'data' => [],
@@ -68,17 +75,18 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
             'hasNext' => $currentPage < $totalPages
         ]
     ];
-    
+
     foreach ($comments as $comment) {
         $result['data'][] = [
             'id' => $comment['coid'],
             'content' => $comment['text'],
             'created' => $comment['created'],
             'date' => date('Y年m月d日 H:i', $comment['created']),
+            'date_timestamp' => $comment['created'], // 添加时间戳供前端使用
             'authorName' => $authorName
         ];
     }
-    
+
     echo json_encode($result);
     exit;
 }
@@ -194,7 +202,7 @@ function renderMarkdown($text) {
               </div>
               <div class="meta-info">
                 <span class="author-name"><?php echo htmlspecialchars($authorName, ENT_QUOTES); ?></span>
-                <time class="publish-time" datetime="<?php echo date('c', $comment['created']); ?>">
+                <time class="publish-time" datetime="<?php echo date('c', $comment['created']); ?>" data-timestamp="<?php echo $comment['created']; ?>">
                   <?php echo date('Y年m月d日 H:i', $comment['created']); ?>
                 </time>
               </div>
@@ -210,18 +218,9 @@ function renderMarkdown($text) {
                   <circle cx="12" cy="12" r="10"></circle>
                   <polyline points="12,6 12,12 16,14"></polyline>
                 </svg>
-                <?php 
-                $timeAgo = time() - $comment['created'];
-                if ($timeAgo < 3600) {
-                    echo floor($timeAgo / 60) . ' 分钟前';
-                } elseif ($timeAgo < 86400) {
-                    echo floor($timeAgo / 3600) . ' 小时前';
-                } elseif ($timeAgo < 2592000) {
-                    echo floor($timeAgo / 86400) . ' 天前';
-                } else {
-                    echo date('Y年m月d日', $comment['created']);
-                }
-                ?>
+                <span class="time-ago" data-timestamp="<?php echo $comment['created']; ?>">
+                计算中...
+              </span>
               </span>
             </div>
           </article>
@@ -308,17 +307,36 @@ function renderMarkdown($text) {
             <input type="hidden" name="mail" value="<?php echo htmlspecialchars($authorMail, ENT_QUOTES); ?>">
             <input type="hidden" name="url" value="<?php echo htmlspecialchars($authorUrl, ENT_QUOTES); ?>">
             
-            <?php 
+            <?php
+            // 修复: 使用一致的referer策略，避免新开页面和刷新页面token不一致
+            $referer_source = $this->request->getReferer() ?? $this->request->getRequestUrl();
+
+            $token = '';
             if (class_exists('Typecho_Widget_Helper_Form_Element_Hidden')) {
                 $security = new Typecho_Widget_Helper_Form_Element_Hidden('_');
-                $security->value($this->security->getToken($this->request->getReferer()));
+                $token = $this->security->getToken($referer_source);
+                $security->value($token);
                 echo '<input type="hidden" name="_" value="' . $security->value . '">';
             } else if (method_exists($this, 'security')) {
-                echo '<input type="hidden" name="_" value="' . $this->security->getToken($this->request->getReferer()) . '">';
+                $token = $this->security->getToken($referer_source);
+                echo '<input type="hidden" name="_" value="' . $token . '">';
             } else {
                 $widget = $this->widget('Widget_Security');
-                echo '<input type="hidden" name="_" value="' . $widget->getToken($this->request->getReferer()) . '">';
+                $token = $widget->getToken($referer_source);
+                echo '<input type="hidden" name="_" value="' . $token . '">';
             }
+
+            // Debug: 输出token信息到控制台
+            $debug_info = [
+                'generated_token' => $token,
+                'referer_source' => $referer_source,
+                'actual_referer' => $this->request->getReferer(),
+                'current_url' => $this->request->getRequestUrl(),
+                'request_method' => $_SERVER['REQUEST_METHOD'],
+                'is_ajax' => isset($_GET['ajax']),
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+            ];
+            echo '<script>console.log("Token Debug Info:", ' . json_encode($debug_info) . ');</script>';
             ?>
             
             <div class="publisher-actions">
@@ -463,7 +481,10 @@ class Timemachine {
 
         // 检查提交成功状态
         <?php if ($commentSubmitted): ?>
+        console.log('Debug: 提交成功，准备重定向...');
+        console.log('Debug: 提交时间:', new Date().toLocaleString());
         setTimeout(() => {
+            console.log('Debug: 执行重定向到:', window.location.pathname);
             window.location.href = window.location.pathname;
         }, 1000);
         <?php endif; ?>
@@ -640,13 +661,33 @@ class Timemachine {
     handleFormSubmit(e) {
         const textarea = document.getElementById('timemachine-textarea');
         const submitBtn = e.target.querySelector('.publish-btn');
-        
+        const form = e.target;
+
+        // Debug: 打印表单数据
+        const formToken = form.querySelector('input[name="_"]')?.value;
+        console.log('Debug: 表单提交前数据:', {
+            text: textarea.value,
+            formToken: formToken,
+            formAction: form.action,
+            currentUrl: window.location.href,
+            referer: document.referrer,
+            timestamp: new Date().toISOString()
+        });
+
+        // 检查token是否为空或无效
+        if (!formToken || formToken.trim() === '') {
+            console.warn('Debug: Token为空，可能存在问题！');
+            alert('Token验证失败，请刷新页面重试');
+            e.preventDefault();
+            return;
+        }
+
         if (textarea.value.trim() === '') {
             e.preventDefault();
             alert('请输入说说内容！');
             return;
         }
-        
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="loading-icon">
@@ -759,6 +800,33 @@ class Timemachine {
         }
     }
 
+    // 更新所有时间显示为本地时区
+    updateTimeDisplay() {
+        const timeElements = document.querySelectorAll('.time-ago');
+        timeElements.forEach(element => {
+            const timestamp = parseInt(element.dataset.timestamp);
+            if (timestamp) {
+                element.textContent = this.getTimeAgo(timestamp);
+            }
+        });
+
+        // 更新时间元素
+        const timeElements2 = document.querySelectorAll('.publish-time');
+        timeElements2.forEach(element => {
+            const timestamp = parseInt(element.dataset.timestamp);
+            if (timestamp) {
+                const date = new Date(timestamp * 1000);
+                element.textContent = date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        });
+    }
+
     // 简单的客户端Markdown渲染（支持图片）
     renderSimpleMarkdown(text) {
         return text.replace(/&/g, '&amp;')
@@ -777,7 +845,9 @@ class Timemachine {
 
 // 初始化时光机
 document.addEventListener('DOMContentLoaded', function() {
-    new Timemachine();
+    const timemachine = new Timemachine();
+    // 初始化时更新所有时间显示
+    timemachine.updateTimeDisplay();
 });
 </script>
 
