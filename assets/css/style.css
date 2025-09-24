@@ -1000,6 +1000,47 @@ a:hover {
   transform: translateY(-1px);
 }
 
+/* ===== FLOATING ADD BUTTON ===== */
+.floating-add-btn {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: calc(var(--spacing-lg) + 60px);
+  width: 48px;
+  height: 48px;
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  z-index: 1000;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.floating-add-btn.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.floating-add-btn:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.floating-add-btn:active {
+  transform: translateY(0);
+}
+
 /* ===== SEARCH FORM ENHANCEMENTS ===== */
 .search-form.focused {
   box-shadow: 0 0 0 2px var(--color-accent);
@@ -1067,6 +1108,12 @@ a:hover {
     flex-direction: column;
     gap: var(--spacing-xs);
   }
+
+  /* 平板端浮动按钮调整 */
+  .floating-add-btn {
+    bottom: var(--spacing-md);
+    right: calc(var(--spacing-md) + 50px);
+  }
 }
 
 @media (max-width: 480px) {
@@ -1086,6 +1133,12 @@ a:hover {
 
   .page-date {
     font-size: var(--font-size-xs);
+  }
+
+  /* 移动端浮动按钮调整 */
+  .floating-add-btn {
+    bottom: var(--spacing-sm);
+    right: calc(var(--spacing-sm) + 50px);
   }
 }
 

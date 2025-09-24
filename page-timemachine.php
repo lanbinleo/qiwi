@@ -375,6 +375,13 @@ function renderMarkdown($text) {
       </div>
       <?php endif; ?>
 
+      <!-- 右下角浮动加号按钮 -->
+      <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
+      <button id="floating-add-btn" class="floating-add-btn" title="快速发布说说">
+        +
+      </button>
+      <?php endif; ?>
+
     </article>
   </main>
 
@@ -452,11 +459,31 @@ class Timemachine {
         const goToPublisherBtn = document.getElementById('go-to-publisher');
         if (goToPublisherBtn) {
             goToPublisherBtn.addEventListener('click', () => {
-                document.getElementById('timemachine-publisher').scrollIntoView({ 
-                    behavior: 'smooth' 
+                document.getElementById('timemachine-publisher').scrollIntoView({
+                    behavior: 'smooth'
                 });
             });
         }
+
+        // 右下角浮动加号按钮
+        const floatingAddBtn = document.getElementById('floating-add-btn');
+        if (floatingAddBtn) {
+            floatingAddBtn.addEventListener('click', () => {
+                document.getElementById('timemachine-publisher').scrollIntoView({
+                    behavior: 'smooth'
+                });
+                // 滚动后聚焦到文本框
+                setTimeout(() => {
+                    const textarea = document.getElementById('timemachine-textarea');
+                    if (textarea) {
+                        textarea.focus();
+                    }
+                }, 500);
+            });
+        }
+
+        // 滚动显示/隐藏浮动按钮
+        this.initScrollHandler();
 
         // 加载更多按钮
         const loadMoreBtn = document.getElementById('load-more-btn');
@@ -488,6 +515,46 @@ class Timemachine {
             window.location.href = window.location.pathname;
         }, 1000);
         <?php endif; ?>
+    }
+
+    // 初始化滚动处理
+    initScrollHandler() {
+        const floatingAddBtn = document.getElementById('floating-add-btn');
+        if (!floatingAddBtn) return;
+
+        let ticking = false;
+
+        const updateButtonVisibility = () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+
+            // 当滚动到页面高度的一半时显示按钮
+            if (scrollTop > windowHeight * 0.5) {
+                floatingAddBtn.classList.add('show');
+            } else {
+                floatingAddBtn.classList.remove('show');
+            }
+
+            // 当接近底部时隐藏按钮
+            if (scrollTop + windowHeight > documentHeight - 100) {
+                floatingAddBtn.classList.remove('show');
+            }
+
+            ticking = false;
+        };
+
+        const requestTick = () => {
+            if (!ticking) {
+                requestAnimationFrame(updateButtonVisibility);
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', requestTick, { passive: true });
+
+        // 初始检查
+        updateButtonVisibility();
     }
 
     // 初始化设置Modal
