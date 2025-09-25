@@ -28,6 +28,44 @@ function themeConfig($form)
 
     $form->addInput($sidebarBlock->multiMode());
 
+    // === 新增功能配置 ===
+    // 背景图片配置
+    $backgroundImages = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'backgroundImages',
+        null,
+        null,
+        _t('全局背景图片'),
+        _t('每行填入一个图片URL地址，多个URL将随机选择显示。留空则不显示背景图片。')
+    );
+    $form->addInput($backgroundImages);
+
+    // 背景遮罩透明度
+    $backgroundMask = new Typecho_Widget_Helper_Form_Element_Radio(
+        'backgroundMask',
+        array(
+            '0.3' => _t('浅色遮罩 (30%)'),
+            '0.5' => _t('中等遮罩 (50%)'),
+            '0.7' => _t('深色遮罩 (70%)')
+        ),
+        '0.5',
+        _t('背景遮罩强度'),
+        _t('调整背景图片的遮罩深度，确保文字可读性')
+    );
+    $form->addInput($backgroundMask);
+
+    // 首页头图展示方式
+    $homeThumbnailLayout = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeThumbnailLayout',
+        array(
+            'top' => _t('顶部展示 (传统)'),
+            'side' => _t('左右布局 (图文并排)')
+        ),
+        'top',
+        _t('首页头图展示方式'),
+        _t('选择首页文章列表中头图的展示布局方式')
+    );
+    $form->addInput($homeThumbnailLayout);
+
     // 自定义CSS / JS / 页脚信息 / JS追踪代码
     $customCSS = new Typecho_Widget_Helper_Form_Element_Textarea('customCSS', null, null, _t('自定义 CSS'), _t('在这里填写自定义 CSS 代码'));
     $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS代码'));
@@ -62,6 +100,13 @@ function themeFields($layout) {
               2 => _t('文章页展示')),
         3, _t('展示头图'), _t('是否在文章列表中展示头图'));
 
+    // 头图展示布局（单独文章设置，可覆盖全局设置）
+    $thumbnailLayout = new Typecho_Widget_Helper_Form_Element_Radio('thumbnailLayout',
+        array('default' => _t('跟随全局设置'),
+              'top' => _t('顶部展示'),
+              'side' => _t('左右布局')),
+        'default', _t('头图布局方式'), _t('选择此文章的头图展示布局，留空则跟随全局设置'));
+
     // 是否开启过期保护
     $enableExpiryProtection = new Typecho_Widget_Helper_Form_Element_Radio('enableExpiryProtection',
         array(1 => _t('是'),
@@ -72,11 +117,12 @@ function themeFields($layout) {
     $expiryDuration = new Typecho_Widget_Helper_Form_Element_Text('expiryDuration', null, 180, _t('过期时长'), _t('在这里填写文章的过期时长，例如：30，单位是天'));
 
 	$layout->addItem($isLatex);
-    $layout->addItem($excerpt);
-    $layout->addItem($showThumbnail);
-    $layout->addItem($thumbnail);
-    $layout->addItem($enableExpiryProtection);
-    $layout->addItem($expiryDuration);
+	   $layout->addItem($excerpt);
+	   $layout->addItem($showThumbnail);
+	   $layout->addItem($thumbnail);
+	   $layout->addItem($thumbnailLayout);
+	   $layout->addItem($enableExpiryProtection);
+	   $layout->addItem($expiryDuration);
 }
 
 

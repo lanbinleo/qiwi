@@ -14,6 +14,7 @@
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
+    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/enhanced-style.css'); ?>">
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">
@@ -41,6 +42,31 @@
         <?php echo $this->options->customCSS; ?>
     </style>
     <?php endif; ?>
+
+    <!-- Enhanced Theme Configuration -->
+    <script type="text/javascript">
+        window.qiwiThemeConfig = {
+            backgroundImages: <?php
+                $bgImages = $this->options->backgroundImages;
+                $imageArray = array();
+                if ($bgImages) {
+                    $lines = explode("\n", $bgImages);
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if (!empty($line)) {
+                            $imageArray[] = $line;
+                        }
+                    }
+                }
+                echo json_encode($imageArray);
+            ?>,
+            backgroundMask: <?php echo json_encode($this->options->backgroundMask ?: '0.5'); ?>,
+            homeThumbnailLayout: <?php echo json_encode($this->options->homeThumbnailLayout ?: 'top'); ?>
+        };
+    </script>
+
+    <!-- Enhanced Theme Script -->
+    <script defer src="<?php $this->options->themeUrl('assets/js/enhanced-script.js'); ?>"></script>
 
     <!-- Typecho Header -->
     <?php $this->header(); ?>

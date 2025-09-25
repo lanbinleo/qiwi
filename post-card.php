@@ -21,11 +21,33 @@ if ($wordCount > 1000) {
 }
 ?>
 
-<article class="post-preview post-card" data-href="<?php $this->permalink() ?>" itemscope itemtype="http://schema.org/BlogPosting">
-  <?php
-  $showThumbnail = $this->fields->showThumbnail;
-  $thumbnail = $this->fields->thumbnail;
-  if (($showThumbnail == 1 || $showThumbnail == 3) && !empty($thumbnail)): ?>
+<?php
+// 决定布局方式
+$showThumbnail = $this->fields->showThumbnail;
+$thumbnail = $this->fields->thumbnail;
+$thumbnailLayout = $this->fields->thumbnailLayout; // 文章单独设置
+$globalLayout = $this->options->homeThumbnailLayout; // 全局设置
+
+// 确定最终使用的布局
+$finalLayout = 'top'; // 默认顶部布局
+if ($thumbnailLayout && $thumbnailLayout !== 'default') {
+    $finalLayout = $thumbnailLayout;
+} elseif ($globalLayout) {
+    $finalLayout = $globalLayout;
+}
+
+// 判断是否显示头图
+$shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($thumbnail));
+
+// 设置文章卡片的CSS类
+$cardClasses = 'post-preview post-card';
+if ($shouldShowThumbnail && $finalLayout === 'side') {
+    $cardClasses .= ' layout-side';
+}
+?>
+
+<article class="<?php echo $cardClasses; ?>" data-href="<?php $this->permalink() ?>" itemscope itemtype="http://schema.org/BlogPosting">
+  <?php if ($shouldShowThumbnail && $finalLayout === 'top'): ?>
   <div class="post-thumbnail">
     <a href="<?php $this->permalink() ?>">
       <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
@@ -33,6 +55,15 @@ if ($wordCount > 1000) {
   </div>
   <?php endif; ?>
   
+  <?php if ($shouldShowThumbnail && $finalLayout === 'side'): ?>
+  <div class="post-thumbnail">
+    <a href="<?php $this->permalink() ?>">
+      <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
+    </a>
+  </div>
+  <?php endif; ?>
+  
+  <div class="post-content-wrapper">
   <header class="post-preview-header">
     <h2 class="post-title" itemprop="name headline">
       <a href="<?php $this->permalink() ?>" itemprop="url"><?php $this->title() ?></a>
@@ -100,10 +131,22 @@ if ($wordCount > 1000) {
   </header>
   
   <div class="post-excerpt" itemprop="articleBody">
-    <?php if ($this->fields->excerpt): ?>
-      <?php echo $this->fields->excerpt; ?>
+    <?php
+    // 根据布局调整摘要长度
+    $excerptLength = ($finalLayout === 'side') ? 150 : 200;
+    
+    if ($this->fields->excerpt): ?>
+      <?php
+      // 如果是左右布局且自定义摘要过长，进行裁剪
+      $excerpt = $this->fields->excerpt;
+      if ($finalLayout === 'side' && mb_strlen(strip_tags($excerpt), 'UTF-8') > $excerptLength) {
+          $excerpt = mb_substr(strip_tags($excerpt), 0, $excerptLength, 'UTF-8') . '...';
+      }
+      echo $excerpt;
+      ?>
     <?php else: ?>
-      <?php $this->excerpt(200, '...'); ?>
+      <?php $this->excerpt($excerptLength, '...'); ?>
     <?php endif; ?>
+  </div>
   </div>
 </article>
