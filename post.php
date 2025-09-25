@@ -3,19 +3,20 @@
 
 <div class="container main-wrapper">
   <main class="content-area">
-    <article class="single-post" itemscope itemtype="http://schema.org/BlogPosting">
-      
-      <?php
-      $showThumbnail = $this->fields->showThumbnail;
-      $thumbnail = $this->fields->thumbnail;
-      if (($showThumbnail == 2 || $showThumbnail == 3) && !empty($thumbnail)): ?>
-      <div class="post-thumbnail-single">
-        <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
-      </div>
-      <?php endif; ?>
-      
-      <!-- Post Header -->
-      <header class="post-header">
+    <div class="post-card-container">
+      <article class="single-post" itemscope itemtype="http://schema.org/BlogPosting">
+        
+        <?php
+        $showThumbnail = $this->fields->showThumbnail;
+        $thumbnail = $this->fields->thumbnail;
+        if (($showThumbnail == 2 || $showThumbnail == 3) && !empty($thumbnail)): ?>
+        <div class="post-thumbnail-single">
+          <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title() ?>" loading="lazy">
+        </div>
+        <?php endif; ?>
+        
+        <!-- Post Header -->
+        <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
           <?php $this->title() ?>
         </h1>
@@ -94,38 +95,39 @@
       </div>
       <?php endif; ?>
 
-      <!-- Post Navigation -->
-      <nav class="post-navigation">
-        <div class="nav-previous">
-          <?php $this->thePrev('
-            <div class="nav-post">
-              <span class="nav-label">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="15,18 9,12 15,6"></polyline>
-                </svg>
-                上一篇
-              </span>
-              <span class="nav-title">%s</span>
-            </div>
-          ', ''); ?>
-        </div>
-        
-        <div class="nav-next">
-          <?php $this->theNext('
-            <div class="nav-post">
-              <span class="nav-label">
-                下一篇
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9,18 15,12 9,6"></polyline>
-                </svg>
-              </span>
-              <span class="nav-title">%s</span>
-            </div>
-          ', ''); ?>
-        </div>
-      </nav>
+        <!-- Post Navigation -->
+        <nav class="post-navigation">
+          <div class="nav-next">
+            <?php $this->theNext('
+              <div class="nav-post">
+                <span class="nav-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15,18 9,12 15,6"></polyline>
+                  </svg>
+                  下一篇
+                </span>
+                <span class="nav-title">%s</span>
+              </div>
+            ', ''); ?>
+          </div>
+          
+          <div class="nav-previous">
+            <?php $this->thePrev('
+              <div class="nav-post">
+                <span class="nav-label nav-label-right">
+                  上一篇
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9,18 15,12 9,6"></polyline>
+                  </svg>
+                </span>
+                <span class="nav-title">%s</span>
+              </div>
+            ', ''); ?>
+          </div>
+        </nav>
 
-    </article>
+      </article>
+    </div>
 
     <!-- Comments Section -->
     <div class="comments-section">
