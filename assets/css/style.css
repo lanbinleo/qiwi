@@ -1296,7 +1296,9 @@ a:hover {
 }
 
 .nav-post {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: all 0.2s ease;
@@ -1305,14 +1307,24 @@ a:hover {
   width: 100%;
   box-sizing: border-box;
   min-height: 80px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .nav-post:hover {
   color: var(--color-text-primary);
   background-color: var(--color-bg-secondary);
+  text-decoration: none;
+}
+
+/* Ensure proper link styling for the entire button area */
+.nav-post:link,
+.nav-post:visited {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.nav-post:hover,
+.nav-post:active {
+  color: var(--color-text-primary);
   text-decoration: none;
 }
 
@@ -1338,6 +1350,31 @@ a:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  color: var(--color-accent);
+}
+
+.nav-title:hover {
+  text-decoration: underline;
+}
+
+/* Disabled navigation state */
+.nav-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.nav-disabled:hover {
+  background-color: var(--color-bg-tertiary);
+  transform: none;
+}
+
+.nav-disabled .nav-title {
+  color: var(--color-text-muted);
+}
+
+.nav-disabled .nav-label {
+  color: var(--color-text-muted);
 }
 
 /* ===== ENHANCED SIDEBAR STYLES ===== */

@@ -98,31 +98,81 @@
         <!-- Post Navigation -->
         <nav class="post-navigation">
           <div class="nav-next">
-            <?php $this->theNext('
-              <div class="nav-post">
+            <?php
+            // 获取下一篇文章
+            $nextPost = $this->db->fetchRow($this->select()->where(
+              'table.contents.created > ? AND table.contents.created < ?',
+              $this->created,
+              $this->options->time
+            )
+              ->where('table.contents.status = ?', 'publish')
+              ->where('table.contents.type = ?', $this->type)
+              ->where("table.contents.password IS NULL OR table.contents.password = ''")
+              ->order('table.contents.created', Typecho_Db::SORT_ASC)
+              ->limit(1));
+            
+            if ($nextPost):
+              $nextPost = $this->filter($nextPost);
+            ?>
+              <a href="<?php echo $nextPost['permalink']; ?>" class="nav-post" title="<?php echo htmlspecialchars($nextPost['title']); ?>">
                 <span class="nav-label">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15,18 9,12 15,6"></polyline>
                   </svg>
                   下一篇
                 </span>
-                <span class="nav-title">%s</span>
+                <span class="nav-title"><?php echo htmlspecialchars($nextPost['title']); ?></span>
+              </a>
+            <?php else: ?>
+              <div class="nav-post nav-disabled">
+                <span class="nav-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15,18 9,12 15,6"></polyline>
+                  </svg>
+                  下一篇
+                </span>
+                <span class="nav-title">没有更多文章</span>
               </div>
-            ', ''); ?>
+            <?php endif; ?>
           </div>
           
           <div class="nav-previous">
-            <?php $this->thePrev('
-              <div class="nav-post">
+            <?php
+            // 获取上一篇文章
+            $prevPost = $this->db->fetchRow($this->select()->where(
+              'table.contents.created < ? AND table.contents.created < ?',
+              $this->created,
+              $this->options->time
+            )
+              ->where('table.contents.status = ?', 'publish')
+              ->where('table.contents.type = ?', $this->type)
+              ->where("table.contents.password IS NULL OR table.contents.password = ''")
+              ->order('table.contents.created', Typecho_Db::SORT_DESC)
+              ->limit(1));
+            
+            if ($prevPost):
+              $prevPost = $this->filter($prevPost);
+            ?>
+              <a href="<?php echo $prevPost['permalink']; ?>" class="nav-post" title="<?php echo htmlspecialchars($prevPost['title']); ?>">
                 <span class="nav-label nav-label-right">
                   上一篇
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9,18 15,12 9,6"></polyline>
                   </svg>
                 </span>
-                <span class="nav-title">%s</span>
+                <span class="nav-title"><?php echo htmlspecialchars($prevPost['title']); ?></span>
+              </a>
+            <?php else: ?>
+              <div class="nav-post nav-disabled">
+                <span class="nav-label nav-label-right">
+                  上一篇
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9,18 15,12 9,6"></polyline>
+                  </svg>
+                </span>
+                <span class="nav-title">没有更多文章</span>
               </div>
-            ', ''); ?>
+            <?php endif; ?>
           </div>
         </nav>
 
@@ -143,3 +193,4 @@
 
 </main>
 <?php $this->need('footer.php'); ?>
+
