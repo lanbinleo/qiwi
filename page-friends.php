@@ -100,7 +100,7 @@ body.friends-page .container {
                 </svg>
                 友情链接
             </h1>
-            <p class="page-description">感谢这些优秀的朋友们，让我们一起构建更美好的网络世界</p>
+            <p class="page-description">我的好朋友们，感谢你们一路走来的陪伴！</p>
         </div>
 
         <div class="friends-container">
