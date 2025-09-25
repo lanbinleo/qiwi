@@ -1,5 +1,58 @@
 # Qiwi Theme Changelog
 
+## [1.1.1-alpha] - 2025-09-25
+### Major Feature Update
+
+This alpha release introduces significant enhancements, including the "Timemachine" feature for interactive commenting, a redesigned post layout, improved navigation, and extensive theme customization options.
+
+### Added
+- **Timemachine Feature**: A new page template for posting and viewing comments with Markdown support and a floating action button for quick submissions.
+- **Enhanced Post Layout**: Redesigned single post layout with a new card container for better readability.
+- **Floating Navigation**: Added a floating navigation bar that appears on scroll for improved user experience on long pages.
+- **Theme Options**:
+  - Background image configuration.
+  - New layout options for greater customization.
+  - Custom footer information and tracking code options.
+- **Post Card Component**: Created a reusable post card component displaying metadata and estimated reading time.
+- **Traditional Pagination**: Implemented standard numbered pagination for archive pages.
+
+### Changed
+- **Post Navigation**: Enhanced previous/next post links with a disabled state and improved styling.
+- **Sidebar Comments Widget**: Upgraded the recent comments widget to support filtering by multiple page slugs.
+- **Floating Navigation Logic**: Improved responsiveness and visibility logic for the floating navigation bar.
+- **Stylesheet Path**: Updated the header to use the correct stylesheet path within the `assets` directory.
+
+### Fixed
+- **Floating Navigation Visibility**: Corrected a bug where the floating navigation would not appear correctly during scrolling.
+- **Comment Submission**: Improved the Timemachine comment submission process with better debugging and token validation.
+- **Recent Comments Filtering**: The recent comments widget now correctly excludes comments from specific pages and limits the display count.
+- **Timemachine UI**: Updated the SVG stroke color and button design for better visibility.
+- **Thumbnail Display**: Corrected the default value for the `showThumbnail` option to ensure thumbnails are displayed correctly.
+
+### Removed
+- **AJAX Load More**: Removed the "Load More" button in favor of traditional pagination for improved accessibility and SEO.
+
+## [1.0.2-alpha] - 2025-09-06
+### Pre-release Updates
+
+This alpha release includes enhancements to excerpt handling, thumbnail display, user editing capabilities, and licensing updates.
+
+### Added
+- Support for custom post excerpts in theme
+- Enhanced thumbnail display options and styles for posts
+- Edit button for logged-in users on post and archive pages
+- Options for thumbnail display and expiry properties in theme fields
+- LICENSE and SECURITY files with copyright and reporting information
+
+### Fixed
+- Excerpt display logic to use the correct method for rendering
+- Theme version updated to 1.0.1 in footer and index files
+- Theme version updated to 1.0.0 and added version.php for dynamic version display
+- License header corrected to include "MIT LICENSE"
+
+### Changed
+- Added version name "Qiwer" to the initial stable release in CHANGELOG
+
 ## [1.0.0] - 2025-09-06
 ### Initial Stable Release
 
@@ -40,23 +93,3 @@ This is the first stable release of the Qiwi theme for Typecho, transitioning fr
 
 This release establishes Qiwi as a robust, feature-complete theme for Typecho users seeking a modern dark interface.
 
-## [1.0.2-alpha] - 2025-09-06
-### Pre-release Updates
-
-This alpha release includes enhancements to excerpt handling, thumbnail display, user editing capabilities, and licensing updates.
-
-### Added
-- Support for custom post excerpts in theme
-- Enhanced thumbnail display options and styles for posts
-- Edit button for logged-in users on post and archive pages
-- Options for thumbnail display and expiry properties in theme fields
-- LICENSE and SECURITY files with copyright and reporting information
-
-### Fixed
-- Excerpt display logic to use the correct method for rendering
-- Theme version updated to 1.0.1 in footer and index files
-- Theme version updated to 1.0.0 and added version.php for dynamic version display
-- License header corrected to include "MIT LICENSE"
-
-### Changed
-- Added version name "Qiwer" to the initial stable release in CHANGELOG
