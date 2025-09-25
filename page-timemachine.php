@@ -62,34 +62,7 @@ $totalResult = $db->fetchRow($totalSelect);
 $total = $totalResult ? $totalResult['total'] : 0;
 $totalPages = ceil($total / $pageSize);
 
-// Ajax请求处理
-if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
-    header('Content-Type: application/json');
-
-    $result = [
-        'success' => true,
-        'data' => [],
-        'pagination' => [
-            'current' => $currentPage,
-            'total' => $totalPages,
-            'hasNext' => $currentPage < $totalPages
-        ]
-    ];
-
-    foreach ($comments as $comment) {
-        $result['data'][] = [
-            'id' => $comment['coid'],
-            'content' => $comment['text'],
-            'created' => $comment['created'],
-            'date' => date('Y年m月d日 H:i', $comment['created']),
-            'date_timestamp' => $comment['created'], // 添加时间戳供前端使用
-            'authorName' => $authorName
-        ];
-    }
-
-    echo json_encode($result);
-    exit;
-}
+// 移除Ajax处理逻辑，现在使用传统分页导航
 
 // Markdown渲染函数（支持图片）
 function renderMarkdown($text) {
@@ -227,33 +200,93 @@ function renderMarkdown($text) {
           <?php endforeach; ?>
         </div>
         
-        <!-- 分页加载 -->
+        <!-- 分页导航 -->
         <?php if ($totalPages > 1): ?>
         <div class="timemachine-pagination">
-          <?php if ($currentPage < $totalPages): ?>
-          <button id="load-more-btn" class="load-more-btn" data-page="<?php echo $currentPage + 1; ?>">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6,9 12,15 18,9"></polyline>
-            </svg>
-            加载更多说说
-            <span class="loading-text" style="display: none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="loading-icon">
-                <line x1="12" y1="2" x2="12" y2="6"></line>
-                <line x1="12" y1="18" x2="12" y2="22"></line>
-                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                <line x1="2" y1="12" x2="6" y2="12"></line>
-                <line x1="18" y1="12" x2="22" y2="12"></line>
-                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+          <div class="pagination-nav">
+            <?php
+            $baseUrl = $this->permalink;
+            
+            // 上一页
+            if ($currentPage > 1): ?>
+            <a href="<?php echo $baseUrl . '?page=' . ($currentPage - 1); ?>" class="pagination-btn prev-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15,18 9,12 15,6"></polyline>
               </svg>
-              加载中...
+              上一页
+            </a>
+            <?php else: ?>
+            <span class="pagination-btn prev-btn disabled">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15,18 9,12 15,6"></polyline>
+              </svg>
+              上一页
             </span>
-          </button>
-          <?php endif; ?>
+            <?php endif; ?>
+            
+            <!-- 页码列表 -->
+            <div class="pagination-numbers">
+              <?php
+              // 计算显示的页码范围
+              $startPage = max(1, $currentPage - 2);
+              $endPage = min($totalPages, $currentPage + 2);
+              
+              // 如果是前几页，显示更多后面的页码
+              if ($currentPage <= 3) {
+                $endPage = min($totalPages, 5);
+              }
+              
+              // 如果是后几页，显示更多前面的页码
+              if ($currentPage > $totalPages - 3) {
+                $startPage = max(1, $totalPages - 4);
+              }
+              
+              // 显示第一页
+              if ($startPage > 1): ?>
+                <a href="<?php echo $baseUrl . '?page=1'; ?>" class="pagination-number">1</a>
+                <?php if ($startPage > 2): ?>
+                  <span class="pagination-ellipsis">...</span>
+                <?php endif; ?>
+              <?php endif; ?>
+              
+              <!-- 显示页码范围 -->
+              <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                <?php if ($i == $currentPage): ?>
+                  <span class="pagination-number current"><?php echo $i; ?></span>
+                <?php else: ?>
+                  <a href="<?php echo $baseUrl . '?page=' . $i; ?>" class="pagination-number"><?php echo $i; ?></a>
+                <?php endif; ?>
+              <?php endfor; ?>
+              
+              <!-- 显示最后一页 -->
+              <?php if ($endPage < $totalPages): ?>
+                <?php if ($endPage < $totalPages - 1): ?>
+                  <span class="pagination-ellipsis">...</span>
+                <?php endif; ?>
+                <a href="<?php echo $baseUrl . '?page=' . $totalPages; ?>" class="pagination-number"><?php echo $totalPages; ?></a>
+              <?php endif; ?>
+            </div>
+            
+            <!-- 下一页 -->
+            <?php if ($currentPage < $totalPages): ?>
+            <a href="<?php echo $baseUrl . '?page=' . ($currentPage + 1); ?>" class="pagination-btn next-btn">
+              下一页
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9,18 15,12 9,6"></polyline>
+              </svg>
+            </a>
+            <?php else: ?>
+            <span class="pagination-btn next-btn disabled">
+              下一页
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9,18 15,12 9,6"></polyline>
+              </svg>
+            </span>
+            <?php endif; ?>
+          </div>
           
           <div class="pagination-info">
-            第 <?php echo $currentPage; ?> 页 / 共 <?php echo $totalPages; ?> 页
+            第 <?php echo $currentPage; ?> 页 / 共 <?php echo $totalPages; ?> 页 (共 <?php echo $total; ?> 条说说)
           </div>
         </div>
         <?php endif; ?>
@@ -485,11 +518,7 @@ class Timemachine {
         // 滚动显示/隐藏浮动按钮
         this.initScrollHandler();
 
-        // 加载更多按钮
-        const loadMoreBtn = document.getElementById('load-more-btn');
-        if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', this.loadMore.bind(this));
-        }
+        // 移除加载更多功能，现在使用传统分页导航
 
         // 设置Modal相关
         this.initSettingsModal();
@@ -771,83 +800,7 @@ class Timemachine {
         `;
     }
 
-    // 加载更多功能
-    async loadMore() {
-        const btn = document.getElementById('load-more-btn');
-        const page = parseInt(btn.dataset.page);
-        const loadingText = btn.querySelector('.loading-text');
-        const normalContent = btn.childNodes[0];
-        
-        btn.disabled = true;
-        loadingText.style.display = 'inline-flex';
-        normalContent.style.display = 'none';
-        
-        try {
-            const response = await fetch(`<?php echo $this->permalink(); ?>?ajax=1&page=${page}`);
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const timemachineList = document.getElementById('timemachine-list');
-                
-                data.data.forEach(item => {
-                    const itemHTML = this.createTimemachineItem(item);
-                    timemachineList.insertAdjacentHTML('beforeend', itemHTML);
-                });
-                
-                if (data.pagination.hasNext) {
-                    btn.dataset.page = data.pagination.current + 1;
-                    btn.disabled = false;
-                    loadingText.style.display = 'none';
-                    normalContent.style.display = 'inline';
-                } else {
-                    btn.style.display = 'none';
-                }
-            }
-        } catch (error) {
-            console.error('加载失败:', error);
-            btn.disabled = false;
-            loadingText.style.display = 'none';
-            normalContent.style.display = 'inline';
-            normalContent.textContent = '加载失败，点击重试';
-        }
-    }
-
-    // 创建说说项目HTML
-    createTimemachineItem(item) {
-        const timeAgo = this.getTimeAgo(item.created);
-        return `
-        <article class="timemachine-item" data-id="${item.id}">
-            <div class="timemachine-meta">
-                <div class="author-avatar">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                </div>
-                <div class="meta-info">
-                    <span class="author-name">${item.authorName}</span>
-                    <time class="publish-time" datetime="${new Date(item.created * 1000).toISOString()}">
-                        ${item.date}
-                    </time>
-                </div>
-            </div>
-            
-            <div class="timemachine-text">
-                ${this.renderSimpleMarkdown(item.content)}
-            </div>
-            
-            <div class="timemachine-actions">
-                <span class="action-time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12,6 12,12 16,14"></polyline>
-                    </svg>
-                    ${timeAgo}
-                </span>
-            </div>
-        </article>
-        `;
-    }
+    // 移除了加载更多功能和相关方法，现在使用传统分页导航
 
     // 简单的相对时间计算
     getTimeAgo(timestamp) {
