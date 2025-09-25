@@ -32,25 +32,37 @@
         最近评论
     </h3>
     <ul class="widget-list">
-        <?php 
-        // 获取说说页面的cid（你需要替换为实际的页面缩略名）
-        $shuoshuoSlug = 'talk'; // 你的说说页面缩略名
+        <?php
+        // 获取说说页面的cid - 支持多个可能的缩略名
+        $possibleSlugs = ['talk', 'shuoshuo', 'moment', 'moments', '说说', 'tm']; // 添加可能的说说页面缩略名
         
         // 获取数据库实例
         $db = \Typecho\Db::get();
-        $shuoshuoCid = $db->fetchObject($db->select('cid')->from('table.contents')->where('slug = ?', $shuoshuoSlug));
-        // echo $shuoshuoCid ? $shuoshuoCid->cid : '说说页面未找到';   
-        $excludeCid = $shuoshuoCid ? $shuoshuoCid->cid : 0;
+        $excludeCid = null;
         
-        // 创建评论widget，排除说说页面的评论
-        \Widget\Comments\Recent::alloc('pageSize=5&ignoreAuthor=false')->to($comments);
+        // 尝试查找说说页面
+        foreach ($possibleSlugs as $slug) {
+            try {
+                $shuoshuoCid = $db->fetchObject($db->select('cid')->from('table.contents')->where('slug = ?', $slug));
+                if ($shuoshuoCid && isset($shuoshuoCid->cid)) {
+                    $excludeCid = $shuoshuoCid->cid;
+                    break; // 找到了就停止查找
+                }
+            } catch (Exception $e) {
+                // 继续查找下一个可能的slug
+                continue;
+            }
+        }
+        
+        // 创建评论widget - 显示所有评论包括管理员的评论
+        \Widget\Comments\Recent::alloc('pageSize=10&ignoreAuthor=0')->to($comments);
         ?>
         
         <?php $commentCount = 0; ?>
         <?php while ($comments->next()): ?>
-            <?php 
-            // 跳过说说页面的评论
-            if ($comments->cid == $excludeCid) {
+            <?php
+            // 只有当找到有效的说说页面cid时才进行过滤
+            if ($excludeCid !== null && $comments->cid == $excludeCid) {
                 continue;
             }
             
