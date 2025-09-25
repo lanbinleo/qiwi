@@ -26,7 +26,7 @@
         // 创建浮动导航栏
         createFloatingNav();
         
-        // 监听滚动事件
+        // 监听滚动事件 - 使用更频繁的监听来提高响应性
         window.addEventListener('scroll', handleScroll, { passive: true });
         
         // 监听窗口大小变化
@@ -118,21 +118,23 @@
     function handleScroll() {
         if (!floatingNav) return;
 
-        clearTimeout(scrollTimer);
-        scrollTimer = setTimeout(() => {
-            const currentScrollY = window.pageYOffset;
-            const headerHeight = document.querySelector('.site-header')?.offsetHeight || 100;
+        const currentScrollY = window.pageYOffset;
+        const header = document.querySelector('.site-header');
+        
+        // 计算导航栏距离顶部的距离
+        const headerRect = header ? header.getBoundingClientRect() : null;
+        const headerTop = headerRect ? headerRect.top : -100;
+        
+        // 极其灵敏的显示逻辑：
+        // 当导航栏稍微开始消失时（top < -5px）立即显示浮动导航栏
+        // 当导航栏重新完全出现时（top >= -5px）立即隐藏浮动导航栏
+        if (headerTop < -5) {
+            showFloatingNav();
+        } else {
+            hideFloatingNav();
+        }
 
-            // 判断是否显示浮动导航栏
-            // 当滚动超过导航栏高度时显示，接近顶部时隐藏
-            if (currentScrollY > headerHeight + 30) {
-                showFloatingNav();
-            } else {
-                hideFloatingNav();
-            }
-
-            lastScrollY = currentScrollY;
-        }, 10);
+        lastScrollY = currentScrollY;
     }
 
     /**
@@ -141,6 +143,7 @@
     function showFloatingNav() {
         if (floatingNav && !floatingNav.classList.contains('show')) {
             floatingNav.classList.add('show');
+            document.body.classList.add('floating-nav-active');
         }
     }
 
@@ -150,6 +153,7 @@
     function hideFloatingNav() {
         if (floatingNav && floatingNav.classList.contains('show')) {
             floatingNav.classList.remove('show');
+            document.body.classList.remove('floating-nav-active');
         }
     }
 

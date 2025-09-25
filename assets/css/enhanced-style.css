@@ -439,3 +439,15 @@ body.has-background .site-footer {
     width: 240px;
   }
 }
+
+/* ===== 浮动导航栏激活时的布局调整 ===== */
+body.floating-nav-active .sidebar {
+  top: calc(var(--spacing-lg) + 60px); /* 原来的top值 + 浮动导航栏高度 */
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  body.floating-nav-active .sidebar {
+    top: calc(var(--spacing-lg) + 50px); /* 移动端浮动导航栏高度是50px */
+  }
+}
