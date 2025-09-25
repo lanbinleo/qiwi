@@ -69,10 +69,10 @@
 
 /* ===== 友链分类样式 ===== */
 .friends-category {
-    background: rgba(22, 22, 22, 0.8);
+    /* background: rgba(22, 22, 22, 0.8); */
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(217, 159, 0, 0.1);
+    /* border: 1px solid rgba(217, 159, 0, 0.1); */
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-xl);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
