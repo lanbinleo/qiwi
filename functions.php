@@ -76,6 +76,40 @@ function themeConfig($form)
     $form->addInput($customJS);
     $form->addInput($footerInfo);
     $form->addInput($trackingCode);
+
+    // === 友链配置 ===
+    $friendsData = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'friendsData',
+        null,
+        null,
+        _t('友链数据 (JSON格式)'),
+        _t('在这里填入友链数据，格式为JSON。每个分类包含多个友链信息。<br><br>示例格式：<br><pre>{
+ "技术": [
+   {
+     "name": "网站名称",
+     "url": "https://example.com",
+     "avatar": "https://example.com/avatar.jpg",
+     "description": "网站描述",
+     "tags": [
+       {"name": "技术", "color": "#d99f00"},
+       {"name": "博客", "color": "#007cba"}
+     ]
+   }
+ ],
+ "推荐": [
+   {
+     "name": "推荐网站",
+     "url": "https://recommend.com",
+     "avatar": "https://recommend.com/avatar.jpg",
+     "description": "推荐网站描述",
+     "tags": [
+       {"name": "推荐", "color": "#46b450"}
+     ]
+   }
+ ]
+}</pre>')
+    );
+    $form->addInput($friendsData);
 }
 
 	

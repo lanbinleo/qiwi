@@ -15,6 +15,9 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/enhanced-style.css'); ?>">
+    <?php if ($this->is('page', 'friends')): ?>
+    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/friends-style.css'); ?>">
+    <?php endif; ?>
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">

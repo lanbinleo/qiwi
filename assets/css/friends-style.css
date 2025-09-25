@@ -1,0 +1,600 @@
+/* ============================
+   QIWI THEME - FRIENDS PAGE STYLES
+   友链页面专用样式
+   ============================ */
+
+/* ===== 友链页面基础样式 ===== */
+.friends-page {
+    min-height: calc(100vh - 200px);
+    padding: var(--spacing-xl) 0;
+    position: relative;
+}
+
+.friends-page .container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== 页面头部样式 ===== */
+.friends-page .page-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xxl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border);
+    background: rgba(22, 22, 22, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(217, 159, 0, 0.1);
+}
+
+.friends-page .page-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-primary);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.friends-page .page-title svg {
+    color: var(--color-accent);
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(217, 159, 0, 0.3));
+}
+
+.friends-page .page-description {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: var(--line-height-base);
+    opacity: 0.9;
+}
+
+/* ===== 友链容器样式 ===== */
+.friends-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xxl);
+}
+
+/* ===== 友链分类样式 ===== */
+.friends-category {
+    background: rgba(22, 22, 22, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(217, 159, 0, 0.1);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xl);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.friends-category::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.friends-category:hover {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.friends-category:hover::before {
+    opacity: 1;
+}
+
+/* ===== 分类头部样式 ===== */
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--color-accent);
+    position: relative;
+}
+
+.category-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.5rem;
+    color: var(--color-text-primary);
+    margin: 0;
+    font-weight: 600;
+}
+
+.category-count {
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+    color: var(--color-bg-primary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.category-count:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.count-number {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* ===== 友链网格布局 ===== */
+.friends-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+/* ===== 友链卡片样式 ===== */
+.friend-card {
+    background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
+    border: 1px solid rgba(217, 159, 0, 0.2);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 120px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.friend-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(217, 159, 0, 0.1) 0%, rgba(217, 159, 0, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.friend-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(217, 159, 0, 0.2);
+    border-color: var(--color-accent);
+    background: linear-gradient(135deg, #161616 0%, #1f1f1f 100%);
+}
+
+.friend-card:hover::before {
+    opacity: 1;
+}
+
+.friend-card:hover .friend-name {
+    color: var(--color-accent);
+    text-shadow: 0 2px 8px rgba(217, 159, 0, 0.3);
+}
+
+/* ===== 友链头像样式 ===== */
+.friend-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.friend-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.3s ease;
+    filter: brightness(1.1) contrast(1.1);
+}
+
+/* ===== 友链标签Badge样式 ===== */
+.friend-tag-badge {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    padding: 4px 8px;
+    border-radius: var(--border-radius-lg);
+    font-size: 10px;
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.friend-tag-badge:hover {
+    transform: translateY(-1px) scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== 友链内容样式 ===== */
+.friend-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+    position: relative;
+}
+
+.friend-info {
+    flex: 1;
+    position: relative;
+}
+
+.friend-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-xs) 0;
+    transition: all 0.3s ease;
+    line-height: 1.3;
+}
+
+.friend-description {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-base);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+}
+
+.friend-card:hover .friend-description {
+    opacity: 1;
+}
+
+/* ===== 友链标签样式 ===== */
+.friend-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-top: auto;
+    position: relative;
+}
+
+.friend-tag {
+    padding: 4px 10px;
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.friend-tag::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.friend-tag:hover::before {
+    left: 100%;
+}
+
+.friend-tag:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== 空状态样式 ===== */
+.no-friends {
+    text-align: center;
+    padding: var(--spacing-xxl);
+    color: var(--color-text-muted);
+    background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
+    border-radius: var(--border-radius-lg);
+    border: 2px dashed var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.no-friends:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.no-friends p {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+}
+
+/* ===== 响应式设计 ===== */
+
+/* 平板端 */
+@media (max-width: 1024px) {
+    .friends-grid {
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: var(--spacing-md);
+    }
+
+    .friend-card {
+        min-height: 110px;
+        padding: var(--spacing-md);
+    }
+
+    .friend-avatar {
+        width: 55px;
+        height: 55px;
+    }
+
+    .friend-name {
+        font-size: 1.1rem;
+    }
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+    .friends-page {
+        padding: var(--spacing-lg) 0;
+    }
+
+    .friends-page .page-header {
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+    }
+
+    .friends-page .page-title {
+        font-size: 2rem;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .friends-page .page-title svg {
+        order: -1;
+    }
+
+    .friends-page .page-description {
+        font-size: var(--font-size-base);
+    }
+
+    .friends-container {
+        gap: var(--spacing-xl);
+    }
+
+    .friends-category {
+        padding: var(--spacing-lg);
+    }
+
+    .category-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    .category-title {
+        font-size: 1.25rem;
+    }
+
+    .friends-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .friend-card {
+        padding: var(--spacing-md);
+        min-height: 100px;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .friend-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+        width: 100%;
+    }
+
+    .friend-avatar {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 0;
+    }
+
+    .friend-name {
+        font-size: 1.1rem;
+    }
+
+    .friend-description {
+        font-size: var(--font-size-sm);
+        -webkit-line-clamp: 3;
+    }
+
+    .friend-tag-badge {
+        top: var(--spacing-xs);
+        right: var(--spacing-xs);
+        font-size: 9px;
+        padding: 3px 6px;
+    }
+}
+
+/* 小屏端 */
+@media (max-width: 480px) {
+    .friends-page .page-title {
+        font-size: 1.75rem;
+    }
+
+    .friends-page .page-header {
+        padding: var(--spacing-md);
+    }
+
+    .friends-category {
+        padding: var(--spacing-md);
+    }
+
+    .friend-card {
+        padding: var(--spacing-sm);
+        min-height: 90px;
+    }
+
+    .friend-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .friend-name {
+        font-size: 1rem;
+    }
+
+    .friend-description {
+        font-size: var(--font-size-xs);
+        -webkit-line-clamp: 2;
+    }
+
+    .friend-tag-badge {
+        font-size: 8px;
+        padding: 2px 4px;
+    }
+
+    .category-title {
+        font-size: 1.125rem;
+    }
+}
+
+/* ===== 暗色主题优化 ===== */
+@media (prefers-color-scheme: dark) {
+    .friend-card {
+        background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
+        border-color: rgba(217, 159, 0, 0.25);
+    }
+
+    .friend-card:hover {
+        background: linear-gradient(135deg, #161616 0%, #1f1f1f 100%);
+        border-color: var(--color-accent);
+    }
+}
+
+/* ===== 动画增强 ===== */
+@keyframes friendCardFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+}
+
+.friend-card:hover {
+    animation: friendCardFloat 2s ease-in-out infinite;
+}
+
+/* ===== 加载动画 ===== */
+.friends-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.friends-loading .friend-card {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ===== 辅助功能支持 ===== */
+@media (prefers-reduced-motion: reduce) {
+    .friends-category,
+    .friend-card,
+    .friend-avatar,
+    .friend-tag,
+    .category-count {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .friend-card:hover {
+        transform: none !important;
+    }
+}
+
+/* ===== 高对比度模式 ===== */
+@media (prefers-contrast: high) {
+    .friends-category {
+        border: 2px solid var(--color-text-primary);
+    }
+
+    .friend-card {
+        border: 2px solid var(--color-border);
+    }
+
+    .friend-tag {
+        border: 1px solid var(--color-text-primary);
+    }
+}
+
+/* ===== 打印样式 ===== */
+@media print {
+    .friends-page .page-header,
+    .friends-category,
+    .friend-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+        background: #fff !important;
+    }
+
+    .friend-card {
+        page-break-inside: avoid;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    .friend-tag-badge {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        border: 1px solid #000;
+    }
+
+    .friend-name,
+    .friend-description,
+    .category-title {
+        color: #000 !important;
+    }
+}
