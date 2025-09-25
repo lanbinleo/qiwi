@@ -124,16 +124,10 @@
             const headerHeight = document.querySelector('.site-header')?.offsetHeight || 100;
 
             // 判断是否显示浮动导航栏
-            if (currentScrollY > headerHeight + 50) {
-                if (currentScrollY < lastScrollY) {
-                    // 向上滚动时显示
-                    showFloatingNav();
-                } else {
-                    // 向下滚动时隐藏
-                    hideFloatingNav();
-                }
+            // 当滚动超过导航栏高度时显示，接近顶部时隐藏
+            if (currentScrollY > headerHeight + 30) {
+                showFloatingNav();
             } else {
-                // 接近顶部时隐藏
                 hideFloatingNav();
             }
 
