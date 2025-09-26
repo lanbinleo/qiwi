@@ -24,10 +24,10 @@
     margin-bottom: var(--spacing-xxl);
     padding: var(--spacing-xl);
     border-radius: var(--border-radius-lg);
-    background: rgba(22, 22, 22, 0.8);
+    background: rgba(var(--color-bg-secondary-rgb), 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(217, 159, 0, 0.1);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.1);
     box-shadow: var(--shadow-sm);
 }
 
@@ -40,13 +40,13 @@
     margin-bottom: var(--spacing-md);
     color: var(--color-text-primary);
     font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 4px rgba(var(--color-bg-primary-rgb), 0.3);
 }
 
 .friends-page .page-title svg {
     color: var(--color-accent);
     flex-shrink: 0;
-    filter: drop-shadow(0 2px 4px rgba(217, 159, 0, 0.3));
+    filter: drop-shadow(0 2px 4px rgba(var(--color-accent-rgb), 0.3));
 }
 
 .friends-page .page-description {
@@ -73,7 +73,7 @@
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    background: rgba(22, 22, 22, 0.8);
+    background: rgba(var(--color-bg-secondary-rgb), 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
 }
@@ -153,8 +153,8 @@
 
 /* ===== 友链卡片样式 ===== */
 .friend-card {
-    background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
-    border: 1px solid rgba(217, 159, 0, 0.2);
+    background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.2);
     border-radius: var(--border-radius-md);
     padding: var(--spacing-lg);
     cursor: pointer;
@@ -164,7 +164,7 @@
     align-items: center;
     min-height: 120px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--color-bg-primary-rgb), 0.4);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }
@@ -176,13 +176,13 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(217, 159, 0, 0.05) 0%, rgba(217, 159, 0, 0.02) 100%);
+    background: linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.05) 0%, rgba(var(--color-accent-rgb), 0.02) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .friend-card:hover {
-    background: linear-gradient(135deg, #161616 0%, #1f1f1f 100%);
+    background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
 }
 
 .friend-card:hover::before {
@@ -191,7 +191,7 @@
 
 .friend-card:hover .friend-name {
     color: var(--color-accent);
-    text-shadow: 0 2px 8px rgba(217, 159, 0, 0.3);
+    text-shadow: 0 2px 8px rgba(var(--color-accent-rgb), 0.3);
 }
 
 /* 平行四边形光条效果 */
@@ -202,7 +202,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(45deg, transparent 40%, rgba(217, 159, 0, 0.3) 50%, transparent 60%);
+    background: linear-gradient(45deg, transparent 40%, rgba(var(--color-accent-rgb), 0.3) 50%, transparent 60%);
     transform: translateX(-100%) skewX(-15deg);
     opacity: 0;
     transition: all 0.6s ease;
@@ -222,7 +222,7 @@
     overflow: hidden;
     flex-shrink: 0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(var(--color-bg-primary-rgb), 0.3);
     position: relative;
     border: 3px solid var(--color-accent);
 }
@@ -237,7 +237,7 @@
     height: 100%;
     object-fit: cover;
     transition: all 0.3s ease;
-    filter: brightness(1.1) contrast(1.1);
+    filter: brightness(calc(var(--brightness-factor, 1.1))) contrast(calc(var(--contrast-factor, 1.1)));
 }
 
 /* ===== 友链内容样式 ===== */
@@ -307,7 +307,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--color-text-primary-rgb), 0.2), transparent);
     transition: left 0.5s ease;
 }
 
@@ -318,7 +318,7 @@
 .friend-tag:hover {
     transform: translateY(-2px) scale(1.05);
     box-shadow: var(--shadow-md);
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(var(--color-text-primary-rgb), 0.3);
 }
 
 /* ===== 空状态样式 ===== */
@@ -501,10 +501,10 @@
 
 /* ===== 友链评论样式 ===== */
 .friends-comments-section {
-    background: rgba(22, 22, 22, 0.8);
+    background: rgba(var(--color-bg-secondary-rgb), 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(217, 159, 0, 0.1);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.1);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-xl);
     margin-top: var(--spacing-xxl);
@@ -578,8 +578,8 @@
 
 /* 评论项样式 */
 .comment-item {
-    background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
-    border: 1px solid rgba(217, 159, 0, 0.2);
+    background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.2);
     border-radius: var(--border-radius-md);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-md);
@@ -601,7 +601,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(217, 159, 0, 0.05) 0%, rgba(217, 159, 0, 0.02) 100%);
+    background: linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.05) 0%, rgba(var(--color-accent-rgb), 0.02) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -657,14 +657,14 @@
     word-wrap: break-word;
     padding-left: var(--spacing-sm);
     border-left: 3px solid var(--color-accent);
-    background: rgba(217, 159, 0, 0.05);
+    background: rgba(var(--color-accent-rgb), 0.05);
     padding: var(--spacing-md);
     border-radius: var(--border-radius-sm);
 }
 
 /* ===== 评论表单样式 ===== */
 .friends-comment-form {
-    background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
+    background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
     border: 2px dashed var(--color-accent);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-xl);
@@ -739,7 +739,7 @@
 .form-group textarea:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(217, 159, 0, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.1);
     background-color: var(--color-bg-primary);
 }
 
@@ -1074,24 +1074,24 @@
     border: 1px solid transparent;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(var(--color-bg-primary-rgb), 0.2);
     z-index: 10;
 }
 
 .friend-tag-badge:hover {
     transform: translateY(-1px) scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--color-bg-primary-rgb), 0.3);
 }
 
 /* ===== 暗色主题优化 ===== */
 @media (prefers-color-scheme: dark) {
     .friend-card {
-        background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%);
-        border-color: rgba(217, 159, 0, 0.25);
+        background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+        border-color: rgba(var(--color-accent-rgb), 0.25);
     }
 
     .friend-card:hover {
-        background: linear-gradient(135deg, #161616 0%, #1f1f1f 100%);
+        background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
         border-color: var(--color-accent);
     }
 }
@@ -1155,25 +1155,25 @@
     .friend-card {
         break-inside: avoid;
         box-shadow: none;
-        border: 1px solid #000;
-        background: #fff !important;
+        border: 1px solid var(--color-text-primary);
+        background: var(--color-bg-primary) !important;
     }
 
     .friend-card {
         page-break-inside: avoid;
-        background: #fff !important;
-        color: #000 !important;
+        background: var(--color-bg-primary) !important;
+        color: var(--color-text-primary) !important;
     }
 
     .friend-tag-badge {
-        background: #f0f0f0 !important;
-        color: #000 !important;
-        border: 1px solid #000;
+        background: var(--color-bg-tertiary) !important;
+        color: var(--color-text-primary) !important;
+        border: 1px solid var(--color-text-primary);
     }
 
     .friend-name,
     .friend-description,
     .category-title {
-        color: #000 !important;
+        color: var(--color-text-primary) !important;
     }
 }

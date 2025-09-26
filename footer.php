@@ -57,6 +57,24 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
     </svg>
 </button>
 
+<!-- Toggle Day/Night Mode Button -->
+<button id="theme-toggle-btn" class="theme-toggle-btn" title="切换日间/夜间模式">
+    <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+    <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+    </svg>
+</button>
+
 <script>
 // Back to top functionality
 (function() {
@@ -134,6 +152,32 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
   });
 </script>
 <?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 假设你有一个ID为 'theme-toggle-btn' 的按钮
+    const themeToggleButton = document.getElementById('theme-toggle-btn');
+    const htmlElement = document.documentElement; // 获取 <html> 元素
+
+    // TODO: 在这里可以加上读取 localStorage 的逻辑，记住用户的选择
+    
+    if (themeToggleButton) {
+        themeToggleButton.addEventListener('click', () => {
+            // 检查当前是什么主题
+            const currentTheme = htmlElement.getAttribute('data-theme');
+
+            if (currentTheme === 'light') {
+                // 如果是日间，切换到夜间 (移除属性)
+                htmlElement.removeAttribute('data-theme');
+            } else {
+                // 如果是夜间或未设置，切换到日间
+                htmlElement.setAttribute('data-theme', 'light');
+            }
+        });
+    }
+});
+
+</script>
 
 <!-- Custom JavaScript -->
 <?php if ($this->options->customJS): ?>

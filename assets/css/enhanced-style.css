@@ -34,11 +34,6 @@ body.has-background {
   z-index: 1;
 }
 
-/* 背景图片遮罩变量 */
-:root {
-  --bg-mask-opacity: 0.5;
-}
-
 /* 有背景图时调整主要内容区域 */
 body.has-background .site-main,
 body.has-background .site-header,
@@ -54,12 +49,12 @@ body.has-background .site-footer {
   left: 0;
   width: 100%;
   height: 60px;
-  background: rgba(10, 10, 10, 0.95);
+  background: rgba(var(--color-bg-primary-rgb), 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
   z-index: 1000;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .floating-nav.show {
@@ -120,7 +115,7 @@ body.has-background .site-footer {
 .floating-nav .nav-links a:hover,
 .floating-nav .nav-links a.current {
   color: var(--color-accent);
-  background-color: rgba(217, 159, 0, 0.1);
+  background-color: rgba(var(--color-accent-rgb), 0.1);
   transform: translateY(-1px);
   text-decoration: none;
 }
@@ -145,7 +140,7 @@ body.has-background .site-footer {
 .floating-nav .nav-search {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-text-primary-rgb), 0.05);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-xs);
@@ -153,9 +148,9 @@ body.has-background .site-footer {
 }
 
 .floating-nav .nav-search:focus-within {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-text-primary-rgb), 0.1);
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(217, 159, 0, 0.2);
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
 }
 
 .floating-nav .nav-search input {
@@ -387,7 +382,7 @@ body.has-background .site-footer {
 /* ===== 高对比度模式 ===== */
 @media (prefers-contrast: high) {
   .floating-nav {
-    background: rgba(0, 0, 0, 0.98);
+    background: rgba(var(--color-bg-primary-rgb), 0.98);
     border-bottom: 2px solid var(--color-accent);
   }
   
@@ -399,11 +394,11 @@ body.has-background .site-footer {
 /* ===== 暗色主题优化 ===== */
 @media (prefers-color-scheme: dark) {
   .floating-nav {
-    background: rgba(10, 10, 10, 0.98);
+    background: rgba(var(--color-bg-primary-rgb), 0.98);
   }
   
   .global-background::after {
-    background-color: rgba(0, 0, 0, calc(var(--bg-mask-opacity) + 0.1));
+    background-color: rgba(var(--color-bg-primary-rgb), calc(var(--bg-mask-opacity) + 0.1));
   }
 }
 
