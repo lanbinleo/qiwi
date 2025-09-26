@@ -215,7 +215,20 @@ a:hover {
 
 .site-nav {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: var(--spacing-lg);
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+.nav-actions {
+  display: flex;
+  gap: var(--spacing-md);
   align-items: center;
 }
 
@@ -1029,29 +1042,73 @@ a:hover {
 }
 /* ===== TOGGLE DAY NIGHT BUTTON ===== */
 .theme-toggle-btn {
-  position: fixed;
-  bottom: var(--spacing-lg);
-  right: calc(var(--spacing-lg) * 2 + 60px);
-  width: 48px;
-  height: 48px;
-  background-color: var(--color-accent);
-  color: var(--color-bg-primary);
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  /* border: 1px solid var(--color-border); */
   border: none;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
-  /* transform: translateY(20px); */
-  z-index: 1000;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .theme-toggle-btn:hover {
-  background-color: var(--color-accent-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-accent);
+  border-color: var(--color-bg-tertiary);
+  transform: scale(1.05);
+}
+
+/* 图标容器 */
+.theme-toggle-btn .icon-container {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 太阳和月亮图标的基础样式 */
+.theme-toggle-btn .icon-sun,
+.theme-toggle-btn .icon-moon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 默认状态（夜间模式）- 显示太阳图标 */
+.theme-toggle-btn .icon-sun {
+  transform: translateX(0);
+}
+
+.theme-toggle-btn .icon-moon {
+  transform: translateX(30px);
+}
+
+/* 日间模式状态 - 显示月亮图标 */
+[data-theme="light"] .theme-toggle-btn .icon-sun {
+  transform: translateX(-30px);
+}
+
+[data-theme="light"] .theme-toggle-btn .icon-moon {
+  transform: translateX(0);
+}
+
+/* 切换动画增强 */
+.theme-toggle-btn.switching .icon-sun,
+.theme-toggle-btn.switching .icon-moon {
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 /* ===== BACK TO TOP BUTTON ===== */
@@ -1178,17 +1235,45 @@ a:hover {
   }
 
   .site-nav {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    width: 100%;
+  }
+
+  .nav-links {
     flex-wrap: wrap;
     justify-content: center;
+    gap: var(--spacing-sm);
+  }
+
+  .nav-actions {
+    justify-content: center;
+    gap: var(--spacing-sm);
   }
 
   .search-form {
     width: 100%;
-    max-width: 300px;
+    max-width: 250px;
   }
 
   .search-form input {
     width: 100%;
+  }
+
+  .theme-toggle-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .theme-toggle-btn .icon-container {
+    width: 18px;
+    height: 18px;
+  }
+
+  .theme-toggle-btn .icon-sun,
+  .theme-toggle-btn .icon-moon {
+    width: 18px;
+    height: 18px;
   }
 
   .post-title {
