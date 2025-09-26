@@ -137,14 +137,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 <?php endif; ?>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const themeToggleButton = document.getElementById('theme-toggle-btn');
+// 立即执行主题初始化，避免闪烁
+(function() {
     const htmlElement = document.documentElement;
-
-    // 从 localStorage 读取用户的主题偏好
     const savedTheme = localStorage.getItem('theme-preference');
     
-    // 初始化主题
+    // 立即设置主题，避免闪烁
     if (savedTheme === 'light') {
         htmlElement.setAttribute('data-theme', 'light');
     } else if (savedTheme === 'dark') {
@@ -156,6 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
             htmlElement.setAttribute('data-theme', 'light');
         }
     }
+})();
+
+// DOM 加载完成后绑定事件
+document.addEventListener('DOMContentLoaded', () => {
+    const themeToggleButton = document.getElementById('theme-toggle-btn');
+    const htmlElement = document.documentElement;
     
     if (themeToggleButton) {
         themeToggleButton.addEventListener('click', () => {
