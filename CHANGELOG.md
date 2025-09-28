@@ -1,4 +1,21 @@
 # Qiwi Theme Changelog
+## [1.1.2-alpha] - 2025-09-26
+### Feature Enhancements
+
+This release introduces a day/night mode toggle, major improvements to the friends page, and optimizations for theme initialization.
+
+### Added
+- **Day/Night Mode Toggle**: Added a toggle button for switching between light and dark themes, with persistent user preference.
+- **Friends Editor**: Introduced a visual editor for managing friends, supporting JSON input for easier configuration.
+- **Friends Page Comments**: Implemented a comments section on the friends page, including submission handling and custom styling.
+
+### Changed
+- **Theme Toggle Button**: Enhanced the appearance and interactivity of the theme toggle button for a better user experience.
+- **Friends Page**: Refactored styles and updated the page description for improved clarity and a more welcoming tone.
+- **Friends Page Comments**: Enhanced the comment section with improved layout and styling.
+
+### Fixed
+- **Theme Flicker**: Optimized theme initialization to prevent flickering when loading the site.
 
 ## [1.1.1-alpha] - 2025-09-25
 ### Major Feature Update
