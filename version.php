@@ -80,8 +80,9 @@ echo $version;
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-lg);
     width: min(680px, 92vw);
-    max-height: 85vh;
-    overflow: auto;
+    height: 60vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--shadow-lg);
   }
   .notice__header {
@@ -107,7 +108,7 @@ echo $version;
   .notice__ver--new { color: #3adb76; border-color: rgba(58,219,118,.3); background: rgba(58,219,118,.08); }
   .notice__arrow { color: var(--color-text-muted); }
   .notice__released { margin-top: 6px; color: var(--color-text-muted); font-size: var(--font-size-xs); }
-  .notice__body { padding: var(--spacing-lg); color: var(--color-text-secondary); }
+  .notice__body { padding: var(--spacing-lg); color: var(--color-text-secondary); flex: 1; overflow-y: auto; }
   .notice__section { margin-bottom: var(--spacing-lg); }
   .notice__section-title { margin: 0 0 var(--spacing-sm) 0; color: var(--color-text-primary); font-size: 1rem; }
   .notice__markdown p { margin: 0 0 8px 0; }
@@ -162,7 +163,8 @@ echo $version;
   <div class="notice__content" role="document" aria-labelledby="qvm-title" aria-describedby="qvm-desc">
     <button class="notice__close" type="button" aria-label="Close" title="Close" data-qvm-close>&times;</button>
     <div class="notice__header">
-      <h3 id="qvm-title" class="notice__title">Qiwi Theme Update</h3>
+      <h3 id="qvm-title" class="notice__title">Qiwi主题更新啦！</h3>
+      <br>
       <div class="notice__meta">
         <span class="notice__ver notice__ver--old notice__ver-old-text"></span>
         <span class="notice__arrow">→</span>
@@ -172,16 +174,16 @@ echo $version;
     </div>
     <div class="notice__body">
       <section class="notice__section">
-        <h4 class="notice__section-title">What's new</h4>
+        <h4 class="notice__section-title">新功能</h4>
         <div class="notice__markdown" id="qvm-current-note"></div>
       </section>
       <section class="notice__section">
-        <h4 class="notice__section-title">All release notes</h4>
+        <h4 class="notice__section-title">所有更新日志</h4>
         <div class="notice__history" id="qvm-history"></div>
       </section>
     </div>
     <div class="notice__footer">
-      <button type="button" class="notice__btn" id="qvm-ack">Got it</button>
+      <button type="button" class="notice__btn" id="qvm-ack">收到</button>
     </div>
   </div>
 </div>
