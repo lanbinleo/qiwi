@@ -927,6 +927,13 @@ a:hover {
   transform: translateY(-1px);
 }
 
+.respond .submit:disabled {
+  background-color: var(--color-accent-hover) !important;
+  color: var(--color-bg-primary) !important;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Comment Navigation */
 .comment-pagenav {
   margin: var(--spacing-lg) 0;
