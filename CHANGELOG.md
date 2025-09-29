@@ -1,4 +1,8 @@
 # Qiwi Theme Changelog
+
+## [1.1.3] - 2025-09-29
+- 新增了验证码功能，提升评论区的安全性和防垃圾评论能力。
+
 ## [1.1.2-alpha] - 2025-09-26
 ### Feature Enhancements
 
