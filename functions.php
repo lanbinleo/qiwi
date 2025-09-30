@@ -26,6 +26,14 @@ function themeConfig($form)
         _t('侧边栏显示')
     );
 
+
+    // 关于页面信息aboutName / Bio / avatar
+    $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
+    $aboutAvatar = new Typecho_Widget_Helper_Form_Element_Text('aboutAvatar', null, null, _t('关于页面 - 头像'), _t('在这里填写你的头像URL地址，将显示在关于页面的个人信息卡片中，留空则显示默认头像'));
+
+    $form->addInput($aboutBio);
+    $form->addInput($aboutAvatar);
+
     $form->addInput($sidebarBlock->multiMode());
 
     // Captcha Script 是否安装Geetest插件并启用 https://github.com/CairBin/typecho-plugin-geetest.git；单选题
