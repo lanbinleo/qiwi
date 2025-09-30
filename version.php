@@ -1,7 +1,7 @@
 <?php
-$version = "1.1.2";
+$version = "1.1.3-alpha";
 $releaseNotes = [
-    "1.1.3" => "- 新增了验证码功能，提升评论区的安全性和防垃圾评论能力",
+    "1.1.3-alpha" => "- 新增了验证码功能，提升评论区的安全性和防垃圾评论能力\n- 加入了关于页面，写了新的CSS",
     "1.1.2" => "- 正式发布 1.1.2 版本，并进行1.1.3-alpha的开发\n **若页面显示有问题，请务必尝试清除浏览器缓存后再访问。**",
     "1.1.2-alpha" => <<<EOT
   本次发布引入了昼夜模式切换、友链页面的重大改进，以及主题初始化的优化。
@@ -72,6 +72,7 @@ EOT,
 ];
 
 $releaseDate = [
+    "1.1.3-alpha" => "2025-10-1",
     "1.1.2" => "2025-09-28",
     "1.1.2-alpha" => "2025-09-27",
     "1.1.1" => "2025-09-26",
@@ -83,6 +84,8 @@ $releaseDate = [
 // 1) 输出明文版本
 echo $version;
 ?>
+<span style="margin: 0 4px;">·</span>
+<span href="javascript:void(0)" onclick="window.showQiwiVersionModal()" style="font-weight: 500; cursor: pointer;">更新公告</span>
 
 <!-- 2) 公告模态框（将被JS移动到body下，避免嵌入在span中） -->
 <style id="qiwi-version-modal-style">
@@ -329,6 +332,9 @@ echo $version;
       document.documentElement.style.overflow = '';
       try { localStorage.setItem(STORAGE_KEY, CURRENT_VERSION); } catch(e) {}
     }
+
+    // 将打开模态框的函数暴露到全局作用域，使其可以在其他地方调用
+    window.showQiwiVersionModal = openModal;
 
     modal.addEventListener('click', function(e){
       if (e.target && e.target.hasAttribute('data-qvm-close')) closeModal();
