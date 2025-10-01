@@ -1,77 +1,65 @@
 <?php
-$version = "1.1.3-alpha";
+$version = "1.1.4";
 $releaseNotes = [
-    "1.1.3-alpha" => "- 新增了验证码功能，提升评论区的安全性和防垃圾评论能力\n- 加入了关于页面，写了新的CSS",
-    "1.1.2" => "- 正式发布 1.1.2 版本，并进行1.1.3-alpha的开发\n **若页面显示有问题，请务必尝试清除浏览器缓存后再访问。**",
-    "1.1.2-alpha" => <<<EOT
-  本次发布引入了昼夜模式切换、友链页面的重大改进，以及主题初始化的优化。
-
-  **若页面显示有问题，请务必尝试清除浏览器缓存后再访问。**
-
-  **新增 New Features**
-  - **昼夜模式切换**：新增了明暗主题切换按钮，支持用户偏好持久化保存。
-  - **友链可视化编辑器**：引入了可视化编辑器，支持通过 JSON 输入更方便地管理友链。
-  - **友链页面评论**：在友链页面实现了评论区，支持评论提交和自定义样式。
-
-  **改进 Improvements**
-  - **主题切换按钮**：优化了主题切换按钮的外观和交互体验。
-  - **友链页面**：重构了页面样式，更新了页面描述，使其更清晰、更具亲和力。
-  - **友链评论区**：优化了评论区的布局和样式。
-
-  **修复 Fixes**
-  - **主题闪烁**：优化了主题初始化逻辑，解决了页面加载时的闪烁问题。
+  "1.1.4" => <<<EOT
+- 修改了关于页面头像的css动画
+EOT
+  "1.1.3" => <<<EOT
+- 正式发布1.1.3版本，完成了关于页面和验证码页面等修复。
+EOT
+  "1.1.3-alpha" => <<<EOT
+- 新增验证码功能，提升评论区安全性
+- 新增关于页面及其样式
+- 版本号优化：以后任何更新都会直接开一个小版本，大版本会在一定时间后更新，后续将没有alpha版本
 EOT,
-    "1.1.1" => "- 正式发布 1.1.1 版本，并进行1.1.2-alpha的开发",
-    "1.1.1-alpha" => <<<EOT
-**Major Feature Update**
-
-- **Timemachine Feature**: New page template for posting and viewing comments with Markdown support and a floating action button.
-- **Enhanced Post Layout**: Redesigned single post layout with a new card container.
-- **Floating Navigation**: Added a floating navigation bar that appears on scroll.
-- **Theme Options**: Background image, new layout options, custom footer info, tracking code.
-- **Post Card Component**: Reusable post card with metadata and reading time.
-- **Traditional Pagination**: Standard numbered pagination for archives.
-
-**Changed**
-- Improved previous/next post links, sidebar comments widget, floating nav logic, stylesheet path.
-
-**Fixed**
-- Floating nav visibility, Timemachine comment submission, recent comments filtering, Timemachine UI, thumbnail display.
-
-**Removed**
-- AJAX Load More in favor of traditional pagination.
+  "1.1.2" => <<<EOT
+- 正式发布 1.1.2 版本
+- 开始 1.1.3-alpha 的开发
+- **若页面显示有问题，请务必尝试清除浏览器缓存后再访问。**
 EOT,
-    "1.0.2-alpha" => <<<EOT
-**Pre-release Updates**
-
-- Support for custom post excerpts in theme
-- Enhanced thumbnail display options and styles
-- Edit button for logged-in users
-- Options for thumbnail display and expiry in theme fields
-- LICENSE and SECURITY files
-
-**Fixed**
-- Excerpt display logic, theme version in footer and index, license header
-
-**Changed**
-- Added version name "Qiwer" to initial stable release in CHANGELOG
+  "1.1.2-alpha" => <<<EOT
+- 新增昼夜模式切换功能，支持用户偏好持久化保存
+- 引入友链可视化编辑器，支持通过 JSON 输入管理友链
+- 在友链页面新增评论区
+- 优化主题切换按钮的外观和交互体验
+- 重构友链页面样式，更新页面描述
+- 优化友链评论区的布局和样式
+- 优化主题初始化逻辑，解决页面加载时的闪烁问题
+- **若页面显示有问题，请务必尝试清除浏览器缓存后再访问。**
 EOT,
-    "1.0.0" => <<<EOT
-**Initial Stable Release**
-
-- Complete theme structure: index, post, page, header, footer, sidebar, functions, archive, 404, comments
-- Dark minimalist design, responsive layout, post/page rendering, sidebar widgets, comment system, search, navigation, pagination, LaTeX support, advanced content features, theme configuration, accessibility, performance
-
-**Changed**
-- Version bumped from 0.0.1 to 1.0.0, updated documentation
-
-**Known Issues**
-- LaTeX rendering requires manual enabling per post
-- Search is basic
+  "1.1.1" => "- 正式发布 1.1.1 版本\n- 开始 1.1.2-alpha 的开发",
+  "1.1.1-alpha" => <<<EOT
+- 新增时间机页面，支持 Markdown 和浮动按钮
+- 重新设计文章布局，使用新的卡片容器
+- 新增滚动时出现的浮动导航栏
+- 新增主题选项：背景图、布局、自定义页脚、追踪代码
+- 新增可复用的文章卡片组件，包含元数据和阅读时间
+- 新增传统的数字分页功能
+- 改进了文章上下篇链接、侧边栏评论组件、浮动导航逻辑和样式表路径
+- 修复了浮动导航可见性、时间机评论提交、最新评论过滤、时间机界面和缩略图显示问题
+- 移除了 AJAX 加载更多功能，改用传统分页
+EOT,
+  "1.0.2-alpha" => <<<EOT
+- 支持在主题中自定义文章摘要
+- 增强缩略图显示选项和样式
+- 为登录用户添加编辑按钮
+- 在主题设置中增加缩略图显示和过期选项
+- 新增 LICENSE 和 SECURITY 文件
+- 修复了摘要显示逻辑、页脚和首页的主题版本号、许可证头部
+- 在更新日志中为初始稳定版添加了 "Qiwer" 版本代号
+EOT,
+  "1.0.0" => <<<EOT
+- 初始稳定版发布，包含完整的主题结构：首页、文章、页面、页眉、页脚、侧边栏、函数、归档、404、评论
+- 采用深色极简设计，响应式布局，支持文章/页面渲染、侧边栏小工具、评论系统、搜索、导航、分页、LaTeX、高级内容功能、主题配置、无障碍访问和性能优化
+- 版本号从 0.0.1 提升至 1.0.0，并更新了文档
+- 已知问题：LaTeX 渲染需在每篇文章中手动启用；搜索功能较基础
 EOT,
 ];
 
+
 $releaseDate = [
+    "1.1.4" => "2025-10-01",
+    "1.1.3" => "2025-10-01",
     "1.1.3-alpha" => "2025-10-1",
     "1.1.2" => "2025-09-28",
     "1.1.2-alpha" => "2025-09-27",
