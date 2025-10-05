@@ -431,6 +431,8 @@ body.has-background .site-footer {
 
 /* ===== 代码块高亮和复制功能 ===== */
 
+/* ===== 基础样式（所有主题共用） ===== */
+
 /* 代码块容器样式 */
 pre {
   position: relative;
@@ -447,29 +449,12 @@ pre {
   overflow: hidden;
   margin: var(--spacing-lg) 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-
-}
-
-/* 日间模式代码块样式 */
-[data-theme="light"] .code-block-wrapper {
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
-}
-
-/* 夜间模式代码块样式 */
-[data-theme="dark"] .code-block-wrapper {
-  background: #3a3a3a;
+  background: #0d1117;
   border: 1px solid #30363d;
 }
 
-/* 代码框hover效果 */
 .code-block-wrapper:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 夜间模式hover效果 */
-[data-theme="dark"] .code-block-wrapper:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
@@ -479,22 +464,10 @@ pre {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(var(--color-text-primary-rgb), 0.05);
-  border-bottom: 1px solid var(--color-border);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-}
-
-/* 日间模式头部样式 */
-[data-theme="light"] .code-block-header {
-  background: rgba(0, 0, 0, 0.03);
-  border-bottom-color: #d0d7de;
-}
-
-/* 夜间模式头部样式 */
-[data-theme="dark"] .code-block-header {
   background: rgba(255, 255, 255, 0.03);
-  border-bottom-color: #30363d;
+  border-bottom: 1px solid #30363d;
 }
 
 /* 代码语言标签 */
@@ -531,7 +504,6 @@ pre {
   border-color: var(--color-success);
 }
 
-/* 复制按钮图标 */
 .copy-button svg {
   width: 14px;
   height: 14px;
@@ -541,17 +513,20 @@ pre {
 .code-block-wrapper pre {
   margin: 0;
   border: none;
-  background: transparent;
   box-shadow: none;
+  background: #1e1e1e;
 }
 
-.code-block-wrapper code {
+.code-block-wrapper code,
+.code-block-wrapper .hljs {
   display: block;
   padding: var(--spacing-md);
   overflow-x: auto;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: 1.5;
+  background: #1e1e1e;
+  color: #e6edf3;
 }
 
 /* 滚动条样式 */
@@ -560,136 +535,105 @@ pre {
 }
 
 .code-block-wrapper code::-webkit-scrollbar-track {
-  background: rgba(var(--color-text-primary-rgb), 0.05);
+  background: #2d2d30;
 }
 
 .code-block-wrapper code::-webkit-scrollbar-thumb {
-  background: rgba(var(--color-text-primary-rgb), 0.2);
+  background: #424245;
   border-radius: 3px;
 }
 
 .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--color-text-primary-rgb), 0.3);
-}
-
-/* 日间模式滚动条 */
-:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-track,
-[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-track {
-  background: #f1f3f4;
-}
-
-:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-thumb,
-[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb {
-  background: #c1c8cd;
-}
-
-:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-thumb:hover,
-[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* 夜间模式滚动条 */
-[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-track {
-  background: #2d2d30;
-}
-
-[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-thumb {
-  background: #424245;
-}
-
-[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
   background: #6c6c70;
 }
 
-/* 内联代码样式 */
+/* 内联代码 - 默认夜间样式 */
 :not(pre) > code {
-  background: rgba(var(--color-accent-rgb), 0.1);
-  color: var(--color-accent);
+  background: rgba(110, 118, 129, 0.2);
+  color: #ff7b72;
   padding: 2px 6px;
   border-radius: var(--border-radius-sm);
   font-size: 0.9em;
   font-family: var(--font-family-mono);
 }
 
-/* 日间模式内联代码 */
-:not([data-theme]) :not(pre) > code,
+/* ===== Highlight.js 语法高亮颜色 - 默认夜间模式 ===== */
+
+/* 关键词 */
+.code-block-wrapper .hljs-keyword,
+.code-block-wrapper .hljs-selector-tag,
+.code-block-wrapper .hljs-subst {
+  color: #ff7b72;
+}
+
+/* 字符串 */
+.code-block-wrapper .hljs-string,
+.code-block-wrapper .hljs-title,
+.code-block-wrapper .hljs-section,
+.code-block-wrapper .hljs-type,
+.code-block-wrapper .hljs-built_in {
+  color: #a5d6ff;
+}
+
+/* 注释 */
+.code-block-wrapper .hljs-comment,
+.code-block-wrapper .hljs-quote {
+  color: #8b949e;
+}
+
+/* 数字和变量 */
+.code-block-wrapper .hljs-number,
+.code-block-wrapper .hljs-literal,
+.code-block-wrapper .hljs-variable,
+.code-block-wrapper .hljs-template-variable,
+.code-block-wrapper .hljs-tag .hljs-attr {
+  color: #79c0ff;
+}
+
+/* ===== 日间模式覆盖样式 ===== */
+
+[data-theme="light"] .code-block-wrapper {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+}
+
+[data-theme="light"] .code-block-wrapper:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .code-block-header {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid #d0d7de;
+}
+
+[data-theme="light"] .code-block-wrapper pre {
+  background: #ffffff;
+}
+
+[data-theme="light"] .code-block-wrapper code,
+[data-theme="light"] .code-block-wrapper .hljs {
+  background: #ffffff;
+  color: #24292f;
+}
+
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-track {
+  background: #f1f3f4;
+}
+
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb {
+  background: #c1c8cd;
+}
+
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 [data-theme="light"] :not(pre) > code {
   background: rgba(175, 184, 193, 0.2);
   color: #d73a49;
 }
 
-/* 夜间模式内联代码 */
-[data-theme="dark"] :not(pre) > code {
-  background: rgba(110, 118, 129, 0.2);
-  color: #ff7b72;
-}
-
-/* 高亮.js 主题切换 */
-[data-theme="dark"] #hljs-light-theme {
-  disabled: true;
-}
-
-[data-theme="dark"] #hljs-dark-theme {
-  disabled: false;
-}
-
-:not([data-theme]) #hljs-dark-theme,
-[data-theme="light"] #hljs-dark-theme {
-  disabled: true;
-}
-
-:not([data-theme]) #hljs-light-theme,
-[data-theme="light"] #hljs-light-theme {
-  disabled: false;
-}
-
-/* 夜间模式下代码内容区域额外样式 */
-[data-theme="dark"] .code-block-wrapper code {
-  background: #1e1e1e !important;
-  color: #e6edf3 !important;
-}
-
-/* 确保highlight.js的夜间模式样式正确应用 */
-[data-theme="dark"] .code-block-wrapper .hljs {
-  background: #1e1e1e !important;
-  color: #e6edf3 !important;
-}
-
-/* 夜间模式下pre元素样式 */
-[data-theme="dark"] .code-block-wrapper pre {
-  background: #1e1e1e !important;
-}
-
-/* 夜间模式下代码高亮的关键词颜色 */
-[data-theme="dark"] .code-block-wrapper .hljs-keyword,
-[data-theme="dark"] .code-block-wrapper .hljs-selector-tag,
-[data-theme="dark"] .code-block-wrapper .hljs-subst {
-  color: #ff7b72 !important;
-}
-
-/* 夜间模式下字符串颜色 */
-[data-theme="dark"] .code-block-wrapper .hljs-string,
-[data-theme="dark"] .code-block-wrapper .hljs-title,
-[data-theme="dark"] .code-block-wrapper .hljs-section,
-[data-theme="dark"] .code-block-wrapper .hljs-type,
-[data-theme="dark"] .code-block-wrapper .hljs-built_in {
-  color: #a5d6ff !important;
-}
-
-/* 夜间模式下注释颜色 */
-[data-theme="dark"] .code-block-wrapper .hljs-comment,
-[data-theme="dark"] .code-block-wrapper .hljs-quote {
-  color: #8b949e !important;
-}
-
-/* 夜间模式下数字颜色 */
-[data-theme="dark"] .code-block-wrapper .hljs-number,
-[data-theme="dark"] .code-block-wrapper .hljs-literal,
-[data-theme="dark"] .code-block-wrapper .hljs-variable,
-[data-theme="dark"] .code-block-wrapper .hljs-template-variable,
-[data-theme="dark"] .code-block-wrapper .hljs-tag .hljs-attr {
-  color: #79c0ff !important;
-}
+/* 日间模式的语法高亮会使用highlight.js自带的light主题，所以不需要额外覆盖 */
 
 /* ===== 超大屏幕优化 ===== */
 @media (min-width: 1440px) {
