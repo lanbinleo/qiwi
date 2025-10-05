@@ -557,39 +557,6 @@ pre {
   font-family: var(--font-family-mono);
 }
 
-/* ===== Highlight.js 语法高亮颜色 - 默认夜间模式 ===== */
-
-/* 关键词 */
-.code-block-wrapper .hljs-keyword,
-.code-block-wrapper .hljs-selector-tag,
-.code-block-wrapper .hljs-subst {
-  color: #ff7b72;
-}
-
-/* 字符串 */
-.code-block-wrapper .hljs-string,
-.code-block-wrapper .hljs-title,
-.code-block-wrapper .hljs-section,
-.code-block-wrapper .hljs-type,
-.code-block-wrapper .hljs-built_in {
-  color: #a5d6ff;
-}
-
-/* 注释 */
-.code-block-wrapper .hljs-comment,
-.code-block-wrapper .hljs-quote {
-  color: #8b949e;
-}
-
-/* 数字和变量 */
-.code-block-wrapper .hljs-number,
-.code-block-wrapper .hljs-literal,
-.code-block-wrapper .hljs-variable,
-.code-block-wrapper .hljs-template-variable,
-.code-block-wrapper .hljs-tag .hljs-attr {
-  color: #79c0ff;
-}
-
 /* ===== 日间模式覆盖样式 ===== */
 
 [data-theme="light"] .code-block-wrapper {
