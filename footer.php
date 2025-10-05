@@ -292,35 +292,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (themeToggleButton) {
         themeToggleButton.addEventListener('click', () => {
-            // 添加切换动画类
-            themeToggleButton.classList.add('switching');
-
-            // 检查当前是什么主题
-            const currentTheme = htmlElement.getAttribute('data-theme');
-            let newTheme;
-
-            if (currentTheme === 'light') {
-                // 如果是日间，切换到夜间
-                htmlElement.removeAttribute('data-theme');
-                newTheme = 'dark';
-            } else {
-                // 如果是夜间或未设置，切换到日间
-                htmlElement.setAttribute('data-theme', 'light');
-                newTheme = 'light';
-            }
-
-            // 切换代码高亮主题
-            switchCodeHighlightTheme(newTheme);
-
-            // 保存用户偏好到 localStorage
-            localStorage.setItem('theme-preference', newTheme);
-
-            // 移除动画类
-            setTimeout(() => {
-                themeToggleButton.classList.remove('switching');
-            }, 500);
+            // 执行主题切换逻辑
+            performThemeToggle();
         });
     }
+
+    // 主题切换函数（供多个按钮调用）
+    function performThemeToggle() {
+        // 添加切换动画类到所有主题切换按钮
+        const allThemeButtons = document.querySelectorAll('.theme-toggle-btn, .floating-theme-toggle-btn');
+        allThemeButtons.forEach(button => {
+            button.classList.add('switching');
+        });
+
+        // 检查当前是什么主题
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        let newTheme;
+
+        if (currentTheme === 'light') {
+            // 如果是日间，切换到夜间
+            htmlElement.removeAttribute('data-theme');
+            newTheme = 'dark';
+        } else {
+            // 如果是夜间或未设置，切换到日间
+            htmlElement.setAttribute('data-theme', 'light');
+            newTheme = 'light';
+        }
+
+        // 切换代码高亮主题
+        switchCodeHighlightTheme(newTheme);
+
+        // 保存用户偏好到 localStorage
+        localStorage.setItem('theme-preference', newTheme);
+
+        // 移除动画类
+        setTimeout(() => {
+            allThemeButtons.forEach(button => {
+                button.classList.remove('switching');
+            });
+        }, 500);
+    }
+
+    // 为了兼容性，将performThemeToggle函数暴露到全局
+    window.performThemeToggle = performThemeToggle;
 
     // 监听系统主题变化
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {

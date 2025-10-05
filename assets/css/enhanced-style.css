@@ -186,6 +186,75 @@ body.has-background .site-footer {
   color: var(--color-accent);
 }
 
+/* 浮动导航栏主题切换按钮 */
+.floating-nav .floating-theme-toggle-btn {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: var(--spacing-xs);
+}
+
+.floating-nav .floating-theme-toggle-btn:hover {
+  background-color: rgba(var(--color-accent-rgb), 0.1);
+  color: var(--color-accent);
+}
+
+
+/* 浮动导航栏图标容器 */
+.floating-nav .floating-icon-container {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 浮动导航栏太阳和月亮图标 */
+.floating-nav .floating-icon-sun,
+.floating-nav .floating-icon-moon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 默认状态（夜间模式）- 显示太阳图标 */
+.floating-nav .floating-icon-sun {
+  transform: translateX(0);
+}
+
+.floating-nav .floating-icon-moon {
+  transform: translateX(50px);
+}
+
+/* 日间模式状态 - 显示月亮图标 */
+[data-theme="light"] .floating-nav .floating-icon-sun {
+  transform: translateX(-50px);
+}
+
+[data-theme="light"] .floating-nav .floating-icon-moon {
+  transform: translateX(0);
+}
+
+/* 切换动画增强 */
+.floating-nav .floating-theme-toggle-btn.switching .floating-icon-sun,
+.floating-nav .floating-theme-toggle-btn.switching .floating-icon-moon {
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 /* ===== 左右布局头图样式 ===== */
 .post-card.layout-side {
   display: flex;
@@ -305,6 +374,37 @@ body.has-background .site-footer {
   
   .floating-nav .nav-search {
     display: none; /* 移动端隐藏搜索框 */
+  }
+
+  .floating-nav .floating-theme-toggle-btn {
+    width: 28px;
+    height: 28px;
+    margin-left: var(--spacing-xs);
+    background: transparent;
+    border: none;
+  }
+
+  .floating-nav .floating-theme-toggle-btn:hover {
+    background-color: rgba(var(--color-accent-rgb), 0.1);
+  }
+
+  .floating-nav .floating-icon-container {
+    width: 14px;
+    height: 14px;
+  }
+
+  .floating-nav .floating-icon-sun,
+  .floating-nav .floating-icon-moon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .floating-nav .floating-icon-moon {
+    transform: translateX(35px);
+  }
+
+  [data-theme="light"] .floating-nav .floating-icon-sun {
+    transform: translateX(-35px);
   }
   
   /* 左右布局改为上下布局 */
