@@ -57,6 +57,116 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
     </svg>
 </button>
 
+<!-- Code highlighting with theme support -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" id="hljs-light-theme">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" id="hljs-dark-theme" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script>
+// 代码高亮和复制功能初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化代码高亮
+    hljs.highlightAll();
+
+    // 为所有代码块添加包装器和复制功能
+    const codeBlocks = document.querySelectorAll('pre code');
+
+    codeBlocks.forEach(function(codeBlock) {
+        // 获取代码语言
+        const language = codeBlock.className.replace('hljs language-', '').replace('hljs', '') || 'text';
+
+        // 创建代码块包装器
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+
+        // 创建代码块头部
+        const header = document.createElement('div');
+        header.className = 'code-block-header';
+
+        // 添加语言标签
+        const languageLabel = document.createElement('span');
+        languageLabel.className = 'code-language';
+        languageLabel.textContent = language;
+
+        // 创建复制按钮
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="copy-text">复制</span>
+        `;
+
+        // 组装头部
+        header.appendChild(languageLabel);
+        header.appendChild(copyButton);
+
+        // 将原始的pre元素包装起来
+        const preElement = codeBlock.parentElement;
+        preElement.parentNode.insertBefore(wrapper, preElement);
+        wrapper.appendChild(header);
+        wrapper.appendChild(preElement);
+
+        // 添加复制功能
+        copyButton.addEventListener('click', function() {
+            const code = codeBlock.textContent;
+
+            // 使用现代的Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).then(function() {
+                    showCopySuccess(copyButton);
+                }).catch(function() {
+                    // 回退到传统方法
+                    fallbackCopyTextToClipboard(code, copyButton);
+                });
+            } else {
+                // 回退到传统方法
+                fallbackCopyTextToClipboard(code, copyButton);
+            }
+        });
+    });
+
+    // 复制成功的反馈
+    function showCopySuccess(button) {
+        const originalHTML = button.innerHTML;
+        button.classList.add('copied');
+        button.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+            <span class="copy-text">已复制</span>
+        `;
+
+        // 2秒后恢复原始状态
+        setTimeout(function() {
+            button.classList.remove('copied');
+            button.innerHTML = originalHTML;
+        }, 2000);
+    }
+
+    // 传统的复制方法（回退方案）
+    function fallbackCopyTextToClipboard(text, button) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showCopySuccess(button);
+        } catch (err) {
+            console.error('复制失败:', err);
+        }
+
+        document.body.removeChild(textArea);
+    }
+});
+</script>
 
 <script>
 // Back to top functionality
@@ -160,12 +270,31 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggleButton = document.getElementById('theme-toggle-btn');
     const htmlElement = document.documentElement;
-    
+
+    // 切换代码高亮主题的函数
+    function switchCodeHighlightTheme(theme) {
+        const lightTheme = document.getElementById('hljs-light-theme');
+        const darkTheme = document.getElementById('hljs-dark-theme');
+
+        if (theme === 'dark') {
+            lightTheme.disabled = true;
+            darkTheme.disabled = false;
+        } else {
+            lightTheme.disabled = false;
+            darkTheme.disabled = true;
+        }
+    }
+
+    // 初始化代码高亮主题
+    const currentTheme = htmlElement.getAttribute('data-theme') ||
+                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    switchCodeHighlightTheme(currentTheme);
+
     if (themeToggleButton) {
         themeToggleButton.addEventListener('click', () => {
             // 添加切换动画类
             themeToggleButton.classList.add('switching');
-            
+
             // 检查当前是什么主题
             const currentTheme = htmlElement.getAttribute('data-theme');
             let newTheme;
@@ -179,17 +308,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 htmlElement.setAttribute('data-theme', 'light');
                 newTheme = 'light';
             }
-            
+
+            // 切换代码高亮主题
+            switchCodeHighlightTheme(newTheme);
+
             // 保存用户偏好到 localStorage
             localStorage.setItem('theme-preference', newTheme);
-            
+
             // 移除动画类
             setTimeout(() => {
                 themeToggleButton.classList.remove('switching');
             }, 500);
         });
     }
-    
+
     // 监听系统主题变化
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         // 只有在用户没有手动设置偏好时才跟随系统
@@ -197,8 +329,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!savedTheme) {
             if (e.matches) {
                 htmlElement.removeAttribute('data-theme');
+                switchCodeHighlightTheme('dark');
             } else {
                 htmlElement.setAttribute('data-theme', 'light');
+                switchCodeHighlightTheme('light');
             }
         }
     });

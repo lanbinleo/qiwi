@@ -429,17 +429,279 @@ body.has-background .site-footer {
   }
 }
 
+/* ===== 代码块高亮和复制功能 ===== */
+
+/* 代码块容器样式 */
+pre {
+  position: relative;
+  margin: var(--spacing-lg) 0;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 代码块包装器基础样式 */
+.code-block-wrapper {
+  position: relative;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  margin: var(--spacing-lg) 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+}
+
+/* 日间模式代码块样式 */
+[data-theme="light"] .code-block-wrapper {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+}
+
+/* 夜间模式代码块样式 */
+[data-theme="dark"] .code-block-wrapper {
+  background: #3a3a3a;
+  border: 1px solid #30363d;
+}
+
+/* 代码框hover效果 */
+.code-block-wrapper:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 夜间模式hover效果 */
+[data-theme="dark"] .code-block-wrapper:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* 代码块头部 */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(var(--color-text-primary-rgb), 0.05);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* 日间模式头部样式 */
+[data-theme="light"] .code-block-header {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom-color: #d0d7de;
+}
+
+/* 夜间模式头部样式 */
+[data-theme="dark"] .code-block-header {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: #30363d;
+}
+
+/* 代码语言标签 */
+.code-language {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 复制按钮 */
+.copy-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px var(--spacing-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.copy-button.copied {
+  color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.1);
+  border-color: var(--color-success);
+}
+
+/* 复制按钮图标 */
+.copy-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 代码内容区域 */
+.code-block-wrapper pre {
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.code-block-wrapper code {
+  display: block;
+  padding: var(--spacing-md);
+  overflow-x: auto;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* 滚动条样式 */
+.code-block-wrapper code::-webkit-scrollbar {
+  height: 6px;
+}
+
+.code-block-wrapper code::-webkit-scrollbar-track {
+  background: rgba(var(--color-text-primary-rgb), 0.05);
+}
+
+.code-block-wrapper code::-webkit-scrollbar-thumb {
+  background: rgba(var(--color-text-primary-rgb), 0.2);
+  border-radius: 3px;
+}
+
+.code-block-wrapper code::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--color-text-primary-rgb), 0.3);
+}
+
+/* 日间模式滚动条 */
+:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-track,
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-track {
+  background: #f1f3f4;
+}
+
+:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-thumb,
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb {
+  background: #c1c8cd;
+}
+
+:not([data-theme]) .code-block-wrapper code::-webkit-scrollbar-thumb:hover,
+[data-theme="light"] .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 夜间模式滚动条 */
+[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-track {
+  background: #2d2d30;
+}
+
+[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-thumb {
+  background: #424245;
+}
+
+[data-theme="dark"] .code-block-wrapper code::-webkit-scrollbar-thumb:hover {
+  background: #6c6c70;
+}
+
+/* 内联代码样式 */
+:not(pre) > code {
+  background: rgba(var(--color-accent-rgb), 0.1);
+  color: var(--color-accent);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9em;
+  font-family: var(--font-family-mono);
+}
+
+/* 日间模式内联代码 */
+:not([data-theme]) :not(pre) > code,
+[data-theme="light"] :not(pre) > code {
+  background: rgba(175, 184, 193, 0.2);
+  color: #d73a49;
+}
+
+/* 夜间模式内联代码 */
+[data-theme="dark"] :not(pre) > code {
+  background: rgba(110, 118, 129, 0.2);
+  color: #ff7b72;
+}
+
+/* 高亮.js 主题切换 */
+[data-theme="dark"] #hljs-light-theme {
+  disabled: true;
+}
+
+[data-theme="dark"] #hljs-dark-theme {
+  disabled: false;
+}
+
+:not([data-theme]) #hljs-dark-theme,
+[data-theme="light"] #hljs-dark-theme {
+  disabled: true;
+}
+
+:not([data-theme]) #hljs-light-theme,
+[data-theme="light"] #hljs-light-theme {
+  disabled: false;
+}
+
+/* 夜间模式下代码内容区域额外样式 */
+[data-theme="dark"] .code-block-wrapper code {
+  background: #1e1e1e !important;
+  color: #e6edf3 !important;
+}
+
+/* 确保highlight.js的夜间模式样式正确应用 */
+[data-theme="dark"] .code-block-wrapper .hljs {
+  background: #1e1e1e !important;
+  color: #e6edf3 !important;
+}
+
+/* 夜间模式下pre元素样式 */
+[data-theme="dark"] .code-block-wrapper pre {
+  background: #1e1e1e !important;
+}
+
+/* 夜间模式下代码高亮的关键词颜色 */
+[data-theme="dark"] .code-block-wrapper .hljs-keyword,
+[data-theme="dark"] .code-block-wrapper .hljs-selector-tag,
+[data-theme="dark"] .code-block-wrapper .hljs-subst {
+  color: #ff7b72 !important;
+}
+
+/* 夜间模式下字符串颜色 */
+[data-theme="dark"] .code-block-wrapper .hljs-string,
+[data-theme="dark"] .code-block-wrapper .hljs-title,
+[data-theme="dark"] .code-block-wrapper .hljs-section,
+[data-theme="dark"] .code-block-wrapper .hljs-type,
+[data-theme="dark"] .code-block-wrapper .hljs-built_in {
+  color: #a5d6ff !important;
+}
+
+/* 夜间模式下注释颜色 */
+[data-theme="dark"] .code-block-wrapper .hljs-comment,
+[data-theme="dark"] .code-block-wrapper .hljs-quote {
+  color: #8b949e !important;
+}
+
+/* 夜间模式下数字颜色 */
+[data-theme="dark"] .code-block-wrapper .hljs-number,
+[data-theme="dark"] .code-block-wrapper .hljs-literal,
+[data-theme="dark"] .code-block-wrapper .hljs-variable,
+[data-theme="dark"] .code-block-wrapper .hljs-template-variable,
+[data-theme="dark"] .code-block-wrapper .hljs-tag .hljs-attr {
+  color: #79c0ff !important;
+}
+
 /* ===== 超大屏幕优化 ===== */
 @media (min-width: 1440px) {
   .post-card.layout-side .post-thumbnail {
     /* flex: 0 0 320px; */
     /* width: 320px; */
   }
-  
+
   .floating-nav .nav-search input {
     width: 180px;
   }
-  
+
   .floating-nav .nav-search input:focus {
     width: 240px;
   }
