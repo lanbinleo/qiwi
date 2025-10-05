@@ -39,10 +39,22 @@ if ($thumbnailLayout && $thumbnailLayout !== 'default') {
 // 判断是否显示头图
 $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($thumbnail));
 
+// 获取文章索引用于交替布局
+global $postIndex;
+if (!isset($postIndex)) {
+    $postIndex = 1;
+}
+
 // 设置文章卡片的CSS类
 $cardClasses = 'post-preview post-card';
 if ($shouldShowThumbnail && $finalLayout === 'side') {
     $cardClasses .= ' layout-side';
+    // 根据文章索引决定图片位置
+    if ($postIndex % 2 === 0) {
+        $cardClasses .= ' layout-side-right'; // 偶数文章图片在右侧
+    } else {
+        $cardClasses .= ' layout-side-left';  // 奇数文章图片在左侧
+    }
 }
 ?>
 

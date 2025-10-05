@@ -194,6 +194,16 @@ body.has-background .site-footer {
   min-height: 180px;
 }
 
+/* 默认左侧布局 */
+.post-card.layout-side-left {
+  flex-direction: row;
+}
+
+/* 右侧布局 */
+.post-card.layout-side-right {
+  flex-direction: row-reverse;
+}
+
 .post-card.layout-side .post-thumbnail {
   flex: 0 0 280px;
   width: 280px;

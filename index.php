@@ -16,7 +16,12 @@ $this->need('header.php');
   <main class="content-area">
     <?php if ($this->have()): ?>
       <ul class="post-list">
-        <?php while($this->next()): ?>
+        <?php
+        global $postIndex;
+        $postIndex = 0;
+        while($this->next()):
+        $postIndex++;
+        ?>
           <li class="post-list-item">
             <?php $this->need('post-card.php'); ?>
           </li>
