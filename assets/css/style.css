@@ -2187,10 +2187,25 @@ caption {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .author-avatar svg {
   color: var(--color-bg-primary);
+}
+
+.author-avatar .avatar-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: none;
+  box-shadow: none;
+  transition: transform 0.3s ease;
+}
+
+.author-avatar .avatar-image:hover {
+  transform: scale(1.05);
 }
 
 .meta-info {

@@ -33,6 +33,9 @@ $authorName = $this->author->screenName;
 $authorMail = $this->author->mail;
 $authorUrl = $this->author->url;
 
+// 获取主题设置中的aboutAvatar头像
+$aboutAvatar = $this->options->aboutAvatar;
+
 // 获取数据库实例
 if (class_exists('Typecho_Db')) {
     $db = Typecho_Db::get();
@@ -168,10 +171,14 @@ function renderMarkdown($text) {
           <article class="timemachine-item" data-id="<?php echo $comment['coid']; ?>">
             <div class="timemachine-meta">
               <div class="author-avatar">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
+                <?php if (!empty($aboutAvatar)): ?>
+                  <img src="<?php echo htmlspecialchars($aboutAvatar, ENT_QUOTES); ?>" alt="<?php echo htmlspecialchars($authorName, ENT_QUOTES); ?>" class="avatar-image">
+                <?php else: ?>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                <?php endif; ?>
               </div>
               <div class="meta-info">
                 <span class="author-name"><?php echo htmlspecialchars($authorName, ENT_QUOTES); ?></span>
@@ -411,7 +418,12 @@ function renderMarkdown($text) {
       <!-- 右下角浮动加号按钮 -->
       <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
       <button id="floating-add-btn" class="floating-add-btn" title="快速发布说说">
-        +
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+          <path d="M2 2l7.586 7.586"></path>
+          <circle cx="11" cy="11" r="2"></circle>
+        </svg>
       </button>
       <?php endif; ?>
 
