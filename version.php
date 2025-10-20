@@ -1,5 +1,5 @@
 <?php
-$version = "1.1.5";
+$version = "1.1.6";
 $releaseNotes = [
   "1.1.6" => <<<EOT
 - 增加了密码保护文章的适配
