@@ -934,6 +934,89 @@ a:hover {
   transform: none;
 }
 
+/* ===== Password Protected Content Form ===== */
+.protected {
+  max-width: 420px;
+  margin: var(--spacing-xxl) auto;
+  padding: var(--spacing-xl);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.protected .word {
+  position: relative;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+}
+
+/* SVG Lock Icon */
+.protected .word::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--spacing-sm);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d99f00' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+[data-theme="light"] .protected .word::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23007bff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+}
+
+.protected input[type="password"] {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-base);
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.protected input[type="password"]:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  background-color: var(--color-bg-primary);
+}
+
+.protected input[type="password"]::placeholder {
+  color: var(--color-text-muted);
+}
+
+.protected .submit {
+  margin-top: var(--spacing-md);
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.protected .submit:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.protected .submit:active {
+  transform: translateY(0);
+}
+
 /* Comment Navigation */
 .comment-pagenav {
   margin: var(--spacing-lg) 0;
