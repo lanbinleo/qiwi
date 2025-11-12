@@ -71,11 +71,12 @@
             </div>
 
             <?php if ($this->options->enabledCaptcha): ?>
-            <div class="captcha-wrapper">
-                <div id="captcha"></div>
-                <?php Geetest_Plugin::commentCaptchaRender(); ?>
-            </div>
+                <div class="captcha-script">
+                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
+                </div>
             <?php endif; ?>
+            <br>
 
             <button type="submit" class="submit-button"><?php _e('提交评论'); ?></button>
         </form>

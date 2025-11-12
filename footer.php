@@ -116,6 +116,117 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <?php endif; ?>
 
+<!-- Code highlighting with theme support -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" id="hljs-light-theme">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" id="hljs-dark-theme" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script>
+// 代码高亮和复制功能初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化代码高亮
+    hljs.highlightAll();
+
+    // 为所有代码块添加包装器和复制功能
+    const codeBlocks = document.querySelectorAll('pre code');
+
+    codeBlocks.forEach(function(codeBlock) {
+        // 获取代码语言
+        const language = codeBlock.className.replace('hljs language-', '').replace('hljs', '') || 'text';
+
+        // 创建代码块包装器
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+
+        // 创建代码块头部
+        const header = document.createElement('div');
+        header.className = 'code-block-header';
+
+        // 添加语言标签
+        const languageLabel = document.createElement('span');
+        languageLabel.className = 'code-language';
+        languageLabel.textContent = language;
+
+        // 创建复制按钮
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="copy-text">复制</span>
+        `;
+
+        // 组装头部
+        header.appendChild(languageLabel);
+        header.appendChild(copyButton);
+
+        // 将原始的pre元素包装起来
+        const preElement = codeBlock.parentElement;
+        preElement.parentNode.insertBefore(wrapper, preElement);
+        wrapper.appendChild(header);
+        wrapper.appendChild(preElement);
+
+        // 添加复制功能
+        copyButton.addEventListener('click', function() {
+            const code = codeBlock.textContent;
+
+            // 使用现代的Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).then(function() {
+                    showCopySuccess(copyButton);
+                }).catch(function() {
+                    // 回退到传统方法
+                    fallbackCopyTextToClipboard(code, copyButton);
+                });
+            } else {
+                // 回退到传统方法
+                fallbackCopyTextToClipboard(code, copyButton);
+            }
+        });
+    });
+
+    // 复制成功的反馈
+    function showCopySuccess(button) {
+        const originalHTML = button.innerHTML;
+        button.classList.add('copied');
+        button.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+            <span class="copy-text">已复制</span>
+        `;
+
+        // 2秒后恢复原始状态
+        setTimeout(function() {
+            button.classList.remove('copied');
+            button.innerHTML = originalHTML;
+        }, 2000);
+    }
+
+    // 传统的复制方法（回退方案）
+    function fallbackCopyTextToClipboard(text, button) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showCopySuccess(button);
+        } catch (err) {
+            console.error('复制失败:', err);
+        }
+
+        document.body.removeChild(textArea);
+    }
+});
+</script>
+
 <!-- Custom JavaScript -->
 <?php if ($this->options->customJS): ?>
 <script type="text/javascript">
