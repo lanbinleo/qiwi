@@ -28,8 +28,8 @@ $this->need('header.php');
 
         <!-- 页面内容 -->
         <div class="about-section">
-            <h2 class="about-section-title"><?php $this->title(); ?></h2>
-            <div class="about-content">
+            <!-- <h2 class="about-section-title"><?php $this->title(); ?></h2> -->
+            <div class="article-body">
                 <?php $this->content(); ?>
             </div>
         </div>

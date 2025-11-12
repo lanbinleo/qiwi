@@ -1165,30 +1165,6 @@ a {
     letter-spacing: -0.02em;
 }
 
-.about-content {
-    font-size: 17px;
-    line-height: 1.8;
-    color: var(--color-text-primary);
-}
-
-.about-content p {
-    margin-bottom: calc(var(--spacing-unit) * 3);
-}
-
-.about-content h2 {
-    font-size: 24px;
-    font-weight: 600;
-    margin-top: calc(var(--spacing-unit) * 6);
-    margin-bottom: calc(var(--spacing-unit) * 3);
-}
-
-.about-content h3 {
-    font-size: 20px;
-    font-weight: 600;
-    margin-top: calc(var(--spacing-unit) * 4);
-    margin-bottom: calc(var(--spacing-unit) * 2);
-}
-
 /* ============================================
    评论区
    ============================================ */
