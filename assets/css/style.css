@@ -2,16 +2,17 @@
    QIWI Theme - Design System
    ============================================ */
 
+/* 默认深色模式变量 */
 :root {
-    /* 色彩 - 柔和中性色调 */
-    --color-bg: #fafaf9;
-    --color-surface: #ffffff;
-    --color-text-primary: #3f3f46;
-    --color-text-secondary: #71717a;
-    --color-text-tertiary: #a1a1aa;
-    --color-border: #e4e4e7;
-    --color-accent: #8b7355;
-    --color-accent-soft: #d4c4b0;
+    /* 色彩 - 深色模式 */
+    --color-bg: #18181b;
+    --color-surface: #27272a;
+    --color-text-primary: #e4e4e7;
+    --color-text-secondary: #a1a1aa;
+    --color-text-tertiary: #71717a;
+    --color-border: #3f3f46;
+    --color-accent: #d4c4b0;
+    --color-accent-soft: #8b7355;
 
     /* 字体 */
     --font-sans: "HarmonyOS Sans", "HarmonyOS Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -27,15 +28,16 @@
     --transition: 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-[data-theme="dark"] {
-    --color-bg: #18181b;
-    --color-surface: #27272a;
-    --color-text-primary: #e4e4e7;
-    --color-text-secondary: #a1a1aa;
-    --color-text-tertiary: #71717a;
-    --color-border: #3f3f46;
-    --color-accent: #d4c4b0;
-    --color-accent-soft: #8b7355;
+/* 浅色模式 */
+[data-theme="light"] {
+    --color-bg: #fafaf9;
+    --color-surface: #ffffff;
+    --color-text-primary: #3f3f46;
+    --color-text-secondary: #71717a;
+    --color-text-tertiary: #a1a1aa;
+    --color-border: #e4e4e7;
+    --color-accent: #8b7355;
+    --color-accent-soft: #d4c4b0;
 }
 
 /* ============================================
@@ -67,7 +69,7 @@ a {
 .navbar {
     position: sticky;
     top: 0;
-    background: rgba(250, 250, 249, 0.95);
+    background: rgba(24, 24, 27, 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--color-border);
@@ -75,8 +77,8 @@ a {
     transition: all var(--transition);
 }
 
-[data-theme="dark"] .navbar {
-    background: rgba(24, 24, 27, 0.95);
+[data-theme="light"] .navbar {
+    background: rgba(250, 250, 249, 0.95);
 }
 
 .navbar-inner {
@@ -326,6 +328,16 @@ a {
     content: "";
 }
 
+.article-meta .meta-category a {
+    color: var(--color-text-tertiary);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+.article-meta .meta-category a:hover {
+    color: var(--color-accent);
+}
+
 .article-title {
     font-size: 22px;
     font-weight: 600;
@@ -359,7 +371,7 @@ a {
     flex-wrap: wrap;
 }
 
-.tag {
+.article-tags a {
     font-size: 13px;
     color: var(--color-text-tertiary);
     background: transparent;
@@ -370,12 +382,12 @@ a {
     z-index: 2;
 }
 
-.tag::before {
+.article-tags a::before {
     content: "#";
     margin-right: 2px;
 }
 
-.tag:hover {
+.article-tags a:hover {
     color: var(--color-accent);
 }
 

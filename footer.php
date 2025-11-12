@@ -44,15 +44,15 @@
     const htmlElement = document.documentElement;
     const savedTheme = localStorage.getItem('theme-preference');
 
-    if (savedTheme === 'light') {
+    // 如果有保存的主题偏好，使用保存的
+    if (savedTheme === 'dark') {
+        htmlElement.setAttribute('data-theme', 'dark');
+    } else if (savedTheme === 'light') {
         htmlElement.setAttribute('data-theme', 'light');
-    } else if (savedTheme === 'dark') {
-        htmlElement.removeAttribute('data-theme');
     } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (!prefersDark) {
-            htmlElement.setAttribute('data-theme', 'light');
-        }
+        // 没有保存的偏好，默认使用浅色模式
+        htmlElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme-preference', 'light');
     }
 })();
 
@@ -63,7 +63,7 @@ function toggleTheme() {
     let newTheme;
 
     if (currentTheme === 'light') {
-        htmlElement.removeAttribute('data-theme');
+        htmlElement.setAttribute('data-theme', 'dark');
         newTheme = 'dark';
     } else {
         htmlElement.setAttribute('data-theme', 'light');
@@ -71,6 +71,12 @@ function toggleTheme() {
     }
 
     localStorage.setItem('theme-preference', newTheme);
+
+    // 更新按钮文字
+    const toggleBtn = document.querySelector('.theme-toggle');
+    if (toggleBtn) {
+        toggleBtn.textContent = newTheme === 'light' ? '◐' : '◑';
+    }
 }
 
 // 整卡点击跳转

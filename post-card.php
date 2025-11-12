@@ -30,6 +30,11 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             <div class="article-meta">
                 <span><?php $this->date('Y-m-d'); ?></span>
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
+                <?php if ($this->categories): ?>
+                <span class="meta-category">
+                    <?php $this->category(',', false); ?>
+                </span>
+                <?php endif; ?>
             </div>
             <h2 class="article-title">
                 <a href="<?php $this->permalink(); ?>" class="article-title-link"><?php $this->title(); ?></a>
@@ -45,7 +50,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             </p>
             <?php if ($this->tags): ?>
             <div class="article-tags">
-                <?php $this->tags('', true, ''); ?>
+                <?php $this->tags(' ', true, ''); ?>
             </div>
             <?php endif; ?>
         </div>
