@@ -44,7 +44,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                 if ($this->fields->excerpt) {
                     echo $this->fields->excerpt;
                 } else {
-                    $this->excerpt(200, '...');
+                    $this->excerpt(125, '...');
                 }
                 ?>
             </p>
