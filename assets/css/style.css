@@ -1570,15 +1570,6 @@ a {
 /* ============================================
    响应式
    ============================================ */
-
-/* 中等屏幕（平板横屏） */
-@media (max-width: 1024px) {
-    .article-body {
-        max-width: 680px;
-    }
-}
-
-/* 小屏幕（平板竖屏） */
 @media (max-width: 1200px) {
     .main-layout {
         grid-template-columns: 2fr 1fr;
@@ -1614,10 +1605,11 @@ a {
         grid-column: 2 / 3;
     }
 
-    /* 文章内容宽度适配 */
+    /* 确保文章内容不超出屏幕 */
     .article-body {
-        max-width: 100%;
-        padding: 0 calc(var(--spacing-unit) * 2);
+        max-width: calc(100vw - calc(var(--spacing-unit) * 8));
+        padding-left: calc(var(--spacing-unit) * 2);
+        padding-right: calc(var(--spacing-unit) * 2);
     }
 }
 
@@ -1664,14 +1656,11 @@ a {
         font-size: 32px;
     }
 
-    /* 文章内容移动端适配 */
+    /* 移动端文章内容适配 */
     .article-body {
         max-width: 100%;
-        padding: 0;
-    }
-
-    .article-body h1 {
-        font-size: 28px;
+        padding-left: calc(var(--spacing-unit) * 2);
+        padding-right: calc(var(--spacing-unit) * 2);
     }
 
     .article-body h2 {
@@ -1682,45 +1671,8 @@ a {
         font-size: 20px;
     }
 
-    .article-body h4 {
-        font-size: 18px;
-    }
-
     .article-body p {
         font-size: 17px;
-    }
-
-    /* 代码块移动端适配 */
-    .code-block-wrapper {
-        margin-left: calc(var(--spacing-unit) * -3);
-        margin-right: calc(var(--spacing-unit) * -3);
-        border-radius: 0;
-    }
-
-    .code-block-header {
-        padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
-    }
-
-    .article-body pre {
-        padding: calc(var(--spacing-unit) * 2);
-        font-size: 14px;
-    }
-
-    .article-body pre code {
-        font-size: 14px;
-    }
-
-    /* 表格移动端适配 */
-    .article-body table {
-        font-size: 14px;
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .article-body table thead th,
-    .article-body table td {
-        padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
     }
 
     .about-name {
