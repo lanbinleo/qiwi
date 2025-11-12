@@ -14,10 +14,6 @@
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
-    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/enhanced-style.css'); ?>">
-    <?php if ($this->is('page', 'friends')): ?>
-    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/friends-style.css'); ?>">
-    <?php endif; ?>
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">
@@ -26,7 +22,7 @@
 
     <!-- Favicon -->
     <link rel="icon" href="<?php $this->options->themeUrl('favicon.ico'); ?>">
-    
+
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="<?php $this->options->title(); ?>" href="<?php $this->options->feedUrl(); ?>">
 
@@ -37,8 +33,6 @@
     <script defer type="text/javascript" src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <?php endif; ?>
 
-
-
     <!-- Custom CSS -->
     <?php if ($this->options->customCSS): ?>
     <style type="text/css">
@@ -46,103 +40,28 @@
     </style>
     <?php endif; ?>
 
-    <!-- Enhanced Theme Configuration -->
-    <script type="text/javascript">
-        window.qiwiThemeConfig = {
-            backgroundImages: <?php
-                $bgImages = $this->options->backgroundImages;
-                $imageArray = array();
-                if ($bgImages) {
-                    $lines = explode("\n", $bgImages);
-                    foreach ($lines as $line) {
-                        $line = trim($line);
-                        if (!empty($line)) {
-                            $imageArray[] = $line;
-                        }
-                    }
-                }
-                echo json_encode($imageArray);
-            ?>,
-            backgroundMask: <?php echo json_encode($this->options->backgroundMask ?: '0.5'); ?>,
-            homeThumbnailLayout: <?php echo json_encode($this->options->homeThumbnailLayout ?: 'top'); ?>
-        };
-    </script>
-
-    <!-- Enhanced Theme Script -->
-    <script defer src="<?php $this->options->themeUrl('assets/js/enhanced-script.js'); ?>"></script>
-
     <!-- Typecho Header -->
     <?php $this->header(); ?>
 </head>
-<body<?php if ($this->is('single')): ?> class="single-post"<?php endif; ?>>
+<body>
 
-<header class="site-header">
-    <div class="container">
-        <div class="site-branding">
-            <?php if ($this->options->logoUrl): ?>
-                <a href="<?php $this->options->siteUrl(); ?>" class="site-logo">
-                    <img src="<?php $this->options->logoUrl(); ?>" alt="<?php $this->options->title(); ?>">
-                </a>
-            <?php else: ?>
-                <a href="<?php $this->options->siteUrl(); ?>" class="site-title">
-                    <?php $this->options->title(); ?>
-                </a>
-            <?php endif; ?>
-            
-            <?php if ($this->options->description): ?>
-                <p class="site-description"><?php $this->options->description(); ?></p>
-            <?php endif; ?>
+<!-- 顶部导航栏 -->
+<nav class="navbar">
+    <div class="navbar-inner">
+        <div class="navbar-title">
+            <a href="<?php $this->options->siteUrl(); ?>">
+                <?php $this->options->title(); ?>
+            </a>
         </div>
+        <ul class="nav-links">
+            <li><a href="<?php $this->options->siteUrl(); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
 
-        <nav class="site-nav" role="navigation">
-            <div class="nav-links">
-                <a href="<?php $this->options->siteUrl(); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>
-                    首页
-                </a>
-                
-                <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
-                <?php while ($pages->next()): ?>
-                    <a href="<?php $pages->permalink(); ?>"<?php if ($this->is('page', $pages->slug)): ?> class="current"<?php endif; ?> title="<?php $pages->title(); ?>">
-                        <?php $pages->title(); ?>
-                    </a>
-                <?php endwhile; ?>
-            </div>
-            
-            <div class="nav-actions">
-                <div class="search-form">
-                    <form method="post" action="<?php $this->options->siteUrl(); ?>" role="search">
-                        <input type="text" id="s" name="s" class="search-input" placeholder="搜索..." value="<?php $this->archiveSlug(); ?>">
-                        <button type="submit" class="search-button">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                        </button>
-                    </form>
-                </div>
-                
-                <!-- Theme Toggle Button -->
-                <button id="theme-toggle-btn" class="theme-toggle-btn" title="切换日间/夜间模式">
-                    <div class="icon-container">
-                        <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="5"></circle>
-                            <line x1="12" y1="1" x2="12" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="23"></line>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                            <line x1="1" y1="12" x2="3" y2="12"></line>
-                            <line x1="21" y1="12" x2="23" y2="12"></line>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                        </svg>
-                        <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                        </svg>
-                    </div>
-                </button>
-            </div>
-        </nav>
+            <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
+            <?php while ($pages->next()): ?>
+                <li><a href="<?php $pages->permalink(); ?>"<?php if ($this->is('page', $pages->slug)): ?> class="current"<?php endif; ?>><?php $pages->title(); ?></a></li>
+            <?php endwhile; ?>
+
+            <li><button class="theme-toggle" onclick="toggleTheme()">◐</button></li>
+        </ul>
     </div>
-</header>
-
-<main class="site-main">
+</nav>
