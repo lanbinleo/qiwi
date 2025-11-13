@@ -2,9 +2,9 @@
 
 <!-- 侧边栏标题 -->
 <div class="sidebar-header">
-    <h1 class="site-title"><?php $this->options->title(); ?></h1>
-    <?php if ($this->options->description): ?>
-        <p class="site-motto"><?php $this->options->description(); ?></p>
+    <h1 class="site-title"><?php $this->author->screenName(); ?></h1>
+    <?php if ($this->options->aboutBio): ?>
+        <p class="site-motto"><?php echo $this->options->aboutBio; ?></p>
     <?php endif; ?>
 </div>
 
