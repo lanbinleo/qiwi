@@ -78,7 +78,7 @@
             <?php endif; ?>
             <br>
 
-            <button type="submit" class="submit-button"><?php _e('提交评论'); ?></button>
+            <button type="submit" class="submit-button" id="sub_btn"><?php _e('提交评论'); ?></button>
         </form>
     </div>
     <?php else: ?>
