@@ -56,6 +56,7 @@ body {
     color: var(--color-text-primary);
     background: var(--color-bg);
     transition: background 0.3s ease, color 0.3s ease;
+    /* transition: background var(--transition), color var(--transition); */
 }
 
 a {
@@ -821,6 +822,64 @@ a {
 .post-navigation a:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+}
+
+/* 密码保护文章 */
+.article-body .protected {
+    max-width: 480px;
+    margin: calc(var(--spacing-unit) * 8) auto;
+    padding: calc(var(--spacing-unit) * 6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    text-align: center;
+}
+
+.protected .word {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: calc(var(--spacing-unit) * 4);
+}
+
+.protected p:last-child {
+    margin-bottom: 0;
+}
+
+.protected input.text {
+    width: 100%;
+    padding: calc(var(--spacing-unit) * 2);
+    font-size: 15px;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-bottom: calc(var(--spacing-unit) * 3);
+    transition: all var(--transition);
+}
+
+.protected input.text:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.protected input.submit {
+    width: 100%;
+    padding: calc(var(--spacing-unit) * 2) calc(var(--spacing-unit) * 4);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    color: var(--color-bg);
+    background: var(--color-accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.protected input.submit:hover {
+    opacity: 0.9;
 }
 
 /* ============================================
