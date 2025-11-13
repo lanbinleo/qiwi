@@ -32,7 +32,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
                 <?php if ($this->categories): ?>
                 <span class="meta-category">
-                    <?php $this->category(',', false); ?>
+                    <?php $this->category(','); ?>
                 </span>
                 <?php endif; ?>
             </div>
