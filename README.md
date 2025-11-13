@@ -1,9 +1,11 @@
 
-# QIWI Theme
+# QIWI Theme ✨ v1.2 update!
 
 A clean, minimalist dark theme for Typecho.
 
-![screenshot](screenshot.png)
+v1.2 Refactored the entire frontend design! Nov. 2025.
+
+![New SC](screenshot3.png)
 
 The idea of this theme is to provide a simple and elegant design with a focus on readability. LaTex is supported in article renderer. 
 
