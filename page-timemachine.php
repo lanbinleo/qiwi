@@ -145,12 +145,20 @@ function renderMarkdown($text) {
                 <?php
                 $referer = $this->request->getReferer() ?? $this->request->getRequestUrl();
                 $token = method_exists($this, 'security') ?
-                    $this->security->getToken($referer) :
-                    $this->widget('Widget_Security')->getToken($referer);
+                    $this->security->getToken($this->permalink) :
+                    $this->widget('Widget_Security')->getToken($this->permalink);
                 echo '<input type="hidden" name="_" value="' . $token . '">';
                 ?>
 
-                <button type="submit" class="submit-button">发布</button>
+                <?php if ($this->options->enabledCaptcha): ?>
+                <div class="captcha-script">
+                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
+                </div>
+                <?php endif; ?>
+                <br>
+
+                <button type="submit" class="submit-button" id="sub_btn">发布</button>
             </form>
             <?php endif; ?>
         </div>
