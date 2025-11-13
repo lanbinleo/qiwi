@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QIWI 新设计稿 - Design Draft</title>
+    <style>
+        /* ============================================
+           设计系统 - Design System
+           ============================================ */
+        :root {
+            /* 色彩 - 柔和中性色调 */
+            --color-bg: #fafaf9;
+            --color-surface: #ffffff;
+            --color-text-primary: #3f3f46;
+            --color-text-secondary: #71717a;
+            --color-text-tertiary: #a1a1aa;
+            --color-border: #e4e4e7;
+            --color-accent: #8b7355;
+            --color-accent-soft: #d4c4b0;
+
+            /* 字体 */
+            --font-sans: "HarmonyOS Sans", "HarmonyOS Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            --font-mono: "Maple Mono NF CN", "Cascadia Code", "Fira Code", Consolas, monospace;
+
+            /* 间距 */
+            --spacing-unit: 8px;
+
+            /* 圆角 */
+            --radius: 12px;
+
+            /* 动画 */
+            --transition: 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        [data-theme="dark"] {
+            --color-bg: #18181b;
+            --color-surface: #27272a;
+            --color-text-primary: #e4e4e7;
+            --color-text-secondary: #a1a1aa;
+            --color-text-tertiary: #71717a;
+            --color-border: #3f3f46;
+            --color-accent: #d4c4b0;
+            --color-accent-soft: #8b7355;
+        }
+
+        /* ============================================
+           基础样式
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            font-size: 17px;
+            line-height: 1.7;
+            color: var(--color-text-primary);
+            background: var(--color-bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ============================================
+           侧边栏标题
+           ============================================ */
+        .sidebar-header {
+            margin-bottom: calc(var(--spacing-unit) * 8);
+            padding-bottom: calc(var(--spacing-unit) * 4);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .site-title {
+            /* font-family: var(--font-mono); */
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 2);
+            letter-spacing: -0.02em;
+        }
+
+        .site-motto {
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+            font-weight: normal;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           顶部导航栏
+           ============================================ */
+        .navbar {
+            position: sticky;
+            top: 0;
+            background: rgba(250, 250, 249, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--color-border);
+            z-index: 100;
+            transition: all var(--transition);
+        }
+
+        [data-theme="dark"] .navbar {
+            background: rgba(24, 24, 27, 0.95);
+        }
+
+        .navbar-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: calc(var(--spacing-unit) * 3) calc(var(--spacing-unit) * 6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-title {
+            font-family: var(--font-sans);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: calc(var(--spacing-unit) * 5);
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            font-family: var(--font-sans);
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            transition: color var(--transition);
+        }
+
+        .nav-links a:hover {
+            color: var(--color-accent);
+        }
+
+        .theme-toggle {
+            font-family: var(--font-sans);
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px;
+            transition: color var(--transition);
+        }
+
+        .theme-toggle:hover {
+            color: var(--color-accent);
+        }
+
+        /* ============================================
+           主页 - 6 列布局系统
+           ============================================ */
+        .main-layout {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: calc(var(--spacing-unit) * 8) calc(var(--spacing-unit) * 6);
+            display: grid;
+            grid-template-columns: 1fr 4.2fr 1.5fr 1fr;
+            gap: calc(var(--spacing-unit) * 6);
+        }
+
+        .layout-spacer-left {
+            /* 左侧留白 */
+        }
+
+        .main-content {
+            /* 主要内容区 - 3份 */
+        }
+
+        .sidebar {
+            /* 侧边栏 - 1份 */
+        }
+
+        .layout-spacer-right {
+            /* 右侧留白 */
+        }
+
+        /* ============================================
+           文章列表 - 非卡片设计
+           ============================================ */
+        .article-list {
+            list-style: none;
+        }
+
+        .article-item {
+            padding: calc(var(--spacing-unit) * 5) 0;
+            border-bottom: 1px solid var(--color-border);
+            transition: transform var(--transition);
+            position: relative;
+        }
+
+        .article-item:hover {
+            transform: translateX(calc(var(--spacing-unit) * 2));
+        }
+
+        .article-item:first-child {
+            padding-top: 0;
+        }
+
+        /* 整卡可点击覆盖层 */
+        .article-item::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: pointer;
+        }
+
+        /* 确保标题和标签链接在覆盖层之上 */
+        .article-title-link,
+        .tag {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 有头图的文章 - 倾斜渐变遮罩设计 */
+        .article-item-inner {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            min-height: 160px;
+        }
+
+        .article-content {
+            flex: 0 0 70%;
+            padding-right: calc(var(--spacing-unit) * 4);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* 当文章没有头图时，文字内容占满整个区域 */
+        .article-item-inner .article-content:only-child {
+            flex: 0 0 100%;
+            padding-right: 0;
+        }
+
+        /* 头图容器 */
+        .article-thumbnail-wrapper {
+            flex: 0 0 30%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .article-thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .article-meta {
+            display: flex;
+            gap: calc(var(--spacing-unit) * 2);
+            font-size: 14px;
+            color: var(--color-text-tertiary);
+            margin-bottom: calc(var(--spacing-unit) * 2);
+        }
+
+        .article-meta span::after {
+            content: "·";
+            margin-left: calc(var(--spacing-unit) * 2);
+            color: var(--color-border);
+        }
+
+        .article-meta span:last-child::after {
+            content: "";
+        }
+
+        .article-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 2);
+            line-height: 1.4;
+            letter-spacing: -0.02em;
+        }
+
+        .article-title-link {
+            color: inherit;
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .article-title-link:hover {
+            color: var(--color-accent);
+        }
+
+        .article-excerpt {
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            margin-bottom: calc(var(--spacing-unit) * 2);
+        }
+
+        .article-tags {
+            display: flex;
+            column-gap: calc(var(--spacing-unit) * 2);
+            row-gap: calc(var(--spacing-unit));
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+            background: transparent;
+            padding: 4px 0;
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .tag::before {
+            content: "#";
+            margin-right: 2px;
+        }
+
+        .tag:hover {
+            color: var(--color-accent);
+        }
+
+        /* ============================================
+           侧边栏样式
+           ============================================ */
+        .sidebar {
+            position: sticky;
+            top: calc(var(--spacing-unit) * 14);
+            height: fit-content;
+            padding-left: calc(var(--spacing-unit) * 4);
+        }
+
+        .sidebar-section {
+            margin-bottom: calc(var(--spacing-unit) * 6);
+        }
+
+        .sidebar-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 3);
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-title::before {
+            content: "";
+            display: inline-block;
+            width: 3px;
+            height: 16px;
+            background: linear-gradient(to bottom, var(--color-accent), transparent);
+            margin-right: calc(var(--spacing-unit));
+            flex-shrink: 0;
+        }
+
+        .sidebar-list {
+            list-style: none;
+        }
+
+        .sidebar-list li {
+            margin-bottom: calc(var(--spacing-unit) * 2);
+        }
+
+        .sidebar-list a {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            transition: color var(--transition);
+            display: block;
+        }
+
+        .sidebar-list a:hover {
+            color: var(--color-accent);
+        }
+
+        .sidebar-list .item-count {
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+            margin-left: calc(var(--spacing-unit));
+        }
+
+        /* ============================================
+           文章页 - Medium 风格
+           ============================================ */
+        .article-page {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: calc(var(--spacing-unit) * 8) calc(var(--spacing-unit) * 6);
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            gap: calc(var(--spacing-unit) * 6);
+        }
+
+        .article-main {
+            grid-column: 2 / 3;
+        }
+
+        .article-header {
+            margin-bottom: calc(var(--spacing-unit) * 6);
+        }
+
+        .article-header-title {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--color-text-primary);
+            letter-spacing: -0.03em;
+            margin-bottom: calc(var(--spacing-unit) * 4);
+        }
+
+        .article-header-meta {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--spacing-unit) * 3);
+            padding-bottom: calc(var(--spacing-unit) * 4);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .author-info {
+            flex: 1;
+        }
+
+        .author-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .post-date {
+            font-size: 14px;
+            color: var(--color-text-tertiary);
+        }
+
+        /* 文章头图 */
+        .article-hero {
+            width: calc(100% + calc(var(--spacing-unit) * 12));
+            max-height: 480px;
+            object-fit: cover;
+            margin: 0 calc(var(--spacing-unit) * -6) calc(var(--spacing-unit) * 6);
+            border-radius: var(--radius);
+        }
+
+        /* 文章内容 */
+        .article-body {
+            margin-bottom: calc(var(--spacing-unit) * 12);
+        }
+
+        .article-body h2 {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin: calc(var(--spacing-unit) * 8) 0 calc(var(--spacing-unit) * 3);
+            letter-spacing: -0.02em;
+        }
+
+        .article-body h3 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin: calc(var(--spacing-unit) * 6) 0 calc(var(--spacing-unit) * 2);
+            letter-spacing: -0.02em;
+        }
+
+        .article-body p {
+            font-size: 18px;
+            line-height: 1.8;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 3);
+        }
+
+        .article-body a {
+            color: var(--color-accent);
+            text-decoration: none;
+            border-bottom: 1px solid var(--color-accent-soft);
+            transition: all var(--transition);
+        }
+
+        .article-body a:hover {
+            border-bottom-color: var(--color-accent);
+        }
+
+        .article-body code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            background: var(--color-surface);
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--color-border);
+        }
+
+        .article-body pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: calc(var(--spacing-unit) * 3);
+            overflow-x: auto;
+            margin: calc(var(--spacing-unit) * 4) 0;
+        }
+
+        .article-body pre code {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .article-body blockquote {
+            border-left: 3px solid var(--color-accent-soft);
+            padding-left: calc(var(--spacing-unit) * 3);
+            margin: calc(var(--spacing-unit) * 4) 0;
+            color: var(--color-text-secondary);
+            font-style: italic;
+        }
+
+        .article-body img {
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            margin: calc(var(--spacing-unit) * 4) 0;
+        }
+
+        /* ============================================
+           关于页面
+           ============================================ */
+        .about-page {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: calc(var(--spacing-unit) * 8) calc(var(--spacing-unit) * 6);
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            gap: calc(var(--spacing-unit) * 6);
+        }
+
+        .about-main {
+            grid-column: 2 / 3;
+        }
+
+        .about-header {
+            text-align: center;
+            padding: calc(var(--spacing-unit) * 6) 0 calc(var(--spacing-unit) * 8);
+        }
+
+        .about-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: calc(var(--spacing-unit) * 3);
+        }
+
+        .about-name {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 2);
+            letter-spacing: -0.03em;
+        }
+
+        .about-bio {
+            font-size: 17px;
+            color: var(--color-text-secondary);
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .about-section {
+            margin-bottom: calc(var(--spacing-unit) * 8);
+        }
+
+        .about-section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: calc(var(--spacing-unit) * 3);
+            letter-spacing: -0.02em;
+        }
+
+        .about-section p {
+            font-size: 17px;
+            line-height: 1.8;
+            color: var(--color-text-secondary);
+            margin-bottom: calc(var(--spacing-unit) * 2);
+        }
+
+        /* ============================================
+           页脚
+           ============================================ */
+        .site-footer {
+            border-top: 1px solid var(--color-border);
+            margin-top: calc(var(--spacing-unit) * 12);
+            padding: calc(var(--spacing-unit) * 8) 0;
+            background: var(--color-bg);
+        }
+
+        .footer-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 calc(var(--spacing-unit) * 6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: calc(var(--spacing-unit) * 4);
+        }
+
+        .footer-info {
+            flex: 1;
+        }
+
+        .footer-info p {
+            font-size: 14px;
+            color: var(--color-text-tertiary);
+            line-height: 1.8;
+            margin: 0;
+        }
+
+        .footer-info a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .footer-info a:hover {
+            color: var(--color-accent);
+        }
+
+        .footer-meta {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--spacing-unit) * 4);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: calc(var(--spacing-unit) * 3);
+        }
+
+        .footer-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--color-accent);
+        }
+
+        .footer-links svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .theme-info {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--spacing-unit));
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+        }
+
+        .theme-info a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        .theme-info a:hover {
+            color: var(--color-accent);
+        }
+
+        @media (max-width: 768px) {
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .footer-meta {
+                flex-direction: column;
+            }
+        }
+
+        /* ============================================
+           响应式
+           ============================================ */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 2fr 1fr;
+                padding: calc(var(--spacing-unit) * 6) calc(var(--spacing-unit) * 4);
+                gap: calc(var(--spacing-unit) * 4);
+            }
+
+            .article-page,
+            .about-page {
+                grid-template-columns: 1fr;
+                padding: calc(var(--spacing-unit) * 6) calc(var(--spacing-unit) * 4);
+            }
+
+            .layout-spacer-left,
+            .layout-spacer-right {
+                display: none;
+            }
+
+            .main-content {
+                grid-column: 1 / 2;
+            }
+
+            .article-main,
+            .about-main {
+                grid-column: 1 / 2;
+            }
+
+            .main-layout .sidebar {
+                grid-column: 2 / 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-layout,
+            .article-page,
+            .about-page {
+                grid-template-columns: 1fr;
+                padding: calc(var(--spacing-unit) * 4) calc(var(--spacing-unit) * 3);
+            }
+
+            .sidebar {
+                position: static;
+                margin-top: 0;
+            }
+
+            .sidebar-header {
+                margin-bottom: calc(var(--spacing-unit) * 6);
+            }
+
+            .article-item-inner {
+                flex-direction: column;
+            }
+
+            .article-thumbnail {
+                width: 100%;
+                height: 200px;
+            }
+
+            .article-title {
+                font-size: 20px;
+            }
+
+            .article-header-title {
+                font-size: 32px;
+            }
+
+            .article-body h2 {
+                font-size: 24px;
+            }
+
+            .article-body h3 {
+                font-size: 20px;
+            }
+
+            .navbar-inner {
+                padding: calc(var(--spacing-unit) * 2) calc(var(--spacing-unit) * 3);
+            }
+
+            .nav-links {
+                gap: calc(var(--spacing-unit) * 3);
+            }
+        }
+
+        /* ============================================
+           页面切换（用于演示）
+           ============================================ */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .demo-nav {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+        }
+
+        .demo-nav button {
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            margin: 4px 0;
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            text-align: left;
+            border-radius: 6px;
+            transition: all var(--transition);
+            font-size: 14px;
+        }
+
+        .demo-nav button:hover {
+            background: var(--color-bg);
+            color: var(--color-accent);
+        }
+
+        .demo-nav button.active {
+            background: var(--color-bg);
+            color: var(--color-accent);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-title">祁闵MaxQi</div>
+            <ul class="nav-links">
+                <li><a href="#">首页</a></li>
+                <li><a href="#">归档</a></li>
+                <li><a href="#">关于</a></li>
+                <li><button class="theme-toggle" onclick="toggleTheme()">◐</button></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- ============================================
+         主页
+         ============================================ -->
+    <div class="page active" id="home">
+        <div class="main-layout">
+            <!-- 左侧留白 -->
+            <div class="layout-spacer-left"></div>
+
+            <!-- 主要内容 -->
+            <div class="main-content">
+                <ul class="article-list">
+                    <!-- 带头图的文章 -->
+                    <li class="article-item">
+                        <div class="article-item-inner">
+                            <div class="article-content">
+                                <div class="article-meta">
+                                    <span>2025-01-15</span>
+                                    <span>8 分钟阅读</span>
+                                </div>
+                                <h2 class="article-title">
+                                    <a href="#" class="article-title-link">重新思考现代 Web 设计的简洁之美</a>
+                                </h2>
+                                <p class="article-excerpt">
+                                    在这个信息爆炸的时代，简洁的设计不是删减，而是提炼。好的设计应该像一件艺术品，让人驻足欣赏，而不是匆匆略过。
+                                </p>
+                                <div class="article-tags">
+                                    <a href="#" class="tag">设计</a>
+                                    <a href="#" class="tag">前端</a>
+                                </div>
+                            </div>
+                            <div class="article-thumbnail-wrapper">
+                                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- 无头图的文章 -->
+                    <li class="article-item">
+                        <div class="article-item-inner">
+                            <div class="article-content">
+                                <div class="article-meta">
+                                    <span>2025-01-12</span>
+                                    <span>5 分钟阅读</span>
+                                </div>
+                                <h2 class="article-title">
+                                    <a href="#" class="article-title-link">Maple Mono：一款为编程而生的字体</a>
+                                </h2>
+                                <p class="article-excerpt">
+                                    字体的选择不仅仅是审美问题，更关乎阅读体验和效率。Maple Mono 以其优雅的连字和清晰的字形，成为我最喜欢的编程字体。
+                                </p>
+                                <div class="article-tags">
+                                    <a href="#" class="tag">工具</a>
+                                    <a href="#" class="tag">字体</a>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- 带头图的文章 -->
+                    <li class="article-item">
+                        <div class="article-item-inner">
+                            <div class="article-content">
+                                <div class="article-meta">
+                                    <span>2025-01-08</span>
+                                    <span>12 分钟阅读</span>
+                                </div>
+                                <h2 class="article-title">
+                                    <a href="#" class="article-title-link">CSS 自定义属性的高级用法</a>
+                                </h2>
+                                <p class="article-excerpt">
+                                    CSS 变量不只是存储颜色值那么简单。通过巧妙的设计，它可以成为构建复杂主题系统和动态样式的基石。
+                                </p>
+                                <div class="article-tags">
+                                    <a href="#" class="tag">CSS</a>
+                                    <a href="#" class="tag">前端</a>
+                                </div>
+                            </div>
+                            <div class="article-thumbnail-wrapper">
+                                <img src="https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- 无头图的文章 -->
+                    <li class="article-item">
+                        <div class="article-item-inner">
+                            <div class="article-content">
+                                <div class="article-meta">
+                                    <span>2025-01-05</span>
+                                    <span>6 分钟阅读</span>
+                                </div>
+                                <h2 class="article-title">
+                                    <a href="#" class="article-title-link">为什么我放弃了 React 转向原生 JavaScript</a>
+                                </h2>
+                                <p class="article-excerpt">
+                                    框架固然强大，但有时候我们需要的只是几行简单的代码。在这个项目中，我重新发现了原生 JS 的魅力。
+                                </p>
+                                <div class="article-tags">
+                                    <a href="#" class="tag">JavaScript</a>
+                                    <a href="#" class="tag">思考</a>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- 带头图的文章 -->
+                    <li class="article-item">
+                        <div class="article-item-inner">
+                            <div class="article-content">
+                                <div class="article-meta">
+                                    <span>2025-01-02</span>
+                                    <span>7 分钟阅读</span>
+                                </div>
+                                <h2 class="article-title">
+                                    <a href="#" class="article-title-link">从零开始构建一个博客主题</a>
+                                </h2>
+                                <p class="article-excerpt">
+                                    记录从设计到实现的完整过程，包括颜色系统、字体选择、布局设计等每一个细节的思考。
+                                </p>
+                                <div class="article-tags">
+                                    <a href="#" class="tag">Typecho</a>
+                                    <a href="#" class="tag">主题开发</a>
+                                </div>
+                            </div>
+                            <div class="article-thumbnail-wrapper">
+                                <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <!-- 标题区 -->
+                <div class="sidebar-header">
+                    <h1 class="site-title">祁闵MaxQi</h1>
+                    <p class="site-motto">Code with elegance, design with purpose.</p>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">最新文章</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#">重新思考现代 Web 设计的简洁之美</a></li>
+                        <li><a href="#">Maple Mono：一款为编程而生的字体</a></li>
+                        <li><a href="#">CSS 自定义属性的高级用法</a></li>
+                        <li><a href="#">为什么我放弃了 React 转向原生 JavaScript</a></li>
+                    </ul>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">分类</h3>
+                    <ul class="sidebar-list">
+                        <li><a href="#">设计 <span class="item-count">(12)</span></a></li>
+                        <li><a href="#">前端 <span class="item-count">(28)</span></a></li>
+                        <li><a href="#">工具 <span class="item-count">(8)</span></a></li>
+                        <li><a href="#">思考 <span class="item-count">(15)</span></a></li>
+                    </ul>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">标签</h3>
+                    <div class="article-tags">
+                        <a href="#" class="tag">JavaScript</a>
+                        <a href="#" class="tag">CSS</a>
+                        <a href="#" class="tag">React</a>
+                        <a href="#" class="tag">Vue</a>
+                        <a href="#" class="tag">TypeScript</a>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右侧留白 -->
+            <div class="layout-spacer-right"></div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         文章页
+         ============================================ -->
+    <div class="page" id="article">
+        <div class="article-page">
+            <!-- 左侧留白 -->
+            <div class="layout-spacer-left"></div>
+
+            <!-- 文章主体 -->
+            <div class="article-main">
+                <div class="article-header">
+                    <h1 class="article-header-title">重新思考现代 Web 设计的简洁之美</h1>
+                    <div class="article-header-meta">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" alt="Leo" class="author-avatar">
+                        <div class="author-info">
+                            <span class="author-name">Leo</span>
+                            <span class="post-date">2025年1月15日 · 8 分钟阅读</span>
+                        </div>
+                    </div>
+                </div>
+
+                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=600&fit=crop" alt="" class="article-hero">
+
+                <article class="article-body">
+                    <p>
+                        在这个信息爆炸的时代，我们每天都被各种视觉元素包围。网页设计也越来越趋向于复杂化——阴影、渐变、动画、卡片……每个元素都在争夺用户的注意力。
+                    </p>
+
+                    <p>
+                        但真正优秀的设计，应该是让用户感受不到设计本身的存在。就像一件精心打磨的艺术品，它的美不在于华丽的装饰，而在于恰到好处的留白和克制的表达。
+                    </p>
+
+                    <h2>简洁不是删减</h2>
+
+                    <p>
+                        很多人误解了"简洁设计"的含义。简洁不是单纯地删除元素，而是精心地提炼。每一个保留下来的元素，都应该有它存在的理由和价值。
+                    </p>
+
+                    <p>
+                        就像 <a href="#">Dieter Rams</a> 说的那样："好的设计是尽可能少的设计。"这不是鼓励懒惰，而是倡导深思熟虑。
+                    </p>
+
+                    <h3>Medium 的启发</h3>
+
+                    <p>
+                        Medium 的阅读体验之所以如此出色，正是因为它把文字放在了绝对的中心位置。没有花哨的卡片，没有复杂的布局，只有流畅的单栏设计和舒适的行距。
+                    </p>
+
+                    <blockquote>
+                        "设计的目标不是让你的作品看起来更好，而是让它更好地工作。"
+                    </blockquote>
+
+                    <h2>色彩的克制</h2>
+
+                    <p>
+                        在色彩的选择上，我倾向于柔和的中性色调。高对比度的配色虽然醒目，但长时间阅读会让人疲惫。而低饱和度的配色，就像一杯清茶，越品越有味道。
+                    </p>
+
+                    <p>
+                        代码示例也应该遵循这个原则：
+                    </p>
+
+                    <pre><code>const theme = {
+  colors: {
+    background: '#fafaf9',
+    text: '#3f3f46',
+    accent: '#8b7355'
+  },
+  fonts: {
+    sans: 'HarmonyOS Sans',
+    mono: 'Maple Mono NF CN'
+  }
+};</code></pre>
+
+                    <h2>字体的选择</h2>
+
+                    <p>
+                        字体是设计中最容易被忽视，但又最重要的元素之一。一个好的字体，能够提升整个页面 80% 的气质。
+                    </p>
+
+                    <p>
+                        我选择了 <code>HarmonyOS Sans</code> 作为正文字体，它的笔画柔和而清晰。代码部分则使用 <code>Maple Mono</code>，它的连字特性让代码阅读更加流畅。
+                    </p>
+
+                    <h2>结语</h2>
+
+                    <p>
+                        设计没有标准答案。每个人都有自己的审美和需求。但有一点是确定的：好的设计应该让用户感到舒适，而不是炫技。
+                    </p>
+
+                    <p>
+                        希望这篇文章能给你一些启发。如果你也在思考如何改进自己的博客设计，不妨试试"减法"——去掉那些不必要的元素，留下真正有价值的内容。
+                    </p>
+                </article>
+            </div>
+
+            <!-- 右侧留白 -->
+            <div class="layout-spacer-right"></div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         关于页面
+         ============================================ -->
+    <div class="page" id="about">
+        <div class="about-page">
+            <!-- 左侧留白 -->
+            <div class="layout-spacer-left"></div>
+
+            <!-- 关于页主体 -->
+            <div class="about-main">
+                <div class="about-header">
+                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop" alt="Leo" class="about-avatar">
+                    <h1 class="about-name">祁闵 Leo</h1>
+                    <p class="about-bio">
+                        一个热爱设计与代码的开发者，相信简洁的力量，追求艺术与技术的平衡。
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2 class="about-section-title">关于我</h2>
+                    <p>
+                        我是 Leo，一名前端开发者和设计爱好者。我相信设计不仅仅是视觉的呈现，更是用户体验的传达。
+                    </p>
+                    <p>
+                        在这个博客中，我会分享关于 Web 设计、前端技术、以及生活中的一些思考。希望我的文字能给你带来一些启发。
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2 class="about-section-title">我的技能</h2>
+                    <p>
+                        前端开发：JavaScript, TypeScript, React, Vue<br>
+                        设计工具：Figma, Sketch, Adobe XD<br>
+                        其他：Node.js, PHP, MySQL
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2 class="about-section-title">联系方式</h2>
+                    <p>
+                        Email: leo@example.com<br>
+                        GitHub: @leo<br>
+                        Twitter: @leo
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右侧留白 -->
+            <div class="layout-spacer-right"></div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <div class="footer-info">
+                <p>&copy; 2025 <a href="#">祁闵MaxQi</a>. 由 <a href="https://typecho.org" target="_blank" rel="noopener">Typecho</a> 强力驱动.</p>
+                <p class="site-description">Code with elegance, design with purpose.</p>
+            </div>
+
+            <div class="footer-meta">
+                <div class="footer-links">
+                    <a href="#" target="_blank" rel="noopener" title="RSS 订阅">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 11a9 9 0 0 1 9 9"></path>
+                            <path d="M4 4a16 16 0 0 1 16 16"></path>
+                            <circle cx="5" cy="19" r="1"></circle>
+                        </svg>
+                        RSS
+                    </a>
+                    <a href="#" target="_blank" rel="noopener" title="GitHub">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+
+                <div class="theme-info">
+                    <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi" target="_blank">Qiwi Theme</a></span>
+                    <span class="theme-version">v1.1.6</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 演示导航（仅用于设计稿） -->
+    <div class="demo-nav">
+        <button class="active" onclick="showPage('home')">主页</button>
+        <button onclick="showPage('article')">文章页</button>
+        <button onclick="showPage('about')">关于页</button>
+    </div>
+
+    <script>
+        // 页面切换（仅用于演示）
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId).classList.add('active');
+
+            document.querySelectorAll('.demo-nav button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            window.scrollTo(0, 0);
+        }
+
+        // 主题切换
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // 初始化主题
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // 整卡点击跳转
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.article-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // 如果点击的是标签或标题链接，不处理
+                    if (e.target.closest('.tag') || e.target.closest('.article-title-link')) {
+                        return;
+                    }
+                    // 查找标题链接并跳转
+                    const titleLink = this.querySelector('.article-title-link');
+                    if (titleLink) {
+                        window.location.href = titleLink.href;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
