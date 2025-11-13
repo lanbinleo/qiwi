@@ -3,8 +3,10 @@
     <div class="footer-content">
         <div class="footer-info">
             <p>&copy; <?php echo date('Y'); ?> <a href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>. 由 <a href="https://typecho.org" target="_blank" rel="noopener">Typecho</a> 强力驱动.</p>
-            <?php if ($this->options->description): ?>
-                <p class="site-description"><?php $this->options->description(); ?></p>
+            <?php if ($this->options->footerInfo): ?>
+                <p class="site-description"><?php $this->options->footerInfo() ?></p>
+            <?php elseif ($this->options->description): ?>
+                <p class="site-description"><?php $this->options->description() ?></p>
             <?php endif; ?>
         </div>
 
