@@ -31,7 +31,7 @@
 
             <div class="theme-info">
                 <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi" target="_blank">Qiwi Theme</a></span>
-                <span class="theme-version">v1.1.6</span>
+                <span class="theme-version" style="cursor: pointer;" onclick="window.showQiwiVersionDrawer()" title="查看更新日志">v<?php $this->need('version.php'); ?></span>
             </div>
         </div>
     </div>
