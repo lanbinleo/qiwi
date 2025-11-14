@@ -3,6 +3,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 $version = "1.2.0";
 $releaseNotes = [
+    "1.2.1" => <<<EOT
+- 调整了excerpt的长度，使thumbnail更易展示
+- 修改了分割线的transition样式
+- 说说支持渲染markdown语法
+- 添加了置顶文章的支持
+EOT,
     "1.2.0" => <<<EOT
 - **完全重构主题的前端**，现在才用了扁平化设计而不是原先的卡片式层叠设计
 - 更像是一个艺术品，同时补齐了现有的功能
