@@ -72,8 +72,15 @@ function themeFields($layout) {
               2 => _t('文章页展示')),
         3, _t('展示头图'), _t('是否在文章列表中展示头图'));
 
+    // 是否置顶文章
+    $isSticky = new Typecho_Widget_Helper_Form_Element_Radio('isSticky',
+        array(1 => _t('是'),
+              0 => _t('否')),
+        0, _t('置顶文章'), _t('置顶的文章将在首页优先显示'));
+
     $layout->addItem($isLatex);
     $layout->addItem($excerpt);
     $layout->addItem($showThumbnail);
     $layout->addItem($thumbnail);
+    $layout->addItem($isSticky);
 }

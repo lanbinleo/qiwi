@@ -340,6 +340,11 @@ a {
     color: var(--color-accent);
 }
 
+.article-meta .meta-sticky {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
 .article-title {
     font-size: 22px;
     font-weight: 600;
