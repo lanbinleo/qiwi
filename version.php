@@ -1,7 +1,7 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.2.0";
+$version = "1.2.1";
 $releaseNotes = [
     "1.2.1" => <<<EOT
 - 调整了excerpt的长度，使thumbnail更易展示
@@ -82,6 +82,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.2.1" => "2025-11-14",
   "1.2.0" => "2025-11-13",
   "1.1.6" => "2025-10-20",
   "1.1.5" => "2025-10-10",
