@@ -118,6 +118,11 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <?php endif; ?>
 
+<!-- 一言打字机效果 -->
+<?php if ($this->options->enableHitokoto == 1): ?>
+<script src="<?php $this->options->themeUrl('assets/js/hitokoto.js'); ?>"></script>
+<?php endif; ?>
+
 <!-- Code highlighting with theme support -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" id="hljs-light-theme">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" id="hljs-dark-theme" disabled>

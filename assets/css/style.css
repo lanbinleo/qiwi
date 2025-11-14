@@ -191,6 +191,38 @@ a {
     line-height: 1.5;
 }
 
+/* 一言打字机效果 */
+.site-motto-wrapper .site-motto {
+    min-height: 39px;
+    margin-bottom: 0;
+    cursor: pointer;
+    transition: opacity var(--transition);
+}
+
+.site-motto-wrapper .site-motto:hover {
+    opacity: 0.8;
+}
+
+.motto-text {
+    display: inline;
+}
+
+.typing-cursor {
+    display: inline;
+    color: var(--color-accent);
+    font-weight: 300;
+    animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0;
+    }
+}
+
 /* ============================================
    侧边栏样式
    ============================================ */

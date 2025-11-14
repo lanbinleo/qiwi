@@ -3,7 +3,18 @@
 <!-- 侧边栏标题 -->
 <div class="sidebar-header">
     <h1 class="site-title"><?php $this->author->screenName(); ?></h1>
-    <?php if ($this->options->aboutBio): ?>
+    <?php if ($this->options->enableHitokoto == 1 && $this->options->aboutBio): ?>
+        <!-- 一言打字机容器 -->
+        <div class="site-motto-wrapper"
+             data-enable-hitokoto="true"
+             data-bio="<?php echo htmlspecialchars($this->options->aboutBio); ?>">
+            <p class="site-motto">
+                <span class="motto-text"></span>
+                <span class="typing-cursor">|</span>
+            </p>
+        </div>
+    <?php elseif ($this->options->aboutBio): ?>
+        <!-- 普通显示模式 -->
         <p class="site-motto"><?php echo $this->options->aboutBio; ?></p>
     <?php endif; ?>
 </div>
