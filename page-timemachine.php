@@ -38,15 +38,53 @@ $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
 $total = $totalResult ? $totalResult['total'] : 0;
 $totalPages = ceil($total / $pageSize);
 
-// Markdown渲染
+// Markdown 渲染
 function renderMarkdown($text) {
     if (empty($text)) return '';
-    $text = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    $lines = explode("\n", $text);
+    $result = [];
+    $inQuote = false;
+    $quoteLines = [];
+
+    foreach ($lines as $line) {
+        if (preg_match('/^>\s?(.*)$/', $line, $matches)) {
+            // 这是引用行
+            if (!$inQuote) {
+                $inQuote = true;
+            }
+            $quoteLines[] = $matches[1];
+        } else {
+            // 不是引用行
+            if ($inQuote) {
+                // 结束之前的引用块，对引用内容进行转义
+                $quoteContent = htmlspecialchars(implode("\n", $quoteLines), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                // 保留换行，稍后统一处理
+                $result[] = '<blockquote>' . $quoteContent . '</blockquote>';
+                $quoteLines = [];
+                $inQuote = false;
+            }
+            // 对非引用行进行转义
+            $result[] = htmlspecialchars($line, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+    }
+
+    // 处理最后可能还在引用中的情况
+    if ($inQuote) {
+        $quoteContent = htmlspecialchars(implode("\n", $quoteLines), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $result[] = '<blockquote>' . $quoteContent . '</blockquote>';
+    }
+
+    $text = implode("\n", $result);
+
+    // 处理其他 Markdown 语法
     $text = preg_replace('/!\[([^\]]*)\]\(([^\)]+)\)/', '<img src="$2" alt="$1" class="moment-image" loading="lazy">', $text);
     $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
     $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
     $text = preg_replace('/`([^`]+?)`/', '<code>$1</code>', $text);
     $text = preg_replace('/\[([^\]]*)\]\(([^\)]+)\)/', '<a href="$2" target="_blank" rel="noopener">$1</a>', $text);
+
+    // 最后统一处理换行（包括引用块内部）
     return nl2br($text);
 }
 ?>
@@ -82,7 +120,7 @@ function renderMarkdown($text) {
                         <span class="moment-author"><?php $this->author->screenName(); ?></span>
                         <time class="moment-time"><?php echo date('Y-m-d H:i', $comment['created']); ?></time>
                     </div>
-                    <div class="moment-text">
+                    <div class="moment-text article-body">
                         <?php echo renderMarkdown($comment['text']); ?>
                     </div>
                 </div>
@@ -143,7 +181,6 @@ function renderMarkdown($text) {
                 <input type="hidden" name="url" value="<?php echo htmlspecialchars($this->author->url); ?>">
 
                 <?php
-                $referer = $this->request->getReferer() ?? $this->request->getRequestUrl();
                 $token = method_exists($this, 'security') ?
                     $this->security->getToken($this->permalink) :
                     $this->widget('Widget_Security')->getToken($this->permalink);
@@ -423,6 +460,23 @@ class TimemachineUploader {
 // 初始化上传器
 document.addEventListener('DOMContentLoaded', function() {
     const uploader = new TimemachineUploader();
+});
+</script>
+
+<!-- LaTeX 渲染支持 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "$", right: "$", display: false}
+        ],
+        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        ignoredClasses: ["nokatex"]
+    });
 });
 </script>
 

@@ -35,6 +35,9 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                     <?php $this->category(','); ?>
                 </span>
                 <?php endif; ?>
+                <?php if ($this->fields->isSticky == 1): ?>
+                <span class="meta-sticky">置顶</span>
+                <?php endif; ?>
             </div>
             <h2 class="article-title">
                 <a href="<?php $this->permalink(); ?>" class="article-title-link"><?php $this->title(); ?></a>
@@ -44,7 +47,9 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                 if ($this->fields->excerpt) {
                     echo $this->fields->excerpt;
                 } else {
-                    $this->excerpt(125, '...');
+                    // 如果有头图，展示少一些，这样比例更协调
+                    $excerptLength = $shouldShowThumbnail ? 85 : 125;
+                    $this->excerpt($excerptLength, '...');
                 }
                 ?>
             </p>
