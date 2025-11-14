@@ -143,7 +143,6 @@ function renderMarkdown($text) {
                 <input type="hidden" name="url" value="<?php echo htmlspecialchars($this->author->url); ?>">
 
                 <?php
-                $referer = $this->request->getReferer() ?? $this->request->getRequestUrl();
                 $token = method_exists($this, 'security') ?
                     $this->security->getToken($this->permalink) :
                     $this->widget('Widget_Security')->getToken($this->permalink);
