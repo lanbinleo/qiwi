@@ -3,6 +3,10 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 $version = "1.2.1";
 $releaseNotes = [
+    "1.2.2" => <<<EOT
+- 增加了一言功能支持
+- 增加了开往链接（默认启用）
+EOT,
     "1.2.1" => <<<EOT
 - 调整了excerpt的长度，使thumbnail更易展示
 - 修改了分割线的transition样式

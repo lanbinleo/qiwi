@@ -25,6 +25,28 @@ function themeConfig($form)
 
     $form->addInput($sidebarBlock->multiMode());
 
+    // 一言打字机效果
+    $enableHitokoto = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableHitokoto',
+        array(1 => _t('启用'),
+              0 => _t('关闭')),
+        1,
+        _t('一言打字机效果'),
+        _t('在侧边栏个人简介处启用一言打字机效果，默认启用')
+    );
+    $form->addInput($enableHitokoto);
+
+    // 开往功能
+    $enableTravellings = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableTravellings',
+        array(1 => _t('启用'),
+              0 => _t('关闭')),
+        1,
+        _t('开往（Travellings）'),
+        _t('在顶部导航栏显示"开往"链接，默认启用')
+    );
+    $form->addInput($enableTravellings);
+
     // 关于页面信息
     $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
     $aboutAvatar = new Typecho_Widget_Helper_Form_Element_Text('aboutAvatar', null, null, _t('关于页面 - 头像'), _t('在这里填写你的头像URL地址，将显示在关于页面的个人信息卡片中，留空则显示默认头像'));
