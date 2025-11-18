@@ -13,6 +13,20 @@ function themeConfig($form)
 
     $form->addInput($logoUrl);
 
+    // Captcha Script 是否安装Geetest插件并启用 https://github.com/CairBin/typecho-plugin-geetest.git；单选题
+    $enabledCaptcha = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enabledCaptcha',
+        array(
+            '1' => _t('启用'),
+            '0' => _t('关闭')
+        ),
+        '0',
+        _t('启用验证码'),
+        _t('如果你已经安装并启用了 Geetest 插件，可以选择启用验证码功能<br>https://github.com/CairBin/typecho-plugin-geetest.git')
+    );
+
+    $form->addInput($enabledCaptcha);
+
     $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
         'sidebarBlock',
         [
