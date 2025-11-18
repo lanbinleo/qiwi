@@ -13,11 +13,11 @@ function getWordCount($text) {
     // 移除HTML标签
     $text = strip_tags($text);
     // 统计中文字符
-    preg_match_all('/[\x{4e00}-\x{9fa5}]/u', $text, $matches);
-    $chineseCount = count($matches[0]);
-    // 统计英文单词
-    $text = preg_replace('/[\x{4e00}-\x{9fa5}]/u', '', $text);
-    $englishCount = str_word_count($text);
+    preg_match_all('/[\x{4e00}-\x{9fa5}]/u', $text, $chineseMatches);
+    $chineseCount = count($chineseMatches[0]);
+    // 统计英文单词（使用正则匹配连续的字母）
+    preg_match_all('/[a-zA-Z]+/', $text, $englishMatches);
+    $englishCount = count($englishMatches[0]);
 
     return $chineseCount + $englishCount;
 }
@@ -137,7 +137,7 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
         <div class="archives-timeline">
             <?php foreach ($postsByYear as $year => $yearPosts): ?>
             <div class="archive-year-section">
-                <h2 class="year-title"><?php echo $year; ?></h2>
+                <h2 class="year-title"><?php echo htmlspecialchars($year); ?></h2>
                 <ul class="archive-post-list">
                     <?php foreach ($yearPosts as $post): ?>
                     <?php
@@ -149,7 +149,7 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
                     ?>
                     <li class="archive-post-item">
                         <time class="post-date"><?php echo date('m-d', $post['created']); ?></time>
-                        <a href="<?php echo $permalink; ?>" class="post-title-link">
+                        <a href="<?php echo htmlspecialchars($permalink); ?>" class="post-title-link">
                             <?php echo htmlspecialchars($post['title']); ?>
                         </a>
                         <span class="post-wordcount"><?php echo number_format($wordCount); ?> 字</span>
