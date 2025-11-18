@@ -96,17 +96,13 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
     <div class="main-content">
         <header class="archive-header">
             <h1 class="archive-title"><?php $this->title(); ?></h1>
-            <?php if ($this->content()): ?>
-                <div class="archive-description"><?php $this->content(); ?></div>
-            <?php endif; ?>
-
 
             <div class="archive-stats">
                 <span class="stat-item">共 <?php echo $totalPosts; ?> 篇文章</span>
             </div>
-
             
         </header>
+
 
         <!-- 写作统计区域 -->
         <div class="writing-stats">
@@ -129,6 +125,12 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
                 <?php endif; ?>
             </ul>
         </div>
+        <br>
+
+        <?php if ($this->content()): ?>
+            <div class="archive-description"><?php $this->content(); ?></div>
+        <?php endif; ?>
+
         <br>
 
         <?php if (!empty($postsByYear)): ?>
