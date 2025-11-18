@@ -150,7 +150,7 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
                     <li class="archive-post-item">
                         <time class="post-date"><?php echo date('m-d', $post['created']); ?></time>
                         <a href="<?php echo htmlspecialchars($permalink); ?>" class="post-title-link">
-                            <?php echo htmlspecialchars($post['title']); ?>
+                            <?php echo $post['title']; ?>
                         </a>
                         <span class="post-wordcount"><?php echo number_format($wordCount); ?> 字</span>
                     </li>
