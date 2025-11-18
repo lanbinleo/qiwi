@@ -50,6 +50,15 @@
 </div>
 <?php endif; ?>
 
+<!-- 时间归档 -->
+<div class="sidebar-section">
+    <h3 class="sidebar-title">归档</h3>
+    <ul class="sidebar-list">
+        <?php \Widget\Contents\Post\Date::alloc('type=year&format=Y年')
+            ->parse('<li><a href="{permalink}" title="查看 {date} 的文章">{date} <span class="item-count">({count})</span></a></li>'); ?>
+    </ul>
+</div>
+
 <!-- 标签云 -->
 <?php \Widget\Metas\Tag\Cloud::alloc()->to($tags); ?>
 <?php if($tags->have()): ?>
