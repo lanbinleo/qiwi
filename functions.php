@@ -88,6 +88,16 @@ function themeConfig($form)
         _t('在这里填入友链数据，格式为JSON。')
     );
     $form->addInput($friendsData);
+
+    // === 归档页统计配置 ===
+    $bookReference = new Typecho_Widget_Helper_Form_Element_Text(
+        'bookReference',
+        null,
+        null,
+        _t('书籍参考 (用于归档页统计)'),
+        _t('格式："书名, 字数"，例如："刘慈欣的《球状闪电》, 210000"')
+    );
+    $form->addInput($bookReference);
 }
 
 function themeFields($layout) {

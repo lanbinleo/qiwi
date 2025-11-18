@@ -1714,6 +1714,37 @@ a {
     margin-top: calc(var(--spacing-unit) * 2);
 }
 
+/* 写作统计区域 */
+.writing-stats {
+    margin-top: calc(var(--spacing-unit) * 4);
+    padding: calc(var(--spacing-unit) * 3);
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+}
+
+.stats-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.stats-item {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.stats-highlight {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-accent);
+    border-bottom: 3px solid var(--color-accent);
+    padding-bottom: 2px;
+    margin: 0 4px;
+}
+
 .archives-timeline {
     position: relative;
 }
@@ -2139,5 +2170,18 @@ a {
     .archive-post-item .post-wordcount {
         margin-left: 0;
         padding-left: 0;
+    }
+
+    /* 写作统计区域移动端适配 */
+    .writing-stats {
+        padding: calc(var(--spacing-unit) * 2);
+    }
+
+    .stats-item {
+        font-size: 15px;
+    }
+
+    .stats-highlight {
+        font-size: 20px;
     }
 }
