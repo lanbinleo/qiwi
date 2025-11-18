@@ -1702,6 +1702,117 @@ a {
     letter-spacing: -0.02em;
 }
 
+.archive-description {
+    color: var(--color-text-secondary);
+    margin-top: calc(var(--spacing-unit) * 2);
+    line-height: 1.6;
+}
+
+.archive-stats {
+    color: var(--color-text-tertiary);
+    font-size: 14px;
+    margin-top: calc(var(--spacing-unit) * 2);
+}
+
+/* 写作统计区域 */
+.writing-stats {
+    margin-top: calc(var(--spacing-unit) * 4);
+    padding: calc(var(--spacing-unit) * 3);
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+}
+
+.stats-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.stats-item {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.stats-highlight {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-accent);
+    border-bottom: 3px solid var(--color-accent);
+    padding-bottom: 2px;
+    margin: 0 4px;
+}
+
+.archives-timeline {
+    position: relative;
+}
+
+.archive-year-section {
+    margin-bottom: calc(var(--spacing-unit) * 6);
+}
+
+.year-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-bottom: calc(var(--spacing-unit) * 3);
+    padding-left: calc(var(--spacing-unit) * 2);
+    border-left: 3px solid var(--color-accent);
+}
+
+.archive-post-list {
+    list-style: none;
+}
+
+.archive-post-item {
+    display: flex;
+    align-items: baseline;
+    padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
+    margin: 0 calc(var(--spacing-unit) * -2);
+    border-bottom: 1px dashed var(--color-border);
+    border-radius: 6px;
+    transition: all var(--transition);
+}
+
+.archive-post-item:hover {
+    background: var(--color-surface);
+    transform: translateX(calc(var(--spacing-unit)));
+}
+
+.archive-post-item:last-child {
+    border-bottom: none;
+}
+
+.archive-post-item .post-date {
+    font-size: 14px;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-mono);
+    min-width: 3rem;
+    margin-right: calc(var(--spacing-unit) * 2);
+}
+
+.archive-post-item .post-title-link {
+    flex: 1;
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+.archive-post-item .post-title-link:hover,
+.archive-post-item:hover .post-title-link {
+    color: var(--color-accent);
+}
+
+.archive-post-item .post-wordcount {
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+    margin-left: auto;
+    white-space: nowrap;
+    padding-left: calc(var(--spacing-unit) * 2);
+}
+
 /* ============================================
    404错误页面
    ============================================ */
@@ -2042,5 +2153,35 @@ a {
 
     .footer-meta {
         flex-direction: column;
+    }
+
+    /* 归档页面移动端适配 */
+    .archive-post-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: calc(var(--spacing-unit));
+    }
+
+    .archive-post-item .post-date {
+        min-width: auto;
+        margin-right: 0;
+    }
+
+    .archive-post-item .post-wordcount {
+        margin-left: 0;
+        padding-left: 0;
+    }
+
+    /* 写作统计区域移动端适配 */
+    .writing-stats {
+        padding: calc(var(--spacing-unit) * 2);
+    }
+
+    .stats-item {
+        font-size: 15px;
+    }
+
+    .stats-highlight {
+        font-size: 20px;
     }
 }
