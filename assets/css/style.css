@@ -1745,6 +1745,134 @@ a {
     margin: 0 4px;
 }
 
+/* 书籍滚筒动画 */
+.book-roller-container {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.book-number-roller,
+.book-name-roller {
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+    vertical-align: baseline;
+    height: 32px;
+    line-height: 32px;
+}
+
+.roller-wrapper {
+    display: block;
+    transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.roller-item {
+    display: block;
+    height: 32px;
+    line-height: 32px;
+}
+
+.book-number-roller .roller-item {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-accent);
+    border-bottom: 3px solid var(--color-accent);
+    padding-bottom: 2px;
+    margin: 0 4px;
+}
+
+.book-name-roller .roller-item {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+}
+
+/* 2本书的动画 */
+.roller-wrapper-2 {
+    animation: roller-2-books 8s infinite;
+}
+
+@keyframes roller-2-books {
+    0%, 45% {
+        transform: translateY(0);
+    }
+    50%, 95% {
+        transform: translateY(-32px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* 3本书的动画 */
+.roller-wrapper-3 {
+    animation: roller-3-books 12s infinite;
+}
+
+@keyframes roller-3-books {
+    0%, 30% {
+        transform: translateY(0);
+    }
+    33%, 63% {
+        transform: translateY(-32px);
+    }
+    66%, 96% {
+        transform: translateY(-64px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* 4本书的动画 */
+.roller-wrapper-4 {
+    animation: roller-4-books 16s infinite;
+}
+
+@keyframes roller-4-books {
+    0%, 23% {
+        transform: translateY(0);
+    }
+    25%, 48% {
+        transform: translateY(-32px);
+    }
+    50%, 73% {
+        transform: translateY(-64px);
+    }
+    75%, 98% {
+        transform: translateY(-96px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* 5本书的动画 */
+.roller-wrapper-5 {
+    animation: roller-5-books 20s infinite;
+}
+
+@keyframes roller-5-books {
+    0%, 18% {
+        transform: translateY(0);
+    }
+    20%, 38% {
+        transform: translateY(-32px);
+    }
+    40%, 58% {
+        transform: translateY(-64px);
+    }
+    60%, 78% {
+        transform: translateY(-96px);
+    }
+    80%, 98% {
+        transform: translateY(-128px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
 .archives-timeline {
     position: relative;
 }

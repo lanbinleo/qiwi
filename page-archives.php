@@ -61,17 +61,23 @@ if (!empty($posts)) {
     $writingDays = floor((time() - $firstPostTime) / 86400); // 86400秒 = 1天
 }
 
-// 解析书籍参考配置
-$bookName = '';
-$bookWords = 0;
-$bookEquivalent = 0;
+// 解析书籍参考配置（支持多本书）
+$books = [];
 if ($this->options->bookReference) {
-    $parts = array_map('trim', explode(',', $this->options->bookReference));
-    if (count($parts) === 2) {
-        $bookName = $parts[0];
-        $bookWords = intval($parts[1]);
-        if ($bookWords > 0) {
-            $bookEquivalent = round($totalWords / $bookWords, 2);
+    $bookEntries = array_map('trim', explode('&&', $this->options->bookReference));
+    foreach ($bookEntries as $entry) {
+        $parts = array_map('trim', explode(',', $entry));
+        if (count($parts) === 2) {
+            $bookName = $parts[0];
+            $bookWords = intval($parts[1]);
+            if ($bookWords > 0) {
+                $bookEquivalent = round($totalWords / $bookWords, 2);
+                $books[] = [
+                    'name' => $bookName,
+                    'words' => $bookWords,
+                    'equivalent' => $bookEquivalent
+                ];
+            }
         }
     }
 }
@@ -113,9 +119,24 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
                 <li class="stats-item">
                     共 <span class="stats-highlight"><?php echo number_format($totalWords); ?></span> 字
                 </li>
-                <?php if ($bookEquivalent > 0): ?>
-                <li class="stats-item">
-                    相当于 <span class="stats-highlight"><?php echo $bookEquivalent; ?></span> 本<?php echo htmlspecialchars($bookName); ?>
+                <?php if (!empty($books)): ?>
+                <li class="stats-item book-roller-container">
+                    相当于
+                    <span class="book-number-roller">
+                        <span class="roller-wrapper roller-wrapper-<?php echo count($books); ?>">
+                            <?php foreach ($books as $book): ?>
+                            <span class="roller-item"><?php echo $book['equivalent']; ?></span>
+                            <?php endforeach; ?>
+                        </span>
+                    </span>
+                    本
+                    <span class="book-name-roller">
+                        <span class="roller-wrapper roller-wrapper-<?php echo count($books); ?>">
+                            <?php foreach ($books as $book): ?>
+                            <span class="roller-item"><?php echo htmlspecialchars($book['name']); ?></span>
+                            <?php endforeach; ?>
+                        </span>
+                    </span>
                 </li>
                 <?php endif; ?>
                 <?php if ($nextMilestone): ?>
