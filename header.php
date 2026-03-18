@@ -4,7 +4,7 @@
 <head>
     <meta charset="<?php $this->options->charset(); ?>">
     <meta name="renderer" content="webkit">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php $this->archiveTitle([
             'category' => _t('分类 %s 下的文章'),
             'search'   => _t('包含关键字 %s 的文章'),
@@ -46,14 +46,19 @@
 <body>
 
 <!-- 顶部导航栏 -->
-<nav class="navbar">
+<nav class="navbar" aria-label="主导航">
     <div class="navbar-inner">
         <div class="navbar-title">
             <a href="<?php $this->options->siteUrl(); ?>">
                 <?php $this->options->title(); ?>
             </a>
         </div>
-        <ul class="nav-links">
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation-menu" aria-label="切换导航菜单">
+            <span class="nav-toggle-bar"></span>
+            <span class="nav-toggle-bar"></span>
+            <span class="nav-toggle-bar"></span>
+        </button>
+        <ul class="nav-links" id="site-navigation-menu">
             <li><a href="<?php $this->options->siteUrl(); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
 
             <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
@@ -71,7 +76,7 @@
             </li>
             <?php endif; ?>
 
-            <li><button class="theme-toggle" onclick="toggleTheme()">◐</button></li>
+            <li><button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="切换主题">◐</button></li>
         </ul>
     </div>
 </nav>
