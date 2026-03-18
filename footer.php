@@ -1,3 +1,15 @@
+<?php
+ob_start();
+$this->need('version.php');
+$versionDrawerOutput = ob_get_clean();
+$themeVersion = '';
+
+if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
+    $themeVersion = $matches[1];
+    $versionDrawerOutput = preg_replace('/^\s*' . preg_quote($themeVersion, '/') . '\s*/', '', $versionDrawerOutput, 1);
+}
+?>
+
 <!-- 页脚 -->
 <footer class="site-footer">
     <div class="footer-content">
@@ -33,14 +45,23 @@
 
             <div class="theme-info">
                 <span class="theme-name"><a href="https://github.com/lanbinleo/qiwi" target="_blank">Qiwi Theme</a></span>
-                <span class="theme-version" style="cursor: pointer;" onclick="window.showQiwiVersionDrawer()" title="查看更新日志">v<?php $this->need('version.php'); ?></span>
+                <button class="theme-version" type="button" onclick="window.showQiwiVersionDrawer()" title="查看更新日志">v<?php echo htmlspecialchars($themeVersion, ENT_QUOTES, 'UTF-8'); ?></button>
             </div>
         </div>
     </div>
 </footer>
 
+<?php echo $versionDrawerOutput; ?>
+
 <!-- 主题切换脚本 -->
 <script>
+function updateThemeToggleButtons(theme) {
+    document.querySelectorAll('.theme-toggle').forEach(function(toggleBtn) {
+        toggleBtn.textContent = theme === 'light' ? '◐' : '◑';
+        toggleBtn.setAttribute('aria-label', theme === 'light' ? '切换到深色模式' : '切换到浅色模式');
+    });
+}
+
 // 立即执行主题初始化，避免闪烁
 (function() {
     const htmlElement = document.documentElement;
@@ -56,9 +77,10 @@
         htmlElement.setAttribute('data-theme', 'light');
         localStorage.setItem('theme-preference', 'light');
     }
+
+    updateThemeToggleButtons(htmlElement.getAttribute('data-theme'));
 })();
 
-// DOM 加载完成后绑定事件
 function toggleTheme() {
     const htmlElement = document.documentElement;
     const currentTheme = htmlElement.getAttribute('data-theme');
@@ -73,16 +95,53 @@ function toggleTheme() {
     }
 
     localStorage.setItem('theme-preference', newTheme);
+    updateThemeToggleButtons(newTheme);
+}
 
-    // 更新按钮文字
-    const toggleBtn = document.querySelector('.theme-toggle');
-    if (toggleBtn) {
-        toggleBtn.textContent = newTheme === 'light' ? '◐' : '◑';
+function initMobileNavigation() {
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.getElementById('site-navigation-menu');
+
+    if (!navToggle || !navMenu) {
+        return;
     }
+
+    const setMenuState = function(isOpen) {
+        navMenu.classList.toggle('is-open', isOpen);
+        document.body.classList.toggle('nav-open', isOpen);
+        navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+
+    navToggle.addEventListener('click', function() {
+        setMenuState(!navMenu.classList.contains('is-open'));
+    });
+
+    navMenu.querySelectorAll('a').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                setMenuState(false);
+            }
+        });
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            setMenuState(false);
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            setMenuState(false);
+        }
+    });
 }
 
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
+    initMobileNavigation();
+    updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
+
     document.querySelectorAll('.article-item').forEach(item => {
         item.addEventListener('click', function(e) {
             if (e.target.closest('.tag') || e.target.closest('.article-title-link')) {
