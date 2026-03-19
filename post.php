@@ -7,9 +7,6 @@ $this->need('header.php');
 ?>
 
 <div class="article-page">
-    <!-- 左侧留白 -->
-    <div class="layout-spacer-left"></div>
-
     <!-- 文章主体 -->
     <div class="article-main">
         <article class="single-post" itemscope itemtype="http://schema.org/BlogPosting">
@@ -76,8 +73,8 @@ $this->need('header.php');
         <?php endif; ?>
     </div>
 
-    <!-- 右侧留白 -->
-    <div class="layout-spacer-right"></div>
+    <!-- 文章目录 -->
+    <nav class="article-toc" aria-label="文章目录"></nav>
 </div>
 
 <?php $this->need('footer.php'); ?>

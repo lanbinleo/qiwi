@@ -137,9 +137,119 @@ function initMobileNavigation() {
     });
 }
 
+function initArticleToc() {
+    var tocContainer = document.querySelector('.article-toc');
+    var articleBody = document.querySelector('.article-body');
+    var articlePage = tocContainer ? tocContainer.closest('.article-page') : null;
+    if (!tocContainer || !articleBody) return;
+
+    var headings = articleBody.querySelectorAll('h2, h3, h4');
+    if (headings.length === 0) {
+        if (articlePage) articlePage.classList.remove('has-toc');
+        tocContainer.style.display = 'none';
+        return;
+    }
+
+    if (articlePage) articlePage.classList.add('has-toc');
+
+    // Assign IDs to headings
+    headings.forEach(function(h, i) {
+        if (!h.id) h.id = 'heading-' + i;
+    });
+
+    // Create sticky inner wrapper
+    var inner = document.createElement('div');
+    inner.className = 'toc-inner';
+
+    // Back to top
+    var backTop = document.createElement('button');
+    backTop.className = 'toc-back-top';
+    backTop.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18,15 12,9 6,15"></polyline></svg><span>回到顶部</span>';
+    backTop.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    inner.appendChild(backTop);
+
+    // Separator
+    var sep1 = document.createElement('hr');
+    sep1.className = 'toc-separator';
+    inner.appendChild(sep1);
+
+    // Title
+    var title = document.createElement('p');
+    title.className = 'toc-title';
+    title.textContent = '目录';
+    inner.appendChild(title);
+
+    // TOC list
+    var list = document.createElement('ul');
+    list.className = 'toc-list';
+
+    headings.forEach(function(h) {
+        var level = parseInt(h.tagName.charAt(1));
+        var li = document.createElement('li');
+        li.className = 'toc-item level-' + level;
+        var a = document.createElement('a');
+        a.className = 'toc-link';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent.trim();
+        a.title = h.textContent.trim();
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            h.scrollIntoView({ behavior: 'smooth' });
+            history.replaceState(null, null, '#' + h.id);
+        });
+        li.appendChild(a);
+        list.appendChild(li);
+    });
+
+    inner.appendChild(list);
+
+    // Separator
+    var sep2 = document.createElement('hr');
+    sep2.className = 'toc-separator';
+    inner.appendChild(sep2);
+
+    // Go to comments
+    var commentsSection = document.querySelector('.comments-wrapper');
+    if (commentsSection) {
+        var goComments = document.createElement('button');
+        goComments.className = 'toc-go-comments';
+        goComments.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"></path></svg><span>前往评论</span>';
+        goComments.addEventListener('click', function() {
+            commentsSection.scrollIntoView({ behavior: 'smooth' });
+        });
+        inner.appendChild(goComments);
+    }
+
+    tocContainer.appendChild(inner);
+
+    // Scroll spy with IntersectionObserver
+    var tocLinks = inner.querySelectorAll('.toc-link');
+    var currentActive = null;
+
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                var id = entry.target.id;
+                if (currentActive) currentActive.classList.remove('is-active');
+                tocLinks.forEach(function(link) {
+                    if (link.getAttribute('href') === '#' + id) {
+                        link.classList.add('is-active');
+                        currentActive = link;
+                    }
+                });
+            }
+        });
+    }, { rootMargin: '-80px 0px -75% 0px' });
+
+    headings.forEach(function(h) { observer.observe(h); });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
+    initArticleToc();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {
