@@ -19,6 +19,7 @@
     <?php endif; ?>
 </div>
 
+<div class="sidebar-sticky">
 <!-- 最新文章 -->
 <?php if (!empty($this->options->sidebarBlock) && in_array('ShowRecentPosts', $this->options->sidebarBlock)): ?>
 <div class="sidebar-section">
@@ -71,3 +72,4 @@
     </div>
 </div>
 <?php endif; ?>
+</div><!-- /.sidebar-sticky -->
