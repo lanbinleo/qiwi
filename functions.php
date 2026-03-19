@@ -61,6 +61,32 @@ function themeConfig($form)
     );
     $form->addInput($enableTravellings);
 
+    // 即刻条展示位置
+    $jikePosition = new Typecho_Widget_Helper_Form_Element_Radio(
+        'jikePosition',
+        array(
+            'off'    => _t('关闭'),
+            'top'    => _t('页面顶部（横跨内容区与侧边栏上方）'),
+            'inline' => _t('文章列表内（嵌入文章列表顶部）'),
+        ),
+        'inline',
+        _t('首页即刻条'),
+        _t('在首页展示即刻/时间机器的最新动态。需要已发布一个使用"时间机器"模板的独立页面。')
+    );
+    $form->addInput($jikePosition);
+
+    $jikeTimeMode = new Typecho_Widget_Helper_Form_Element_Radio(
+        'jikeTimeMode',
+        array(
+            'absolute' => _t('纯日期'),
+            'relative' => _t('相对时间'),
+        ),
+        'absolute',
+        _t('即刻时间显示'),
+        _t('纯日期显示为 MM-DD；相对时间支持“刚刚 / X分钟前 / X小时前 / X天前”，超过 3 天后自动回退为 MM-DD。')
+    );
+    $form->addInput($jikeTimeMode);
+
     // 关于页面信息
     $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
     $aboutAvatar = new Typecho_Widget_Helper_Form_Element_Text('aboutAvatar', null, null, _t('关于页面 - 头像'), _t('在这里填写你的头像URL地址，将显示在关于页面的个人信息卡片中，留空则显示默认头像'));
@@ -131,4 +157,184 @@ function themeFields($layout) {
     $layout->addItem($showThumbnail);
     $layout->addItem($thumbnail);
     $layout->addItem($isSticky);
+}
+
+if (!function_exists('qiwiExtractPlainText')) {
+    function qiwiExtractPlainText($text)
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+
+        // Keep readable content while removing Markdown syntax.
+        $text = preg_replace('/```[\s\S]*?```/u', ' ', $text);
+        $text = preg_replace('/~~~[\s\S]*?~~~/u', ' ', $text);
+        $text = preg_replace('/!\[([^\]]*)\]\(([^)]+)\)/u', ' ', $text);
+        $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/u', '$1', $text);
+        $text = preg_replace('/<((https?:\/\/|mailto:)[^>]+)>/iu', '$1', $text);
+        $text = preg_replace('/^\s{0,3}>\s?/mu', '', $text);
+        $text = preg_replace('/^\s{0,3}#{1,6}\s+/mu', '', $text);
+        $text = preg_replace('/^\s{0,3}(?:[-+*]|\d+\.)\s+(?:\[[ xX]\]\s*)?/mu', '', $text);
+        $text = preg_replace('/^\s{0,3}(?:[-*_]\s*){3,}$/mu', ' ', $text);
+        $text = preg_replace('/~~(.*?)~~/u', '$1', $text);
+        $text = preg_replace('/(\*\*|__)(.*?)\1/u', '$2', $text);
+        $text = preg_replace('/(\*|_)(.*?)\1/u', '$2', $text);
+        $text = preg_replace('/`([^`]+)`/u', '$1', $text);
+        $text = preg_replace('/\\\([\\`*_{}\[\]()#+\-.!>~|])/u', '$1', $text);
+        $text = str_replace('|', ' ', $text);
+        $text = strip_tags($text);
+        $text = preg_replace('/\s*\n+\s*/u', ' ', $text);
+        $text = preg_replace('/\s+/u', ' ', $text);
+
+        return trim($text);
+    }
+}
+
+if (!function_exists('qiwiExcerptText')) {
+    function qiwiExcerptText($text, $length = 72)
+    {
+        $text = qiwiExtractPlainText($text);
+        if ($text === '') {
+            return '';
+        }
+
+        if (mb_strlen($text, 'UTF-8') <= $length) {
+            return $text;
+        }
+
+        return rtrim(mb_substr($text, 0, $length, 'UTF-8')) . '…';
+    }
+}
+
+if (!function_exists('qiwiFallbackJikeExcerpt')) {
+    function qiwiFallbackJikeExcerpt($text)
+    {
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $hasImage = preg_match('/!\[[^\]]*\]\(([^)]+)\)|<img\b[^>]*>/iu', $text);
+        $hasCode = preg_match('/```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\r\n]+`/u', $text);
+
+        if ($hasImage && $hasCode) {
+            return '[图片 / 代码片段] 点击查看详情';
+        }
+
+        if ($hasImage) {
+            return '[图片] 点击查看详情';
+        }
+
+        if ($hasCode) {
+            return '[代码片段] 点击查看详情';
+        }
+
+        return trim($text) !== '' ? '[动态] 点击查看详情' : '';
+    }
+}
+
+if (!function_exists('qiwiFormatJikeRelativeTime')) {
+    function qiwiFormatJikeRelativeTime($timestamp)
+    {
+        $timestamp = (int) $timestamp;
+        if ($timestamp <= 0) {
+            return '';
+        }
+
+        $diff = max(0, time() - $timestamp);
+
+        if ($diff < 300) {
+            return '刚刚';
+        }
+
+        if ($diff < 3600) {
+            return floor($diff / 60) . '分钟前';
+        }
+
+        if ($diff < 86400) {
+            return floor($diff / 3600) . '小时前';
+        }
+
+        if ($diff < 259200) {
+            return floor($diff / 86400) . '天前';
+        }
+
+        return date('m-d', $timestamp);
+    }
+}
+
+if (!function_exists('qiwiGetHomepageJikeData')) {
+    function qiwiGetHomepageJikeData($limit = 5)
+    {
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+
+        $page = $db->fetchRow($db->select('cid', 'title', 'slug', 'authorId')
+            ->from($prefix . 'contents')
+            ->where('type = ?', 'page')
+            ->where('status = ?', 'publish')
+            ->where('(template = ? OR template = ?)', 'page-timemachine.php', 'page-timemachine')
+            ->order('created', $db::SORT_DESC)
+            ->limit(1));
+
+        if (empty($page) || empty($page['cid'])) {
+            return null;
+        }
+
+        $permalink = '';
+        \Widget\Contents\Page\Rows::alloc()->to($pages);
+        while ($pages->next()) {
+            if ((int) $pages->cid === (int) $page['cid']) {
+                ob_start();
+                $pages->permalink();
+                $permalink = trim(ob_get_clean());
+                break;
+            }
+        }
+
+        if ($permalink === '') {
+            return null;
+        }
+
+        $comments = $db->fetchAll($db->select('coid', 'text', 'created')
+            ->from($prefix . 'comments')
+            ->where('cid = ?', $page['cid'])
+            ->where('status = ?', 'approved')
+            ->where('authorId = ?', $page['authorId'])
+            ->order('created', $db::SORT_DESC)
+            ->limit((int) $limit));
+
+        if (empty($comments)) {
+            return null;
+        }
+
+        $items = [];
+        foreach ($comments as $comment) {
+            $excerpt = qiwiExcerptText($comment['text']);
+            if ($excerpt === '') {
+                $excerpt = qiwiFallbackJikeExcerpt($comment['text']);
+            }
+
+            if ($excerpt === '') {
+                continue;
+            }
+
+            $items[] = [
+                'coid' => (int) $comment['coid'],
+                'excerpt' => $excerpt,
+                'datetime' => date('c', (int) $comment['created']),
+                'date_label' => date('m-d', (int) $comment['created']),
+                'relative_date_label' => qiwiFormatJikeRelativeTime((int) $comment['created']),
+            ];
+        }
+
+        if (empty($items)) {
+            return null;
+        }
+
+        return [
+            'title' => $page['title'],
+            'permalink' => $permalink,
+            'items' => $items,
+        ];
+    }
 }
