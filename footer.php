@@ -246,10 +246,74 @@ function initArticleToc() {
     headings.forEach(function(h) { observer.observe(h); });
 }
 
+function initHomeJike() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    document.querySelectorAll('[data-home-jike]').forEach(function(module) {
+        var viewport = module.querySelector('.home-jike-viewport');
+        var track = module.querySelector('.home-jike-track');
+        if (!viewport || !track) return;
+
+        var items = track.querySelectorAll('.home-jike-item');
+        if (items.length <= 1) return;
+
+        var timer = null;
+        var isAnimating = false;
+
+        function getStepHeight() {
+            return viewport.clientHeight;
+        }
+
+        function stopRotation() {
+            if (timer) {
+                window.clearInterval(timer);
+                timer = null;
+            }
+        }
+
+        function rotateOnce() {
+            if (isAnimating) return;
+
+            isAnimating = true;
+            track.style.transition = 'transform 420ms cubic-bezier(0.33, 1, 0.68, 1)';
+            track.style.transform = 'translateY(-' + getStepHeight() + 'px)';
+        }
+
+        function startRotation() {
+            if (timer) return;
+            timer = window.setInterval(rotateOnce, 4200);
+        }
+
+        track.addEventListener('transitionend', function(event) {
+            if (event.propertyName !== 'transform') return;
+
+            track.appendChild(track.firstElementChild);
+            track.style.transition = 'none';
+            track.style.transform = 'translateY(0)';
+            track.offsetHeight;
+            isAnimating = false;
+        });
+
+        module.addEventListener('mouseenter', stopRotation);
+        module.addEventListener('mouseleave', startRotation);
+        module.addEventListener('focusin', stopRotation);
+        module.addEventListener('focusout', function(event) {
+            if (!module.contains(event.relatedTarget)) {
+                startRotation();
+            }
+        });
+
+        startRotation();
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initArticleToc();
+    initHomeJike();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {

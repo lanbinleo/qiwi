@@ -16,6 +16,11 @@ $currentPage = $this->_currentPage;
 $pageSize = $this->parameter->pageSize;
 $postsToDisplay = [];
 $hasContent = false;
+$homeJikeData = $currentPage == 1 ? qiwiGetHomepageJikeData(5) : null;
+$hasHomeJike = !empty($homeJikeData['items']);
+$jikePosition = $hasHomeJike ? ($this->options->jikePosition ?: 'inline') : 'off';
+$jikeTimeMode = $hasHomeJike ? ($this->options->jikeTimeMode ?: 'absolute') : 'absolute';
+if ($jikePosition === 'off') $hasHomeJike = false;
 
 if ($currentPage == 1) {
     // === 首页：显示所有置顶文章 + 补充非置顶文章 ===
@@ -133,12 +138,24 @@ if ($currentPage == 1) {
 }
 ?>
 
-<div class="main-layout">
+<div class="main-layout<?php echo $jikePosition === 'top' ? ' has-jike' : ''; ?>">
     <!-- 左侧留白 -->
     <div class="layout-spacer-left"></div>
 
+    <?php if ($hasHomeJike && $jikePosition === 'top'): ?>
+        <?php $this->homeJikeData = $homeJikeData; ?>
+        <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
+        <?php $this->need('components/home-jike.php'); ?>
+    <?php endif; ?>
+
     <!-- 主要内容 -->
     <div class="main-content">
+        <?php if ($hasHomeJike && $jikePosition === 'inline'): ?>
+            <?php $this->homeJikeData = $homeJikeData; ?>
+            <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
+            <?php $this->need('components/home-jike.php'); ?>
+        <?php endif; ?>
+
         <?php if ($hasContent): ?>
         <ul class="article-list">
             <?php
