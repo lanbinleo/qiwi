@@ -3,6 +3,7 @@
  * 文章详情页 - Medium 风格
  */
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+$postViews = qiwiRecordPostView($this->cid);
 $this->need('header.php');
 ?>
 
@@ -19,13 +20,13 @@ $this->need('header.php');
                     <img src="https://gravatar.loli.net/avatar/<?php echo md5($this->author->mail); ?>?s=96&d=mp" alt="<?php $this->author(); ?>" class="author-avatar">
                     <div class="author-info">
                         <span class="author-name"><?php $this->author(); ?></span>
-                        <span class="post-date"><?php $this->date('Y年m月d日'); ?> · <?php
+                        <span class="post-date"><?php $this->date('Y-m-d H:i'); ?> · <?php
                             $content = $this->content;
                             $wordCount = mb_strlen(strip_tags($content), 'UTF-8');
                             $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
                             $readingTime = max(1, round($wordCount / $speed));
                             echo $readingTime;
-                        ?> 分钟阅读</span>
+                        ?> 分钟阅读 · <?php echo (int) $postViews; ?> 次浏览 · <?php echo (int) $this->commentsNum; ?> 条评论</span>
                     </div>
                 </div>
             </header>

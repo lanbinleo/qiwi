@@ -28,7 +28,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
     <div class="article-item-inner">
         <div class="article-content">
             <div class="article-meta">
-                <span><?php $this->date('Y-m-d'); ?></span>
+                <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?></span>
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
                 <?php if ($this->categories): ?>
                 <span class="meta-category">
