@@ -262,6 +262,147 @@ if (!function_exists('qiwiFormatJikeRelativeTime')) {
     }
 }
 
+if (!function_exists('qiwiFormatPostRelativeTime')) {
+    function qiwiFormatPostRelativeTime($timestamp)
+    {
+        $timestamp = (int) $timestamp;
+        if ($timestamp <= 0) {
+            return '';
+        }
+
+        $now = time();
+        $diff = max(0, $now - $timestamp);
+
+        if ($diff < 300) {
+            return '刚刚';
+        }
+
+        if ($diff < 3600) {
+            return floor($diff / 60) . '分钟前';
+        }
+
+        if ($diff < 86400) {
+            return floor($diff / 3600) . '小时前';
+        }
+
+        if ($diff < 259200) {
+            return floor($diff / 86400) . '天前';
+        }
+
+        if (date('Y', $timestamp) === date('Y', $now)) {
+            return date('m-d', $timestamp);
+        }
+
+        return date('Y-m-d', $timestamp);
+    }
+}
+
+if (!function_exists('qiwiGetPostViewsFieldName')) {
+    function qiwiGetPostViewsFieldName()
+    {
+        return 'qiwiViews';
+    }
+}
+
+if (!function_exists('qiwiGetPostViews')) {
+    function qiwiGetPostViews($cid)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0) {
+            return 0;
+        }
+
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+        $row = $db->fetchRow($db->select('int_value', 'str_value')
+            ->from($prefix . 'fields')
+            ->where('cid = ?', $cid)
+            ->where('name = ?', qiwiGetPostViewsFieldName())
+            ->limit(1));
+
+        if (empty($row)) {
+            return 0;
+        }
+
+        if (isset($row['int_value']) && $row['int_value'] !== null) {
+            return max(0, (int) $row['int_value']);
+        }
+
+        return max(0, (int) $row['str_value']);
+    }
+}
+
+if (!function_exists('qiwiSetPostViews')) {
+    function qiwiSetPostViews($cid, $views)
+    {
+        $cid = (int) $cid;
+        $views = max(0, (int) $views);
+
+        if ($cid <= 0) {
+            return 0;
+        }
+
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+        $fieldName = qiwiGetPostViewsFieldName();
+        $existing = $db->fetchRow($db->select('cid')
+            ->from($prefix . 'fields')
+            ->where('cid = ?', $cid)
+            ->where('name = ?', $fieldName)
+            ->limit(1));
+
+        if (!empty($existing)) {
+            $db->query($db->update($prefix . 'fields')
+                ->rows([
+                    'type' => 'int',
+                    'int_value' => $views,
+                    'str_value' => null,
+                    'float_value' => 0,
+                ])
+                ->where('cid = ?', $cid)
+                ->where('name = ?', $fieldName));
+        } else {
+            $db->query($db->insert($prefix . 'fields')->rows([
+                'cid' => $cid,
+                'name' => $fieldName,
+                'type' => 'int',
+                'str_value' => null,
+                'int_value' => $views,
+                'float_value' => 0,
+            ]));
+        }
+
+        return $views;
+    }
+}
+
+if (!function_exists('qiwiRecordPostView')) {
+    function qiwiRecordPostView($cid)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0) {
+            return 0;
+        }
+
+        $currentViews = qiwiGetPostViews($cid);
+
+        if (!isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET') {
+            return $currentViews;
+        }
+
+        $cookieName = 'qiwi_post_viewed_' . $cid;
+        if (isset($_COOKIE[$cookieName])) {
+            return $currentViews;
+        }
+
+        $updatedViews = qiwiSetPostViews($cid, $currentViews + 1);
+        setcookie($cookieName, '1', time() + 3600, '/');
+        $_COOKIE[$cookieName] = '1';
+
+        return $updatedViews;
+    }
+}
+
 if (!function_exists('qiwiGetHomepageJikeData')) {
     function qiwiGetHomepageJikeData($limit = 5)
     {

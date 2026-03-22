@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author MaxQi
- * @version 1.1.6
+ * @version 1.2.7
  * @link http://mura.ink
  */
 
