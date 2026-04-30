@@ -44,12 +44,12 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             </h2>
             <p class="article-excerpt">
                 <?php
+                $excerptLength = $shouldShowThumbnail ? 85 : 125;
                 if ($this->fields->excerpt) {
-                    echo $this->fields->excerpt;
+                    echo htmlspecialchars(qiwiExtractPlainText($this->fields->excerpt), ENT_QUOTES, 'UTF-8');
                 } else {
                     // 如果有头图，展示少一些，这样比例更协调
-                    $excerptLength = $shouldShowThumbnail ? 85 : 125;
-                    $this->excerpt($excerptLength, '...');
+                    echo htmlspecialchars(qiwiExcerptText($this->content, $excerptLength), ENT_QUOTES, 'UTF-8');
                 }
                 ?>
             </p>
