@@ -7,6 +7,7 @@
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
+$pageContent = qiwiGetContent($this);
 
 // 获取数据
 $pageId = $this->cid;
@@ -98,8 +99,8 @@ function renderMarkdown($text) {
         <!-- 页面头部 -->
         <header class="timemachine-header">
             <h1 class="page-title"><?php $this->title(); ?></h1>
-            <?php if ($this->content()): ?>
-                <div class="page-intro"><?php $this->content(); ?></div>
+            <?php if (qiwiHasRenderedContent($pageContent)): ?>
+                <div class="page-intro"><?php echo $pageContent; ?></div>
             <?php endif; ?>
             <div class="page-stats">
                 <span class="stat-item">共 <?php echo $total; ?> 条记录</span>

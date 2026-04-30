@@ -18,7 +18,7 @@ $this->need('header.php');
             </header>
 
             <div class="article-body">
-                <?php $this->content(); ?>
+                <?php qiwiContent($this); ?>
             </div>
         </article>
 

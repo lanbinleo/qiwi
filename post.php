@@ -42,7 +42,7 @@ $this->need('header.php');
 
             <!-- 文章内容 -->
             <div class="article-body" itemprop="articleBody">
-                <?php $this->content(); ?>
+                <?php qiwiContent($this); ?>
             </div>
 
             <!-- 文章标签 -->

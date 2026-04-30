@@ -30,7 +30,7 @@ $this->need('header.php');
         <div class="about-section">
             <!-- <h2 class="about-section-title"><?php $this->title(); ?></h2> -->
             <div class="article-body">
-                <?php $this->content(); ?>
+                <?php qiwiContent($this); ?>
             </div>
         </div>
 

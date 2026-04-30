@@ -7,6 +7,8 @@
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
+$pageContent = qiwiGetContent($this);
+$friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
 ?>
 
 <div class="friends-page">
@@ -18,8 +20,8 @@ $this->need('header.php');
         <!-- 页面头部 -->
         <header class="friends-header">
             <h1 class="page-title"><?php $this->title(); ?></h1>
-            <?php if ($this->content()): ?>
-                <div class="page-intro"><?php $this->content(); ?></div>
+            <?php if ($friendsSubtitle !== ''): ?>
+                <p class="page-intro"><?php echo htmlspecialchars($friendsSubtitle, ENT_QUOTES, 'UTF-8'); ?></p>
             <?php endif; ?>
         </header>
 
@@ -117,6 +119,12 @@ $this->need('header.php');
 
                 <button type="submit" class="submit-button" id="sub_btn">提交申请</button>
             </form>
+        </div>
+        <?php endif; ?>
+
+        <?php if (qiwiHasRenderedContent($pageContent)): ?>
+        <div class="friends-extra article-body">
+            <?php echo $pageContent; ?>
         </div>
         <?php endif; ?>
     </div>

@@ -92,6 +92,7 @@ foreach ($milestones as $milestone) {
     }
 }
 $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
+$pageContent = qiwiGetContent($this);
 ?>
 
 <div class="main-layout">
@@ -148,8 +149,8 @@ $wordsToNext = $nextMilestone ? $nextMilestone - $totalWords : 0;
         </div>
         <br>
 
-        <?php if ($this->content()): ?>
-            <div class="archive-description"><?php $this->content(); ?></div>
+        <?php if (qiwiHasRenderedContent($pageContent)): ?>
+            <div class="archive-description"><?php echo $pageContent; ?></div>
         <?php endif; ?>
 
         <br>
