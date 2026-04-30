@@ -309,11 +309,155 @@ function initHomeJike() {
     });
 }
 
+function initCommentProfile() {
+    document.querySelectorAll('.comment-form').forEach(function(form) {
+        var modal = form.querySelector('[data-comment-profile-modal]');
+        var toggle = form.querySelector('[data-comment-profile-toggle]');
+        if (!modal || !toggle) return;
+
+        var authorInput = form.querySelector('#author');
+        var mailInput = form.querySelector('#mail');
+        var urlInput = form.querySelector('#url');
+        var textInput = form.querySelector('#textarea');
+        var label = form.querySelector('[data-comment-identity-label]');
+        var closeButtons = form.querySelectorAll('[data-comment-profile-close]');
+        var saveButton = form.querySelector('[data-comment-profile-save]');
+        var storageKey = 'qiwi-comment-profile';
+
+        function readProfile() {
+            try {
+                return JSON.parse(localStorage.getItem(storageKey) || '{}');
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function saveProfile() {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({
+                    author: authorInput ? authorInput.value.trim() : '',
+                    mail: mailInput ? mailInput.value.trim() : '',
+                    url: urlInput ? urlInput.value.trim() : ''
+                }));
+            } catch (error) {}
+        }
+
+        function hasProfile() {
+            return !!(authorInput && authorInput.value.trim() && mailInput && mailInput.value.trim());
+        }
+
+        function updateLabel() {
+            if (!label) return;
+            label.textContent = hasProfile() ? authorInput.value.trim() : '未设置';
+        }
+
+        function getInvalidControl(controls) {
+            for (var i = 0; i < controls.length; i++) {
+                if (controls[i] && !controls[i].checkValidity()) {
+                    return controls[i];
+                }
+            }
+
+            return null;
+        }
+
+        function reportInvalid(control) {
+            if (!control) return;
+            window.setTimeout(function() {
+                control.focus();
+                control.reportValidity();
+            }, 0);
+        }
+
+        function openProfile() {
+            form.classList.add('is-profile-open');
+            document.body.classList.add('comment-profile-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            window.setTimeout(function() {
+                if (authorInput && !authorInput.value.trim()) {
+                    authorInput.focus();
+                } else if (mailInput && !mailInput.value.trim()) {
+                    mailInput.focus();
+                }
+            }, 0);
+        }
+
+        function closeProfile() {
+            form.classList.remove('is-profile-open');
+            document.body.classList.remove('comment-profile-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.focus();
+        }
+
+        var storedProfile = readProfile();
+        if (authorInput && !authorInput.value && storedProfile.author) authorInput.value = storedProfile.author;
+        if (mailInput && !mailInput.value && storedProfile.mail) mailInput.value = storedProfile.mail;
+        if (urlInput && !urlInput.value && storedProfile.url) urlInput.value = storedProfile.url;
+
+        form.noValidate = true;
+        form.classList.add('is-enhanced');
+        toggle.setAttribute('aria-expanded', 'false');
+        updateLabel();
+
+        toggle.addEventListener('click', openProfile);
+
+        closeButtons.forEach(function(button) {
+            button.addEventListener('click', closeProfile);
+        });
+
+        if (saveButton) {
+            saveButton.addEventListener('click', function() {
+                var invalidProfileControl = getInvalidControl([authorInput, mailInput, urlInput]);
+                if (invalidProfileControl) {
+                    reportInvalid(invalidProfileControl);
+                    return;
+                }
+                saveProfile();
+                updateLabel();
+                closeProfile();
+            });
+        }
+
+        form.addEventListener('submit', function(event) {
+            if (!hasProfile()) {
+                event.preventDefault();
+                openProfile();
+                reportInvalid(getInvalidControl([authorInput, mailInput]));
+                return;
+            }
+
+            var invalidProfileControl = getInvalidControl([authorInput, mailInput, urlInput]);
+            if (invalidProfileControl) {
+                event.preventDefault();
+                openProfile();
+                reportInvalid(invalidProfileControl);
+                return;
+            }
+
+            var invalidContentControl = getInvalidControl([textInput]);
+            if (invalidContentControl) {
+                event.preventDefault();
+                reportInvalid(invalidContentControl);
+                return;
+            }
+
+            saveProfile();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && form.classList.contains('is-profile-open')) {
+                closeProfile();
+            }
+        });
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initArticleToc();
     initHomeJike();
+    initCommentProfile();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {
