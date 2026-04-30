@@ -6,12 +6,8 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
 ?>
 
-<div class="main-layout">
-    <!-- 左侧留白 -->
-    <div class="layout-spacer-left"></div>
-
-    <!-- 主要内容 -->
-    <div class="main-content">
+<div class="main-layout error-layout">
+    <div class="main-content error-main">
         <div class="error-page">
             <div class="error-content">
                 <h1 class="error-code">404</h1>
@@ -23,14 +19,6 @@ $this->need('header.php');
             </div>
         </div>
     </div>
-
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
-        <?php $this->need('sidebar.php'); ?>
-    </aside>
-
-    <!-- 右侧留白 -->
-    <div class="layout-spacer-right"></div>
 </div>
 
 <?php $this->need('footer.php'); ?>

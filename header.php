@@ -1,4 +1,8 @@
-<?php if (!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
+<?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+$qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationItems($this) : [];
+$qiwiUseFontAwesome = function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems);
+?>
 <!DOCTYPE html>
 <html lang="<?php $this->options->lang(); ?>">
 <head>
@@ -14,6 +18,9 @@
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
+    <?php if ($qiwiUseFontAwesome): ?>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <?php endif; ?>
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">
@@ -61,10 +68,30 @@
         <ul class="nav-links" id="site-navigation-menu">
             <li><a href="<?php $this->options->siteUrl(); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
 
-            <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
-            <?php while ($pages->next()): ?>
-                <li><a href="<?php $pages->permalink(); ?>"<?php if ($this->is('page', $pages->slug)): ?> class="current"<?php endif; ?>><?php $pages->title(); ?></a></li>
-            <?php endwhile; ?>
+            <?php foreach ($qiwiNavItems as $item): ?>
+                <?php
+                    $hasChildren = !empty($item['children']);
+                    $isCurrent = !empty($item['slug']) && $this->is('page', $item['slug']);
+                    foreach ($item['children'] as $child) {
+                        if (!empty($child['slug']) && $this->is('page', $child['slug'])) {
+                            $isCurrent = true;
+                            break;
+                        }
+                    }
+                ?>
+                <li<?php if ($hasChildren): ?> class="nav-item-has-children"<?php endif; ?>>
+                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($hasChildren): ?> <i class="fa-solid fa-angle-down nav-caret" aria-hidden="true"></i><?php endif; ?></a>
+                    <?php if ($hasChildren): ?>
+                    <ul class="nav-submenu">
+                        <?php foreach ($item['children'] as $child): ?>
+                            <li>
+                                <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($child['icon'])): ?><i class="<?php echo htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?></a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
 
             <?php if ($this->options->enableTravellings == 1): ?>
             <li>

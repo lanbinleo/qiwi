@@ -1,4 +1,22 @@
-<?php if (!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
+<?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+
+$archivesPageUrl = function_exists('qiwiGetCustomPageUrl') ? qiwiGetCustomPageUrl($this, ['page-archives.php', 'page-archives']) : '';
+$categoriesPageUrl = function_exists('qiwiGetCustomPageUrl') ? qiwiGetCustomPageUrl($this, ['page-categories.php', 'page-categories']) : '';
+$tagsPageUrl = function_exists('qiwiGetCustomPageUrl') ? qiwiGetCustomPageUrl($this, ['page-tags.php', 'page-tags']) : '';
+
+if ($archivesPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
+    $archivesPageUrl = qiwiGetPageUrlBySlug($this, ['archives', 'archive']);
+}
+
+if ($categoriesPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
+    $categoriesPageUrl = qiwiGetPageUrlBySlug($this, ['category', 'categories']);
+}
+
+if ($tagsPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
+    $tagsPageUrl = qiwiGetPageUrlBySlug($this, ['tags', 'tag']);
+}
+?>
 
 <!-- 侧边栏标题 -->
 <div class="sidebar-header">
@@ -24,10 +42,10 @@
 <?php if (!empty($this->options->sidebarBlock) && in_array('ShowRecentPosts', $this->options->sidebarBlock)): ?>
 <div class="sidebar-section">
     <h3 class="sidebar-title">最新文章</h3>
-    <ul class="sidebar-list">
+    <ul class="sidebar-list recent-post-list">
         <?php \Widget\Contents\Post\Recent::alloc()->to($recent); ?>
         <?php while ($recent->next()): ?>
-            <li><a href="<?php $recent->permalink(); ?>"><?php $recent->title(); ?></a></li>
+            <li><a href="<?php $recent->permalink(); ?>" title="<?php $recent->title(); ?>"><?php $recent->title(); ?></a></li>
         <?php endwhile; ?>
     </ul>
 </div>
@@ -36,10 +54,13 @@
 <!-- 分类 -->
 <?php if (!empty($this->options->sidebarBlock) && in_array('ShowCategory', $this->options->sidebarBlock)): ?>
 <div class="sidebar-section">
-    <h3 class="sidebar-title">分类</h3>
+    <h3 class="sidebar-title">
+        <a href="<?php echo htmlspecialchars($categoriesPageUrl, ENT_QUOTES, 'UTF-8'); ?>">分类</a>
+    </h3>
     <ul class="sidebar-list">
         <?php \Widget\Metas\Category\Rows::alloc()->to($category); ?>
         <?php while ($category->next()): ?>
+            <?php if ((int) $category->count <= 0) continue; ?>
             <li>
                 <a href="<?php $category->permalink(); ?>">
                     <?php $category->name(); ?>
@@ -53,7 +74,9 @@
 
 <!-- 时间归档 -->
 <div class="sidebar-section">
-    <h3 class="sidebar-title">归档</h3>
+    <h3 class="sidebar-title">
+        <a href="<?php echo htmlspecialchars($archivesPageUrl, ENT_QUOTES, 'UTF-8'); ?>">归档</a>
+    </h3>
     <ul class="sidebar-list">
         <?php \Widget\Contents\Post\Date::alloc('type=year&format=Y年')
             ->parse('<li><a href="{permalink}" title="查看 {date} 的文章">{date} <span class="item-count">({count})</span></a></li>'); ?>
@@ -64,12 +87,23 @@
 <?php \Widget\Metas\Tag\Cloud::alloc()->to($tags); ?>
 <?php if($tags->have()): ?>
 <div class="sidebar-section">
-    <h3 class="sidebar-title">标签</h3>
+    <h3 class="sidebar-title">
+        <a href="<?php echo htmlspecialchars($tagsPageUrl, ENT_QUOTES, 'UTF-8'); ?>">标签</a>
+    </h3>
     <div class="article-tags">
+        <?php $tagIndex = 0; $tagTotal = 0; $visibleTagLimit = 12; ?>
         <?php while ($tags->next()): ?>
-            <a href="<?php $tags->permalink(); ?>" class="tag"><?php $tags->name(); ?></a>
+            <?php if ((int) $tags->count <= 0) continue; ?>
+            <?php $tagTotal++; ?>
+            <?php if ($tagIndex < $visibleTagLimit): ?>
+                <a href="<?php $tags->permalink(); ?>" class="tag"><?php $tags->name(); ?></a>
+                <?php $tagIndex++; ?>
+            <?php endif; ?>
         <?php endwhile; ?>
     </div>
+    <?php if ($tagTotal > 0): ?>
+        <a class="sidebar-more-link" href="<?php echo htmlspecialchars($tagsPageUrl, ENT_QUOTES, 'UTF-8'); ?>">查看全部 <?php echo (int) $tagTotal; ?> 个标签</a>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 </div><!-- /.sidebar-sticky -->
