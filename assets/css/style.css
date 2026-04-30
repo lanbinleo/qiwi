@@ -186,24 +186,43 @@ img {
 
 .nav-links li {
     position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .nav-links a {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-family: var(--font-sans);
     color: var(--color-text-secondary);
     text-decoration: none;
     font-size: 15px;
+    line-height: 1;
     transition: color var(--transition);
     white-space: nowrap;
 }
 
 .nav-links i {
-    width: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05em;
+    height: 1.05em;
     font-size: 0.95em;
     text-align: center;
+    line-height: 1;
+    transform: translateY(0.03em);
+    flex-shrink: 0;
+}
+
+.nav-links svg {
+    display: block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0 !important;
+    vertical-align: middle !important;
+    flex-shrink: 0;
 }
 
 .nav-links a:hover,
@@ -212,14 +231,22 @@ img {
 }
 
 .nav-caret {
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.8em;
+    height: 0.8em;
+    font-size: 0.55em;
     line-height: 1;
     color: currentColor;
+    opacity: 0.5;
+    transform: none;
+    flex-shrink: 0;
 }
 
 .nav-submenu {
     position: absolute;
-    top: calc(100% + calc(var(--spacing-unit) * 2));
+    top: calc(100% + calc(var(--spacing-unit) * 1));
     left: 50%;
     z-index: 120;
     min-width: 144px;
@@ -228,10 +255,10 @@ img {
     background: rgba(24, 24, 27, 0.98);
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     opacity: 0;
     visibility: hidden;
-    transform: translate(-50%, 6px);
+    transform: translate(-50%, 4px);
     transition: opacity var(--transition), transform var(--transition), visibility var(--transition);
 }
 
@@ -240,8 +267,8 @@ img {
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(var(--spacing-unit) * -2);
-    height: calc(var(--spacing-unit) * 2);
+    top: calc(var(--spacing-unit) * -1);
+    height: calc(var(--spacing-unit) * 1);
 }
 
 [data-theme="light"] .nav-submenu {
@@ -274,6 +301,7 @@ img {
     color: var(--color-text-secondary);
     cursor: pointer;
     font-size: 18px;
+    line-height: 1;
     padding: 8px;
     transition: color var(--transition);
     min-width: 40px;

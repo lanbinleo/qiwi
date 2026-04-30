@@ -80,19 +80,12 @@ $qiwiUseFontAwesome = function_exists('qiwiNavigationUsesFontAwesome') && qiwiNa
                     }
                 ?>
                 <li<?php if ($hasChildren): ?> class="nav-item-has-children"<?php endif; ?>>
-                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>>
-                        <?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i><?php endif; ?>
-                        <?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?>
-                        <?php if ($hasChildren): ?><span class="nav-caret">⌄</span><?php endif; ?>
-                    </a>
+                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($hasChildren): ?> <i class="fa-solid fa-angle-down nav-caret" aria-hidden="true"></i><?php endif; ?></a>
                     <?php if ($hasChildren): ?>
                     <ul class="nav-submenu">
                         <?php foreach ($item['children'] as $child): ?>
                             <li>
-                                <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>>
-                                    <?php if (!empty($child['icon'])): ?><i class="<?php echo htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i><?php endif; ?>
-                                    <?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?>
-                                </a>
+                                <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($child['icon'])): ?><i class="<?php echo htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?></a>
                             </li>
                         <?php endforeach; ?>
                     </ul>
