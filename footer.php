@@ -371,6 +371,7 @@ function initCommentProfile() {
 
         function openProfile() {
             form.classList.add('is-profile-open');
+            document.documentElement.classList.add('comment-profile-open');
             document.body.classList.add('comment-profile-open');
             toggle.setAttribute('aria-expanded', 'true');
             window.setTimeout(function() {
@@ -384,6 +385,7 @@ function initCommentProfile() {
 
         function closeProfile() {
             form.classList.remove('is-profile-open');
+            document.documentElement.classList.remove('comment-profile-open');
             document.body.classList.remove('comment-profile-open');
             toggle.setAttribute('aria-expanded', 'false');
             toggle.focus();

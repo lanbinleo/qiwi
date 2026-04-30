@@ -91,8 +91,10 @@ body {
     transition: background var(--transition), color var(--transition);
 }
 
+html.comment-profile-open,
 body.comment-profile-open {
     overflow: hidden;
+    overscroll-behavior: none;
 }
 
 a {
@@ -2470,22 +2472,31 @@ body.qiwi-lightbox-open {
 
 .comment-form.is-enhanced.is-profile-open .comment-profile-modal {
     position: fixed;
-    inset: 0;
-    z-index: 200;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 9999;
     display: grid;
     place-items: center;
     padding: calc(var(--spacing-unit) * 3);
 }
 
 .comment-form.is-enhanced.is-profile-open .comment-profile-backdrop {
-    position: absolute;
+    position: fixed;
     inset: 0;
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     background: rgba(0, 0, 0, 0.45);
     border: 0;
     cursor: default;
+}
+
+[data-theme="light"] .comment-form.is-enhanced.is-profile-open .comment-profile-backdrop {
+    background: rgba(250, 250, 249, 0.72);
 }
 
 .comment-form.is-enhanced.is-profile-open .comment-profile-panel {
