@@ -68,6 +68,12 @@ $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
             ?>
         </div>
 
+        <?php if (qiwiHasRenderedContent($pageContent)): ?>
+        <div class="friends-extra article-body">
+            <?php echo $pageContent; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- 友链申请 -->
         <?php if ($this->allow('comment')): ?>
         <div class="friends-apply">
@@ -119,12 +125,6 @@ $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
 
                 <button type="submit" class="submit-button" id="sub_btn">提交申请</button>
             </form>
-        </div>
-        <?php endif; ?>
-
-        <?php if (qiwiHasRenderedContent($pageContent)): ?>
-        <div class="friends-extra article-body">
-            <?php echo $pageContent; ?>
         </div>
         <?php endif; ?>
     </div>

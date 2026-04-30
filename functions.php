@@ -144,7 +144,7 @@ function themeFields($layout) {
     // 设置文章简介
     $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符'));
 
-    $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链页底部。'));
+    $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
 
     $navShow = new Typecho_Widget_Helper_Form_Element_Radio(
         'navShow',
@@ -456,12 +456,16 @@ if (!function_exists('qiwiGetPageRecords')) {
             $templatesByCid[(int) $row['cid']] = (string) $row['template'];
         }
 
-        $fieldRows = $db->fetchAll($db->select('cid', 'int_value', 'str_value')
+        $fieldRows = $db->fetchAll($db->select('cid', 'type', 'int_value', 'str_value')
             ->from($prefix . 'fields')
             ->where('name = ?', 'navShow'));
 
         foreach ($fieldRows as $row) {
-            $rawValue = isset($row['int_value']) && $row['int_value'] !== null ? $row['int_value'] : $row['str_value'];
+            $fieldType = isset($row['type']) ? (string) $row['type'] : '';
+            $rawValue = $fieldType === 'int' ? $row['int_value'] : $row['str_value'];
+            if ($rawValue === null || $rawValue === '') {
+                $rawValue = isset($row['int_value']) ? $row['int_value'] : null;
+            }
             $navShowByCid[(int) $row['cid']] = (string) $rawValue !== '0';
         }
 
@@ -671,7 +675,7 @@ if (!function_exists('qiwiNavigationUsesFontAwesome')) {
                 return true;
             }
 
-            if (!empty($item['children']) && qiwiNavigationUsesFontAwesome($item['children'])) {
+            if (!empty($item['children'])) {
                 return true;
             }
         }

@@ -452,12 +452,203 @@ function initCommentProfile() {
     });
 }
 
+function initArticleImages() {
+    var images = document.querySelectorAll('.article-body img');
+    if (!images.length) return;
+
+    var lightboxMedia = window.matchMedia ? window.matchMedia('(min-width: 769px)') : null;
+    var activeTrigger = null;
+    var lightbox = document.querySelector('.qiwi-lightbox');
+
+    if (!lightbox) {
+        lightbox = document.createElement('div');
+        lightbox.className = 'qiwi-lightbox';
+        lightbox.setAttribute('role', 'dialog');
+        lightbox.setAttribute('aria-modal', 'true');
+        lightbox.setAttribute('aria-label', '图片预览');
+        lightbox.hidden = true;
+
+        var closeButton = document.createElement('button');
+        closeButton.className = 'qiwi-lightbox-button';
+        closeButton.type = 'button';
+        closeButton.setAttribute('aria-label', '关闭图片预览');
+
+        var previewImage = document.createElement('img');
+        previewImage.className = 'qiwi-lightbox-image';
+        previewImage.alt = '';
+
+        closeButton.appendChild(previewImage);
+        lightbox.appendChild(closeButton);
+        document.body.appendChild(lightbox);
+    }
+
+    var lightboxButton = lightbox.querySelector('.qiwi-lightbox-button');
+    var lightboxImage = lightbox.querySelector('.qiwi-lightbox-image');
+    if (!lightboxButton || !lightboxImage) return;
+
+    var closeTimer = null;
+    var targetRect = null;
+
+    function getImageTargetRect(img) {
+        var padding = Math.min(96, Math.max(40, Math.min(window.innerWidth, window.innerHeight) * 0.08));
+        var maxWidth = Math.max(120, window.innerWidth - padding * 2);
+        var maxHeight = Math.max(120, window.innerHeight - padding * 2);
+        var naturalWidth = img.naturalWidth || img.width || img.getBoundingClientRect().width;
+        var naturalHeight = img.naturalHeight || img.height || img.getBoundingClientRect().height;
+        var scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+        var width = naturalWidth * scale;
+        var height = naturalHeight * scale;
+
+        return {
+            left: (window.innerWidth - width) / 2,
+            top: (window.innerHeight - height) / 2,
+            width: width,
+            height: height
+        };
+    }
+
+    function getTransform(fromRect, toRect) {
+        return 'translate3d(' + fromRect.left + 'px, ' + fromRect.top + 'px, 0) scale(' +
+            (fromRect.width / toRect.width) + ', ' + (fromRect.height / toRect.height) + ')';
+    }
+
+    function getTargetTransform(rect) {
+        return 'translate3d(' + rect.left + 'px, ' + rect.top + 'px, 0) scale(1, 1)';
+    }
+
+    function preventPageScroll(event) {
+        if (!lightbox.hidden) {
+            event.preventDefault();
+        }
+    }
+
+    function lockPageScroll() {
+        document.documentElement.classList.add('qiwi-lightbox-open');
+        document.body.classList.add('qiwi-lightbox-open');
+        document.addEventListener('wheel', preventPageScroll, { passive: false });
+        document.addEventListener('touchmove', preventPageScroll, { passive: false });
+    }
+
+    function unlockPageScroll() {
+        document.documentElement.classList.remove('qiwi-lightbox-open');
+        document.body.classList.remove('qiwi-lightbox-open');
+        document.removeEventListener('wheel', preventPageScroll);
+        document.removeEventListener('touchmove', preventPageScroll);
+    }
+
+    function closeLightbox() {
+        if (lightbox.hidden) return;
+
+        var sourceRect = activeTrigger ? activeTrigger.getBoundingClientRect() : targetRect;
+        if (sourceRect && targetRect) {
+            lightboxImage.style.transform = getTransform(sourceRect, targetRect);
+        }
+
+        lightbox.classList.remove('is-open');
+
+        if (closeTimer) {
+            window.clearTimeout(closeTimer);
+        }
+
+        closeTimer = window.setTimeout(function() {
+            lightbox.hidden = true;
+            lightboxImage.removeAttribute('src');
+            lightboxImage.removeAttribute('style');
+            unlockPageScroll();
+            closeTimer = null;
+        }, 300);
+
+        if (activeTrigger && typeof activeTrigger.focus === 'function') {
+            activeTrigger.focus();
+        }
+
+        activeTrigger = null;
+    }
+
+    function openLightbox(img) {
+        if (lightboxMedia && !lightboxMedia.matches) {
+            return;
+        }
+
+        activeTrigger = img;
+        var sourceRect = img.getBoundingClientRect();
+        targetRect = getImageTargetRect(img);
+
+        if (closeTimer) {
+            window.clearTimeout(closeTimer);
+            closeTimer = null;
+        }
+
+        lightboxImage.src = img.currentSrc || img.src;
+        lightboxImage.alt = img.getAttribute('alt') || '';
+        lightbox.hidden = false;
+        lockPageScroll();
+        lightboxImage.style.width = targetRect.width + 'px';
+        lightboxImage.style.height = targetRect.height + 'px';
+        lightboxImage.style.transition = 'none';
+        lightboxImage.style.transform = getTransform(sourceRect, targetRect);
+        lightboxImage.offsetHeight;
+        lightboxImage.style.transition = '';
+        window.requestAnimationFrame(function() {
+            lightbox.classList.add('is-open');
+            lightboxImage.style.transform = getTargetTransform(targetRect);
+        });
+        lightboxButton.focus();
+    }
+
+    lightboxButton.addEventListener('click', closeLightbox);
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && !lightbox.hidden) {
+            closeLightbox();
+        } else if (!lightbox.hidden && [' ', 'PageDown', 'PageUp', 'Home', 'End', 'ArrowDown', 'ArrowUp'].indexOf(event.key) !== -1) {
+            event.preventDefault();
+        }
+    });
+
+    images.forEach(function(img) {
+        var parent = img.parentElement;
+        var imageTarget = parent && parent.tagName === 'A' && parent.children.length === 1 ? parent : img;
+
+        img.classList.add('qiwi-content-image');
+
+        if (imageTarget !== img) {
+            imageTarget.classList.add('qiwi-image-link');
+        }
+
+        img.setAttribute('tabindex', '0');
+        img.setAttribute('role', 'button');
+        img.setAttribute('aria-label', '打开图片预览');
+
+        img.addEventListener('click', function(event) {
+            if (lightboxMedia && !lightboxMedia.matches) {
+                return;
+            }
+
+            event.preventDefault();
+            openLightbox(img);
+        });
+
+        img.addEventListener('keydown', function(event) {
+            if (lightboxMedia && !lightboxMedia.matches) {
+                return;
+            }
+
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openLightbox(img);
+            }
+        });
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initArticleToc();
     initHomeJike();
     initCommentProfile();
+    initArticleImages();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {

@@ -1,7 +1,9 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationItems($this) : [];
-$qiwiUseFontAwesome = function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems);
+$qiwiTemplate = isset($this->template) ? (string) $this->template : '';
+$qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems))
+    || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
 ?>
 <!DOCTYPE html>
 <html lang="<?php $this->options->lang(); ?>">

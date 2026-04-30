@@ -110,12 +110,16 @@ function renderMarkdown($text) {
         <!-- 说说列表 -->
         <?php if ($total > 0): ?>
         <div class="moments-list">
-            <?php foreach ($comments as $comment): ?>
-            <article class="moment-item">
+            <?php foreach ($comments as $index => $comment): ?>
+            <article class="moment-item<?php if ($index === 0): ?> has-avatar<?php endif; ?>">
+                <?php if ($index === 0): ?>
                 <div class="moment-avatar">
                     <img src="<?php echo $this->options->aboutAvatar ?: 'https://gravatar.loli.net/avatar/default?s=96&d=mp'; ?>"
                          alt="avatar">
                 </div>
+                <?php else: ?>
+                <div class="moment-avatar moment-avatar-placeholder" aria-hidden="true"></div>
+                <?php endif; ?>
                 <div class="moment-content">
                     <div class="moment-header">
                         <span class="moment-author"><?php $this->author->screenName(); ?></span>
@@ -157,11 +161,8 @@ function renderMarkdown($text) {
         <div class="moment-publisher">
             <div class="publisher-header">
                 <h3 class="publisher-title">发布新的记录</h3>
-                <button id="open-settings" class="settings-btn" title="图床设置">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
-                    </svg>
+                <button id="open-settings" class="settings-btn" type="button" title="图床设置">
+                    <i class="fa-solid fa-gear" aria-hidden="true"></i>
                     图床设置
                 </button>
             </div>
@@ -286,10 +287,17 @@ class TimemachineUploader {
     initSettingsModal() {
         const modal = document.getElementById('settings-modal');
         const openBtn = document.getElementById('open-settings');
+        if (!modal || !openBtn) {
+            return;
+        }
+
         const closeBtn = modal.querySelector('.modal-close');
         const overlay = modal.querySelector('.modal-overlay');
         const form = document.getElementById('settings-form');
         const generateBtn = document.getElementById('generate-token');
+        if (!closeBtn || !overlay || !form || !generateBtn) {
+            return;
+        }
 
         // 填充已保存的设置
         this.fillSettingsForm();
@@ -313,10 +321,18 @@ class TimemachineUploader {
 
     // 填充设置表单
     fillSettingsForm() {
-        document.getElementById('base-url').value = this.settings.baseUrl;
-        document.getElementById('email').value = this.settings.email;
-        document.getElementById('password').value = this.settings.password;
-        document.getElementById('token').value = this.settings.token;
+        const baseUrl = document.getElementById('base-url');
+        const email = document.getElementById('email');
+        const password = document.getElementById('password');
+        const token = document.getElementById('token');
+        if (!baseUrl || !email || !password || !token) {
+            return;
+        }
+
+        baseUrl.value = this.settings.baseUrl;
+        email.value = this.settings.email;
+        password.value = this.settings.password;
+        token.value = this.settings.token;
     }
 
     // 生成Token
@@ -405,9 +421,16 @@ class TimemachineUploader {
         }
 
         const progressEl = document.getElementById('upload-progress');
+        const textarea = document.getElementById('moment-textarea');
+        if (!progressEl || !textarea) {
+            return;
+        }
+
         const progressFill = progressEl.querySelector('.progress-fill');
         const progressText = progressEl.querySelector('.progress-text');
-        const textarea = document.getElementById('moment-textarea');
+        if (!progressFill || !progressText) {
+            return;
+        }
 
         progressEl.style.display = 'flex';
         progressText.textContent = '上传中...';
@@ -460,7 +483,9 @@ class TimemachineUploader {
 
 // 初始化上传器
 document.addEventListener('DOMContentLoaded', function() {
-    const uploader = new TimemachineUploader();
+    if (document.getElementById('moment-textarea') || document.getElementById('open-settings')) {
+        const uploader = new TimemachineUploader();
+    }
 });
 </script>
 
