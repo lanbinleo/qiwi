@@ -6,6 +6,7 @@
  */
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+$qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
 $pageContent = qiwiGetContent($this);
 $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
@@ -128,6 +129,11 @@ $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
         </div>
         <?php endif; ?>
     </div>
+
+    <?php if ($qiwiShowToc): ?>
+    <!-- 页面目录 -->
+    <nav class="article-toc" aria-label="页面目录"></nav>
+    <?php endif; ?>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

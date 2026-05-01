@@ -489,21 +489,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- LaTeX 渲染支持 -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    renderMathInElement(document.body, {
-        delimiters: [
-            {left: "$$", right: "$$", display: true},
-            {left: "$", right: "$", display: false}
-        ],
-        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
-        ignoredClasses: ["nokatex"]
-    });
-});
-</script>
-
 <?php $this->need('footer.php'); ?>

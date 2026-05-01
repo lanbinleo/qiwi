@@ -3,6 +3,7 @@
  * 通用页面模板
  */
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
+$qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
 ?>
 
@@ -29,6 +30,11 @@ $this->need('header.php');
         </div>
         <?php endif; ?>
     </div>
+
+    <?php if ($qiwiShowToc): ?>
+    <!-- 页面目录 -->
+    <nav class="article-toc" aria-label="页面目录"></nav>
+    <?php endif; ?>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

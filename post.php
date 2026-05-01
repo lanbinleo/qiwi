@@ -4,6 +4,7 @@
  */
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $postViews = qiwiRecordPostView($this->cid);
+$qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
 ?>
 
@@ -74,8 +75,10 @@ $this->need('header.php');
         <?php endif; ?>
     </div>
 
+    <?php if ($qiwiShowToc): ?>
     <!-- 文章目录 -->
     <nav class="article-toc" aria-label="文章目录"></nav>
+    <?php endif; ?>
 </div>
 
 <?php $this->need('footer.php'); ?>

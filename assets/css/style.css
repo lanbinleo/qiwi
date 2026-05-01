@@ -786,7 +786,10 @@ img {
     gap: calc(var(--spacing-unit) * 6);
 }
 
-.article-page.has-toc {
+.article-page.has-toc,
+.about-page.has-toc,
+.timemachine-page.has-toc,
+.friends-page.has-toc {
     grid-template-columns: minmax(0, 1fr) 180px;
     max-width: 1174px;
 }
@@ -795,12 +798,29 @@ img {
     grid-column: 2 / 3;
 }
 
-.article-page.has-toc .article-main {
+.article-page.has-toc .article-main,
+.about-page.has-toc .about-main,
+.timemachine-page.has-toc .timemachine-main,
+.friends-page.has-toc .friends-main {
     grid-column: 1 / 2;
 }
 
-.article-page.has-toc .article-toc {
+.article-page.has-toc .article-toc,
+.about-page.has-toc .article-toc,
+.timemachine-page.has-toc .article-toc,
+.friends-page.has-toc .article-toc {
     grid-column: 2 / 3;
+}
+
+.article-page.has-toc .layout-spacer-left,
+.article-page.has-toc .layout-spacer-right,
+.about-page.has-toc .layout-spacer-left,
+.about-page.has-toc .layout-spacer-right,
+.timemachine-page.has-toc .layout-spacer-left,
+.timemachine-page.has-toc .layout-spacer-right,
+.friends-page.has-toc .layout-spacer-left,
+.friends-page.has-toc .layout-spacer-right {
+    display: none;
 }
 
 .article-header {

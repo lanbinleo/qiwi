@@ -139,11 +139,64 @@ function initMobileNavigation() {
 
 function initArticleToc() {
     var tocContainer = document.querySelector('.article-toc');
-    var articleBody = document.querySelector('.article-body');
-    var articlePage = tocContainer ? tocContainer.closest('.article-page') : null;
+    var articlePage = tocContainer ? tocContainer.closest('.article-page, .about-page, .timemachine-page, .friends-page') : null;
+    var articleBody = articlePage ? articlePage.querySelector('.article-body') : document.querySelector('.article-body');
     if (!tocContainer || !articleBody) return;
 
-    var headings = articleBody.querySelectorAll('h2, h3, h4');
+    function getHeadingText(heading) {
+        var clone = heading.cloneNode(true);
+        clone.querySelectorAll('.header-anchor, .anchor, .heading-anchor, a[href^="#"]').forEach(function(anchor) {
+            var text = anchor.textContent.replace(/\s+/g, '').trim();
+            if (text === '' || text === '#' || text === '¶') {
+                anchor.remove();
+            }
+        });
+        return clone.textContent.replace(/\s+/g, ' ').trim();
+    }
+
+    function isUsableHeading(heading) {
+        if (!getHeadingText(heading)) return false;
+
+        var parent = heading.parentElement;
+        while (parent && parent !== articleBody) {
+            if (parent.tagName === 'DETAILS' && !parent.open) {
+                return false;
+            }
+            parent = parent.parentElement;
+        }
+
+        return true;
+    }
+
+    function slugifyHeading(text, fallback) {
+        var slug = text.toLowerCase()
+            .replace(/<[^>]+>/g, '')
+            .replace(/[\s\/\\?%*:|"<>.,;()[\]{}+=!@#$^&~`]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        return slug || fallback;
+    }
+
+    function uniqueHeadingId(heading, text, index, usedIds) {
+        var currentId = heading.id ? heading.id.trim() : '';
+        if (currentId && !usedIds[currentId]) {
+            usedIds[currentId] = true;
+            return currentId;
+        }
+
+        var base = slugifyHeading(text, 'heading-' + index);
+        var id = base;
+        var counter = 2;
+        while (usedIds[id] || document.getElementById(id)) {
+            id = base + '-' + counter;
+            counter++;
+        }
+
+        heading.id = id;
+        usedIds[id] = true;
+        return id;
+    }
+
+    var headings = Array.prototype.slice.call(articleBody.querySelectorAll('h2, h3, h4')).filter(isUsableHeading);
     if (headings.length === 0) {
         if (articlePage) articlePage.classList.remove('has-toc');
         tocContainer.style.display = 'none';
@@ -152,9 +205,11 @@ function initArticleToc() {
 
     if (articlePage) articlePage.classList.add('has-toc');
 
-    // Assign IDs to headings
-    headings.forEach(function(h, i) {
-        if (!h.id) h.id = 'heading-' + i;
+    var usedIds = {};
+    document.querySelectorAll('[id]').forEach(function(element) {
+        if (!articleBody.contains(element)) {
+            usedIds[element.id] = true;
+        }
     });
 
     // Create sticky inner wrapper
@@ -185,19 +240,21 @@ function initArticleToc() {
     var list = document.createElement('ul');
     list.className = 'toc-list';
 
-    headings.forEach(function(h) {
+    headings.forEach(function(h, index) {
+        var headingText = getHeadingText(h);
+        var headingId = uniqueHeadingId(h, headingText, index, usedIds);
         var level = parseInt(h.tagName.charAt(1));
         var li = document.createElement('li');
         li.className = 'toc-item level-' + level;
         var a = document.createElement('a');
         a.className = 'toc-link';
-        a.href = '#' + h.id;
-        a.textContent = h.textContent.trim();
-        a.title = h.textContent.trim();
+        a.href = '#' + headingId;
+        a.textContent = headingText;
+        a.title = headingText;
         a.addEventListener('click', function(e) {
             e.preventDefault();
             h.scrollIntoView({ behavior: 'smooth' });
-            history.replaceState(null, null, '#' + h.id);
+            history.replaceState(null, null, '#' + encodeURIComponent(headingId));
         });
         li.appendChild(a);
         list.appendChild(li);
@@ -227,6 +284,11 @@ function initArticleToc() {
     // Scroll spy with IntersectionObserver
     var tocLinks = inner.querySelectorAll('.toc-link');
     var currentActive = null;
+
+    if (!('IntersectionObserver' in window)) {
+        if (tocLinks[0]) tocLinks[0].classList.add('is-active');
+        return;
+    }
 
     var observer = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
@@ -668,9 +730,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- LaTeX 渲染 -->
-<?php if ($this->is('post') && $this->fields->isLatex == 1): ?>
+<?php if (function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this)): ?>
 <script type="text/javascript">
   document.addEventListener("DOMContentLoaded", function() {
+    if (typeof renderMathInElement !== 'function') return;
     renderMathInElement(document.body, {
       delimiters: [{
           left: "$$",
@@ -680,7 +743,17 @@ document.addEventListener('DOMContentLoaded', function() {
           left: "$",
           right: "$",
           display: false
+      }, {
+          left: "\\(",
+          right: "\\)",
+          display: false
+      }, {
+          left: "\\[",
+          right: "\\]",
+          display: true
       }],
+      throwOnError: false,
+      strict: "ignore",
       ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
       ignoredClasses: ["nokatex"]
     });

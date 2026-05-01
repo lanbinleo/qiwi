@@ -1,6 +1,213 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
+if (!function_exists('qiwiGetFieldValue')) {
+    function qiwiGetFieldValue($widget, $name, $default = null)
+    {
+        if (!empty($widget) && !empty($widget->fields) && isset($widget->fields->{$name})) {
+            return $widget->fields->{$name};
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('qiwiShouldRenderLatex')) {
+    function qiwiShouldRenderLatex($widget)
+    {
+        if (empty($widget) || !method_exists($widget, 'is') || !$widget->is('single')) {
+            return false;
+        }
+
+        if ((string) qiwiGetFieldValue($widget, 'isLatex', '0') === '1') {
+            return true;
+        }
+
+        $content = qiwiGetRawContentForDetection($widget);
+        return qiwiContentMightContainLatex($content);
+    }
+}
+
+if (!function_exists('qiwiGetRawContentForDetection')) {
+    function qiwiGetRawContentForDetection($widget)
+    {
+        foreach (['content', 'text'] as $property) {
+            if (isset($widget->{$property}) && trim((string) $widget->{$property}) !== '') {
+                return (string) $widget->{$property};
+            }
+        }
+
+        if (!empty($widget) && isset($widget->cid)) {
+            $cid = (int) $widget->cid;
+            if ($cid > 0) {
+                $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+                $prefix = $db->getPrefix();
+                $row = $db->fetchRow($db->select('text')
+                    ->from($prefix . 'contents')
+                    ->where('cid = ?', $cid)
+                    ->limit(1));
+
+                if (!empty($row['text'])) {
+                    return (string) $row['text'];
+                }
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('qiwiContentMightContainLatex')) {
+    function qiwiContentMightContainLatex($content)
+    {
+        $content = (string) $content;
+        if ($content === '') {
+            return false;
+        }
+
+        $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $content = preg_replace('/```[\s\S]*?```|~~~[\s\S]*?~~~/u', ' ', $content);
+        $content = preg_replace('/<pre\b[\s\S]*?<\/pre>|<code\b[\s\S]*?<\/code>/iu', ' ', $content);
+
+        if (preg_match('/\$\$[\s\S]+?\$\$/u', $content)) {
+            return true;
+        }
+
+        if (preg_match('/\\\\\([\s\S]+?\\\\\)|\\\\\[[\s\S]+?\\\\\]/u', $content)) {
+            return true;
+        }
+
+        return (bool) preg_match('/(?<!\$)\$(?=[^\r\n$]{1,500}\$)(?=[^\r\n$]*(?:\\\\|[=<>_^{}]|[∑√∞≤≥≈≠±×÷]))[^\r\n$]+\$(?!\$)/u', $content);
+    }
+}
+
+if (!function_exists('qiwiShouldShowToc')) {
+    function qiwiShouldShowToc($widget)
+    {
+        if (empty($widget) || !method_exists($widget, 'is') || !$widget->is('single')) {
+            return false;
+        }
+
+        $value = (string) qiwiGetFieldValue($widget, 'tocDisplay', '1');
+        if ($value === '1') {
+            return true;
+        }
+
+        if ($value === '0') {
+            return false;
+        }
+
+        if ($value === 'auto') {
+            return $widget->is('post');
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('qiwiGetThemeAssetUrl')) {
+    function qiwiGetThemeAssetUrl($path)
+    {
+        $path = ltrim((string) $path, '/');
+        $options = null;
+
+        if (class_exists('\Widget\Options')) {
+            \Widget\Options::alloc()->to($options);
+        } elseif (class_exists('Widget_Options')) {
+            Widget_Options::alloc()->to($options);
+        }
+
+        if (!empty($options) && method_exists($options, 'themeUrl')) {
+            ob_start();
+            $options->themeUrl($path);
+            $url = trim(ob_get_clean());
+            if ($url !== '') {
+                return $url;
+            }
+        }
+
+        if (!empty($options) && isset($options->themeUrl)) {
+            return rtrim((string) $options->themeUrl, '/') . '/' . $path;
+        }
+
+        return $path;
+    }
+}
+
+if (!function_exists('qiwiShellQuote')) {
+    function qiwiShellQuote($value)
+    {
+        return "'" . str_replace("'", "'\"'\"'", (string) $value) . "'";
+    }
+}
+
+if (!function_exists('qiwiGetLocalUpdateMetadata')) {
+    function qiwiGetLocalUpdateMetadata()
+    {
+        $path = __DIR__ . '/update.json';
+        if (!is_readable($path)) {
+            return [];
+        }
+
+        $data = json_decode((string) file_get_contents($path), true);
+        return is_array($data) ? $data : [];
+    }
+}
+
+if (!function_exists('qiwiGetAdminEditingContentType')) {
+    function qiwiGetAdminEditingContentType()
+    {
+        $script = isset($_SERVER['SCRIPT_NAME']) ? strtolower(basename($_SERVER['SCRIPT_NAME'])) : '';
+        if (strpos($script, 'write-page') !== false) {
+            return 'page';
+        }
+
+        if (strpos($script, 'write-post') !== false) {
+            return 'post';
+        }
+
+        $cid = 0;
+        if (isset($_REQUEST['cid'])) {
+            $cid = (int) $_REQUEST['cid'];
+        }
+
+        if ($cid > 0) {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+            $row = $db->fetchRow($db->select('type')
+                ->from($prefix . 'contents')
+                ->where('cid = ?', $cid)
+                ->limit(1));
+
+            if (!empty($row['type']) && in_array($row['type'], ['post', 'page'], true)) {
+                return $row['type'];
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
+    function qiwiAdminConfigEnhancerAssets()
+    {
+        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-config.css'), ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-config.js'), ENT_QUOTES, 'UTF-8');
+        $fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
+        $metadata = qiwiGetLocalUpdateMetadata();
+        $config = [
+            'currentVersion' => isset($metadata['version']) ? (string) $metadata['version'] : '',
+            'updateEndpoint' => 'https://raw.githubusercontent.com/lanbinleo/qiwi/main/update.json',
+            'repositoryUrl' => 'https://github.com/lanbinleo/qiwi',
+            'updateCommand' => 'cd ' . qiwiShellQuote(__DIR__) . ' && bash update.sh',
+            'cacheTtl' => 21600000,
+        ];
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        return '<link rel="stylesheet" href="' . $fa . '" crossorigin="anonymous" referrerpolicy="no-referrer"><link rel="stylesheet" href="' . $css . '"><script>window.QIWI_ADMIN_CONFIG=' . $json . ';</script><script defer src="' . $js . '"></script>';
+    }
+}
+
 function themeConfig($form)
 {
     $logoUrl = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -66,7 +273,7 @@ function themeConfig($form)
         null,
         null,
         _t('顶部导航配置'),
-        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。")
+        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。") . qiwiAdminConfigEnhancerAssets()
     );
     $form->addInput($navItems);
 
@@ -136,15 +343,32 @@ function themeConfig($form)
 }
 
 function themeFields($layout) {
+    $contentType = qiwiGetAdminEditingContentType();
+    $isPageEditor = $contentType === 'page';
+    $isPostEditor = $contentType === 'post';
+    $isUnknownEditor = $contentType === '';
+
     $isLatex = new Typecho_Widget_Helper_Form_Element_Radio('isLatex',
     array(1 => _t('启用'),
     0 => _t('关闭')),
-    0, _t('LaTeX 渲染'), _t('默认关闭增加网页访问速度，如文章内存在LaTeX语法则需要启用'));
+    0, _t('通用 - LaTeX 渲染'), _t('默认关闭增加网页访问速度；文章或页面内存在 LaTeX 语法时启用。'));
+
+    $tocDisplay = new Typecho_Widget_Helper_Form_Element_Radio(
+        'tocDisplay',
+        array(
+            '1' => _t('显示'),
+            '0' => _t('隐藏'),
+            'auto' => _t('兼容旧逻辑（文章开启，页面关闭）')
+        ),
+        '1',
+        _t('通用 - 侧边目录'),
+        _t('默认显示；可按当前文章/页面单独关闭。目录只会在正文存在 h2、h3 或 h4 标题时生成。')
+    );
 
     // 设置文章简介
-    $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符'));
+    $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章 - 简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符。'));
 
-    $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
+    $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
 
     $navShow = new Typecho_Widget_Helper_Form_Element_Radio(
         'navShow',
@@ -153,12 +377,12 @@ function themeFields($layout) {
             0 => _t('隐藏')
         ),
         1,
-        _t('顶部导航栏展示'),
+        _t('页面 - 顶部导航栏展示'),
         _t('控制该独立页面是否出现在自动生成的顶部导航栏中。手动导航配置不受此项影响。')
     );
 
     // 设置头图URL
-    $thumbnail = new Typecho_Widget_Helper_Form_Element_Text('thumbnail', null, null, _t('文章头图'), _t('在这里填写文章的头图URL地址'));
+    $thumbnail = new Typecho_Widget_Helper_Form_Element_Text('thumbnail', null, null, _t('文章 - 头图'), _t('在这里填写文章的头图 URL 地址。'));
 
     // 是否展示头图（不展示，首页展示，文章页展示，都展示）
     $showThumbnail = new Typecho_Widget_Helper_Form_Element_Radio('showThumbnail',
@@ -166,21 +390,28 @@ function themeFields($layout) {
               3 => _t('都展示'),
               1 => _t('首页展示'),
               2 => _t('文章页展示')),
-        3, _t('展示头图'), _t('是否在文章列表中展示头图'));
+        3, _t('文章 - 展示头图'), _t('控制头图在文章列表和文章详情页的展示位置。'));
 
     // 是否置顶文章
     $isSticky = new Typecho_Widget_Helper_Form_Element_Radio('isSticky',
         array(1 => _t('是'),
               0 => _t('否')),
-        0, _t('置顶文章'), _t('置顶的文章将在首页优先显示'));
+        0, _t('文章 - 置顶文章'), _t('置顶的文章将在首页优先显示。'));
 
     $layout->addItem($isLatex);
-    $layout->addItem($excerpt);
-    $layout->addItem($friendsSubtitle);
-    $layout->addItem($navShow);
-    $layout->addItem($showThumbnail);
-    $layout->addItem($thumbnail);
-    $layout->addItem($isSticky);
+    $layout->addItem($tocDisplay);
+
+    if ($isPostEditor || $isUnknownEditor) {
+        $layout->addItem($excerpt);
+        $layout->addItem($showThumbnail);
+        $layout->addItem($thumbnail);
+        $layout->addItem($isSticky);
+    }
+
+    if ($isPageEditor || $isUnknownEditor) {
+        $layout->addItem($friendsSubtitle);
+        $layout->addItem($navShow);
+    }
 }
 
 if (!function_exists('qiwiExtractPlainText')) {

@@ -4,6 +4,7 @@ $qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationIte
 $qiwiTemplate = isset($this->template) ? (string) $this->template : '';
 $qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems))
     || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
+$qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this);
 ?>
 <!DOCTYPE html>
 <html lang="<?php $this->options->lang(); ?>">
@@ -36,7 +37,7 @@ $qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiN
     <link rel="alternate" type="application/rss+xml" title="<?php $this->options->title(); ?>" href="<?php $this->options->feedUrl(); ?>">
 
     <!-- EXTENSIONS: LATEX -->
-    <?php if ($this->is('post') && $this->fields->isLatex == 1): ?>
+    <?php if ($qiwiUseLatex): ?>
     <script defer type="text/javascript" src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
     <script defer type="text/javascript" src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
