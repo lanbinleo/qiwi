@@ -1,0 +1,47 @@
+.qiwi-admin-preview-shortcodes .qiwi-fold {
+    margin: 1em 0;
+    padding: 12px 14px;
+    background: #f8f9fb;
+    border: 1px solid #d9dfe7;
+    border-radius: 8px;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-fold > summary {
+    cursor: pointer;
+    color: #202328;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-fold[open] > summary {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #d9dfe7;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-fold-body > *:last-child {
+    margin-bottom: 0;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-text-red { color: #d64545; }
+.qiwi-admin-preview-shortcodes .qiwi-text-orange { color: #d97a20; }
+.qiwi-admin-preview-shortcodes .qiwi-text-yellow { color: #a87900; }
+.qiwi-admin-preview-shortcodes .qiwi-text-green { color: #2f8f4e; }
+.qiwi-admin-preview-shortcodes .qiwi-text-cyan { color: #168c96; }
+.qiwi-admin-preview-shortcodes .qiwi-text-blue { color: #286bd6; }
+.qiwi-admin-preview-shortcodes .qiwi-text-purple { color: #7b55c7; }
+
+.qiwi-admin-preview-shortcodes .qiwi-mark {
+    padding: 0.08em 0.32em;
+    border-radius: 4px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-mark-red { background: rgba(214, 69, 69, 0.16); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-orange { background: rgba(217, 122, 32, 0.16); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-yellow { background: rgba(230, 176, 0, 0.2); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-green { background: rgba(47, 143, 78, 0.16); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-cyan { background: rgba(22, 140, 150, 0.16); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-blue { background: rgba(40, 107, 214, 0.16); }
+.qiwi-admin-preview-shortcodes .qiwi-mark-purple { background: rgba(123, 85, 199, 0.16); }

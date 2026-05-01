@@ -318,6 +318,18 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
     }
 }
 
+if (!function_exists('qiwiAdminEditorShortcodeAssets')) {
+    function qiwiAdminEditorShortcodeAssets()
+    {
+        $cssVersion = is_readable(__DIR__ . '/assets/css/admin-editor.css') ? filemtime(__DIR__ . '/assets/css/admin-editor.css') : time();
+        $jsVersion = is_readable(__DIR__ . '/assets/js/admin-editor.js') ? filemtime(__DIR__ . '/assets/js/admin-editor.js') : time();
+        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-editor.css') . '?v=' . $cssVersion, ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-editor.js') . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8');
+
+        return '<link rel="stylesheet" href="' . $css . '"><script defer src="' . $js . '"></script>';
+    }
+}
+
 function themeConfig($form)
 {
     $logoUrl = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -485,7 +497,7 @@ function themeFields($layout) {
     $isLatex = new Typecho_Widget_Helper_Form_Element_Radio('isLatex',
     array(1 => _t('启用'),
     0 => _t('关闭')),
-    0, _t('通用 - LaTeX 渲染'), _t('默认关闭增加网页访问速度；文章或页面内存在 LaTeX 语法时启用。'));
+    0, _t('通用 - LaTeX 渲染'), _t('默认关闭增加网页访问速度；文章或页面内存在 LaTeX 语法时启用。') . qiwiAdminEditorShortcodeAssets());
 
     $tocDisplay = new Typecho_Widget_Helper_Form_Element_Radio(
         'tocDisplay',
