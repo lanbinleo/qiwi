@@ -1,8 +1,14 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.3.3";
+$version = "1.3.4";
 $releaseNotes = [
+    "1.3.4" => <<<EOT
+- 新增前台版本弹窗开关，可关闭版本变化后的自动更新公告弹出，页脚版本号仍可手动查看日志
+- 后台友链编辑器支持分类与友链拖拽排序，新增友链或分类后会自动滚动并聚焦到新条目
+- 更新命令新增 Typecho 根目录设置弹窗，适配 Docker、挂载目录等需要手动指定宿主机路径的场景
+- 修复 Typecho 后台全局 span 间距影响折叠图标与“已是最新版”状态居中的问题
+EOT,
     "1.3.3" => <<<EOT
 - 新增后台异步版本检查，使用静态 update.json 读取远程版本信息
 - 主题设置顶部新增更新提示卡片，支持加载状态、最新版提示和更新日志展开
@@ -144,6 +150,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.3.4" => "2026-05-01",
   "1.3.3" => "2026-05-01",
   "1.3.2" => "2026-05-01",
   "1.3.1" => "2026-04-30",
@@ -168,6 +175,11 @@ $releaseDate = [
   "1.0.2-alpha" => "2025-09-06",
   "1.0.0" => "2025-09-06"
 ];
+
+$autoShowVersionDrawer = true;
+if (function_exists('qiwiGetThemeOptionSetting')) {
+  $autoShowVersionDrawer = (string) qiwiGetThemeOptionSetting('showVersionDrawer', '1') !== '0';
+}
 
 // 输出版本号
 echo $version;
@@ -475,12 +487,13 @@ echo $version;
     const CURRENT_VERSION = <?php echo json_encode($version, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const RELEASE_NOTES = <?php echo json_encode($releaseNotes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const RELEASE_DATES = <?php echo json_encode($releaseDate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const AUTO_SHOW_DRAWER = <?php echo $autoShowVersionDrawer ? 'true' : 'false'; ?>;
     const STORAGE_KEY = 'qiwi_theme_version';
 
     let lastVersion = null;
     try { lastVersion = localStorage.getItem(STORAGE_KEY); } catch(e) {}
 
-    const shouldShow = !lastVersion || lastVersion !== CURRENT_VERSION;
+    const shouldShow = AUTO_SHOW_DRAWER && (!lastVersion || lastVersion !== CURRENT_VERSION);
 
     const drawer = document.getElementById('qiwi-version-drawer');
     if (!drawer) return;

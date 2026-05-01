@@ -32,6 +32,23 @@
         return input.closest('li') || input.closest('.typecho-option') || input.parentNode;
     }
 
+    function revealElement(element) {
+        if (!element) return;
+        window.requestAnimationFrame(function() {
+            if (element.scrollIntoView) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            var focusTarget = $('input, textarea, select, button', element);
+            if (focusTarget && focusTarget.focus) {
+                try {
+                    focusTarget.focus({ preventScroll: true });
+                } catch (error) {
+                    focusTarget.focus();
+                }
+            }
+        });
+    }
+
     function moveField(name, target) {
         var input = fieldByName(name);
         var row = fieldRow(input);
@@ -216,6 +233,7 @@
         row.setAttribute('data-extra', JSON.stringify(friendExtras(friend || {})));
         row.innerHTML =
             '<button type="button" class="qiwi-friend-summary" data-friend-action="toggle" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
+                '<span class="qiwi-friend-drag" data-friend-drag draggable="true" title="拖拽排序" aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>' +
                 '<span class="qiwi-friend-avatar"><img src="' + escapeHtml(avatar) + '" alt="' + escapeHtml(name) + '" loading="lazy" onerror="this.src=\'https://gravatar.loli.net/avatar/default?s=96&d=mp\'"></span>' +
                 '<span class="qiwi-friend-summary-text">' +
                     '<strong class="qiwi-friend-summary-name">' + escapeHtml(name) + '</strong>' +
@@ -246,6 +264,7 @@
         category.innerHTML =
             '<div class="qiwi-friend-category-header">' +
                 '<button type="button" class="qiwi-friend-category-toggle" data-friend-action="toggle-category" aria-expanded="' + (open ? 'true' : 'false') + '"><span class="qiwi-friend-category-arrow">' + chevronSvg + '</span></button>' +
+                '<span class="qiwi-friend-category-drag" data-category-drag draggable="true" title="拖拽排序" aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>' +
                 '<input type="text" data-category-name value="' + escapeHtml(name) + '" placeholder="分类名称">' +
                 '<div class="qiwi-row-actions">' +
                     '<button type="button" class="qiwi-admin-button" data-friend-action="add">添加友链</button>' +
@@ -262,6 +281,8 @@
 
     function initFriendsEditor(panel, textarea) {
         var list = $('[data-qiwi-friends-list]', panel);
+        var draggedFriend = null;
+        var draggedCategory = null;
 
         function readData() {
             var data = {};
@@ -309,8 +330,10 @@
         $('[data-friend-action="add-category"]', panel).addEventListener('click', function() {
             var empty = $('.qiwi-admin-empty', list);
             if (empty) empty.remove();
-            list.appendChild(renderCategory('默认分类', [], true));
+            var category = renderCategory('默认分类', [], true);
+            list.appendChild(category);
             sync();
+            revealElement(category);
         });
 
         list.addEventListener('input', function(event) {
@@ -331,13 +354,20 @@
             }
 
             if (action === 'toggle' && row) {
+                if (event.target.closest('[data-friend-drag]')) return;
                 var isOpen = !row.classList.contains('is-open');
                 row.classList.toggle('is-open', isOpen);
                 button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             }
 
             if (action === 'add' && category) {
-                $('[data-friend-list]', category).appendChild(renderFriendRow({}, true));
+                setCategoryOpen(category, true);
+                var friendList = $('[data-friend-list]', category);
+                var newRow = renderFriendRow({}, true);
+                friendList.appendChild(newRow);
+                sync();
+                revealElement(newRow);
+                return;
             }
 
             if (action === 'delete' && row && row.classList.contains('is-open')) {
@@ -350,6 +380,77 @@
 
             sync();
             if (!$all('.qiwi-friend-category', list).length) render({});
+        });
+
+        list.addEventListener('dragstart', function(event) {
+            var friendHandle = event.target.closest('[data-friend-drag]');
+            var categoryHandle = event.target.closest('[data-category-drag]');
+
+            if (friendHandle) {
+                draggedFriend = friendHandle.closest('.qiwi-friend-row');
+                if (!draggedFriend) return;
+                draggedFriend.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', 'friend');
+                return;
+            }
+
+            if (categoryHandle) {
+                draggedCategory = categoryHandle.closest('.qiwi-friend-category');
+                if (!draggedCategory) return;
+                draggedCategory.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', 'category');
+                return;
+            }
+
+            event.preventDefault();
+        });
+
+        list.addEventListener('dragover', function(event) {
+            if (draggedFriend) {
+                var targetList = event.target.closest('[data-friend-list]');
+                if (!targetList) return;
+                event.preventDefault();
+
+                var targetRow = event.target.closest('.qiwi-friend-row');
+                if (targetRow && targetRow !== draggedFriend) {
+                    var rowRect = targetRow.getBoundingClientRect();
+                    var beforeRow = event.clientY < rowRect.top + rowRect.height / 2;
+                    targetList.insertBefore(draggedFriend, beforeRow ? targetRow : targetRow.nextSibling);
+                } else if (!targetRow) {
+                    targetList.appendChild(draggedFriend);
+                }
+                return;
+            }
+
+            if (draggedCategory) {
+                var targetCategory = event.target.closest('.qiwi-friend-category');
+                if (!targetCategory || targetCategory === draggedCategory || draggedCategory.contains(targetCategory)) return;
+                event.preventDefault();
+
+                var categoryRect = targetCategory.getBoundingClientRect();
+                var beforeCategory = event.clientY < categoryRect.top + categoryRect.height / 2;
+                list.insertBefore(draggedCategory, beforeCategory ? targetCategory : targetCategory.nextSibling);
+            }
+        });
+
+        list.addEventListener('drop', function(event) {
+            if (!draggedFriend && !draggedCategory) return;
+            event.preventDefault();
+            sync();
+        });
+
+        list.addEventListener('dragend', function() {
+            if (draggedFriend) {
+                draggedFriend.classList.remove('is-dragging');
+                draggedFriend = null;
+            }
+            if (draggedCategory) {
+                draggedCategory.classList.remove('is-dragging');
+                draggedCategory = null;
+            }
+            sync();
         });
     }
 
@@ -496,17 +597,75 @@
         } catch (error) {}
     }
 
-    function renderUpdateDetails(panel, data, isOutdated) {
+    function customUpdateRootKey() {
         var config = getAdminConfig();
+        return 'qiwi:update-root:' + (config.themeRelativeDir || 'usr/themes/qiwi');
+    }
+
+    function readCustomUpdateRoot() {
+        try {
+            return trim(localStorage.getItem(customUpdateRootKey()) || '');
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function writeCustomUpdateRoot(value) {
+        try {
+            value = trim(value);
+            if (value) {
+                localStorage.setItem(customUpdateRootKey(), value);
+            } else {
+                localStorage.removeItem(customUpdateRootKey());
+            }
+        } catch (error) {}
+    }
+
+    function normalizeRootPath(value) {
+        return trim(value).replace(/[\\\/]+$/g, '');
+    }
+
+    function joinCommandPath(root, relative) {
+        return normalizeRootPath(root) + '/' + String(relative || 'usr/themes/qiwi').replace(/^[\\\/]+/g, '');
+    }
+
+    function shellQuote(value) {
+        return "'" + String(value || '').replace(/'/g, "'\"'\"'") + "'";
+    }
+
+    function buildCustomUpdateCommand(root) {
+        var config = getAdminConfig();
+        return 'cd ' + shellQuote(joinCommandPath(root, config.themeRelativeDir || 'usr/themes/qiwi')) + ' && bash update.sh';
+    }
+
+    function currentUpdateCommand() {
+        var config = getAdminConfig();
+        var customRoot = readCustomUpdateRoot();
+        return customRoot ? buildCustomUpdateCommand(customRoot) : (config.updateCommand || 'bash update.sh');
+    }
+
+    function refreshUpdateCommand(panel) {
+        var commandText = $('.qiwi-update-command code', panel);
+        var settingsButton = $('[data-update-settings]', panel);
+        var customRoot = readCustomUpdateRoot();
+
+        if (commandText) commandText.textContent = currentUpdateCommand();
+        if (settingsButton) {
+            settingsButton.classList.toggle('is-active', !!customRoot);
+            settingsButton.title = customRoot ? '已设置 Typecho 根目录' : '设置 Typecho 根目录';
+            settingsButton.setAttribute('aria-label', settingsButton.title);
+        }
+    }
+
+    function renderUpdateDetails(panel, data, isOutdated) {
         var notes = normalizeNotes(data && data.notes);
-        var command = config.updateCommand || 'bash update.sh';
         var details = $('.qiwi-update-details', panel);
         var commandText = $('.qiwi-update-command code', panel);
         var copyButton = $('[data-update-copy]', panel);
 
         if (!details || !commandText || !copyButton) return;
 
-        commandText.textContent = command;
+        commandText.textContent = currentUpdateCommand();
         copyButton.disabled = false;
 
         details.innerHTML =
@@ -556,7 +715,7 @@
 
     function initUpdatePanel(anchorRow) {
         var config = getAdminConfig();
-        if (!config.updateEndpoint || $('.qiwi-update-panel')) return;
+        if (!config.updateEndpoint || config.showUpdateLog === '0' || $('.qiwi-update-panel')) return;
 
         var panel = document.createElement('div');
         panel.className = 'qiwi-update-panel';
@@ -570,7 +729,23 @@
             '</button>' +
             '<div class="qiwi-update-expand" hidden>' +
                 '<div class="qiwi-update-details"></div>' +
-                '<div class="qiwi-update-command"><code></code><button type="button" class="qiwi-admin-button" data-update-copy>复制命令</button></div>' +
+                '<div class="qiwi-update-command"><code></code><div class="qiwi-update-command-actions"><button type="button" class="qiwi-admin-button" data-update-copy>复制命令</button><button type="button" class="qiwi-admin-button qiwi-icon-button" data-update-settings title="设置 Typecho 根目录" aria-label="设置 Typecho 根目录"><i class="fa-solid fa-gear" aria-hidden="true"></i></button></div></div>' +
+            '</div>' +
+            '<div class="qiwi-update-modal" data-update-modal hidden role="dialog" aria-modal="true" aria-labelledby="qiwi-update-root-title">' +
+                '<div class="qiwi-update-modal-card">' +
+                    '<div class="qiwi-update-modal-head">' +
+                        '<strong id="qiwi-update-root-title">更新命令路径</strong>' +
+                        '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-update-modal-close title="关闭" aria-label="关闭"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' +
+                    '</div>' +
+                    '<label class="qiwi-update-root-field">Typecho 根目录<input type="text" data-update-root-input placeholder="/srv/typecho"></label>' +
+                    '<p class="qiwi-update-root-help">填写 /usr 前一级目录；保存后会拼接到 ' + escapeHtml(config.themeRelativeDir || 'usr/themes/qiwi') + '。</p>' +
+                    '<code class="qiwi-update-root-preview" data-update-root-preview></code>' +
+                    '<div class="qiwi-update-modal-actions">' +
+                        '<button type="button" class="qiwi-admin-button" data-update-root-clear>恢复默认</button>' +
+                        '<button type="button" class="qiwi-admin-button" data-update-modal-cancel>取消</button>' +
+                        '<button type="button" class="qiwi-admin-button is-primary" data-update-root-save>保存</button>' +
+                    '</div>' +
+                '</div>' +
             '</div>';
 
         anchorRow.parentNode.insertBefore(panel, anchorRow);
@@ -578,6 +753,29 @@
         var card = $('.qiwi-update-card', panel);
         var expand = $('.qiwi-update-expand', panel);
         var copyButton = $('[data-update-copy]', panel);
+        var settingsButton = $('[data-update-settings]', panel);
+        var modal = $('[data-update-modal]', panel);
+        var modalInput = $('[data-update-root-input]', panel);
+        var modalPreview = $('[data-update-root-preview]', panel);
+
+        function updateRootPreview() {
+            var root = normalizeRootPath(modalInput.value);
+            modalPreview.textContent = root ? buildCustomUpdateCommand(root) : (config.updateCommand || 'bash update.sh');
+        }
+
+        function openRootModal() {
+            modal.hidden = false;
+            modalInput.value = readCustomUpdateRoot();
+            updateRootPreview();
+            window.requestAnimationFrame(function() {
+                modalInput.focus();
+            });
+        }
+
+        function closeRootModal() {
+            modal.hidden = true;
+            settingsButton.focus();
+        }
 
         card.addEventListener('click', function() {
             if (!panel.classList.contains('is-expandable')) return;
@@ -588,7 +786,7 @@
 
         copyButton.addEventListener('click', function(event) {
             event.stopPropagation();
-            var command = config.updateCommand || 'bash update.sh';
+            var command = currentUpdateCommand();
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(command).then(function() {
                     copyButton.textContent = '已复制';
@@ -611,7 +809,39 @@
             document.body.removeChild(textarea);
         });
 
+        settingsButton.addEventListener('click', function(event) {
+            event.stopPropagation();
+            openRootModal();
+        });
+
+        modalInput.addEventListener('input', updateRootPreview);
+
+        $('[data-update-root-save]', panel).addEventListener('click', function() {
+            writeCustomUpdateRoot(normalizeRootPath(modalInput.value));
+            refreshUpdateCommand(panel);
+            closeRootModal();
+        });
+
+        $('[data-update-root-clear]', panel).addEventListener('click', function() {
+            modalInput.value = '';
+            writeCustomUpdateRoot('');
+            refreshUpdateCommand(panel);
+            updateRootPreview();
+        });
+
+        $('[data-update-modal-cancel]', panel).addEventListener('click', closeRootModal);
+        $('[data-update-modal-close]', panel).addEventListener('click', closeRootModal);
+
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) closeRootModal();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && !modal.hidden) closeRootModal();
+        });
+
         setUpdateState(panel, 'checking');
+        refreshUpdateCommand(panel);
 
         var cacheKey = 'qiwi:update:' + config.updateEndpoint;
         var cached = readUpdateCache(cacheKey, config.cacheTtl || 21600000);
@@ -675,7 +905,7 @@
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="friends">友链</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="books">书籍统计</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="about">关于页面</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security">安全</button>' +
+                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security">后台与安全</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw">原始数据</button>' +
             '</div>' +
             '<div class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></div>' +
@@ -710,7 +940,7 @@
         moveFields(['sidebarBlock', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
         moveFields(['enableTravellings'], $('[data-qiwi-nav-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
-        moveFields(['enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
+        moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
 
         var rawPane = $('[data-qiwi-pane="raw"]', panel);
         moveField('navItems', rawPane);

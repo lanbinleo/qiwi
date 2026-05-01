@@ -154,6 +154,39 @@ if (!function_exists('qiwiGetLocalUpdateMetadata')) {
     }
 }
 
+if (!function_exists('qiwiGetThemeOptionSetting')) {
+    function qiwiGetThemeOptionSetting($name, $default = '')
+    {
+        $options = null;
+
+        if (class_exists('\Widget\Options')) {
+            \Widget\Options::alloc()->to($options);
+        } elseif (class_exists('Widget_Options')) {
+            Widget_Options::alloc()->to($options);
+        }
+
+        if (!empty($options) && isset($options->{$name})) {
+            return $options->{$name};
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('qiwiGetThemeRelativeDirFromTypechoRoot')) {
+    function qiwiGetThemeRelativeDirFromTypechoRoot()
+    {
+        $dir = str_replace('\\', '/', __DIR__);
+        $pos = strrpos($dir, '/usr/');
+
+        if ($pos !== false) {
+            return ltrim(substr($dir, $pos + 1), '/');
+        }
+
+        return 'usr/themes/' . basename(__DIR__);
+    }
+}
+
 if (!function_exists('qiwiGetAdminEditingContentType')) {
     function qiwiGetAdminEditingContentType()
     {
@@ -200,7 +233,9 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'updateEndpoint' => 'https://raw.githubusercontent.com/lanbinleo/qiwi/main/update.json',
             'repositoryUrl' => 'https://github.com/lanbinleo/qiwi',
             'updateCommand' => 'cd ' . qiwiShellQuote(__DIR__) . ' && bash update.sh',
+            'themeRelativeDir' => qiwiGetThemeRelativeDirFromTypechoRoot(),
             'cacheTtl' => 21600000,
+            'showUpdateLog' => (string) qiwiGetThemeOptionSetting('showUpdateLog', '1') === '0' ? '0' : '1',
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
@@ -267,6 +302,30 @@ function themeConfig($form)
         _t('在顶部导航栏显示"开往"链接，默认启用')
     );
     $form->addInput($enableTravellings);
+
+    $showUpdateLog = new Typecho_Widget_Helper_Form_Element_Radio(
+        'showUpdateLog',
+        array(
+            1 => _t('显示'),
+            0 => _t('隐藏')
+        ),
+        1,
+        _t('后台更新提示'),
+        _t('控制主题设置页顶部的版本检查与更新日志卡片；隐藏后仍可在这里重新开启。')
+    );
+    $form->addInput($showUpdateLog);
+
+    $showVersionDrawer = new Typecho_Widget_Helper_Form_Element_Radio(
+        'showVersionDrawer',
+        array(
+            1 => _t('自动弹出'),
+            0 => _t('不自动弹出')
+        ),
+        1,
+        _t('前台版本弹窗'),
+        _t('控制站点前台版本更新抽屉是否在版本变化后自动弹出；页脚版本号仍可手动打开更新日志。')
+    );
+    $form->addInput($showVersionDrawer);
 
     $navItems = new Typecho_Widget_Helper_Form_Element_Textarea(
         'navItems',

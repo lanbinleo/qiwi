@@ -2,6 +2,11 @@
     margin: 16px 0;
 }
 
+.qiwi-update-panel span,
+.qiwi-admin-panel span {
+    margin-right: 0;
+}
+
 .qiwi-update-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -53,6 +58,7 @@
 .qiwi-update-status {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 7px;
     min-height: 28px;
     padding: 5px 10px;
@@ -61,7 +67,21 @@
     color: #467b96;
     font-size: 12px;
     font-weight: 700;
+    line-height: 1;
     white-space: nowrap;
+}
+
+.qiwi-update-status i,
+.qiwi-update-status span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0;
+    line-height: 1;
+}
+
+.qiwi-update-status i {
+    width: 14px;
 }
 
 .qiwi-update-panel[data-update-state="error"] .qiwi-update-status {
@@ -106,6 +126,12 @@
     align-items: center;
 }
 
+.qiwi-update-command-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .qiwi-update-command code {
     display: block;
     overflow-x: auto;
@@ -116,6 +142,70 @@
     font-family: Consolas, Monaco, monospace;
     font-size: 12px;
     white-space: nowrap;
+}
+
+.qiwi-update-modal[hidden] {
+    display: none;
+}
+
+.qiwi-update-modal {
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.qiwi-update-modal-card {
+    width: min(560px, 100%);
+    box-sizing: border-box;
+    padding: 18px;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
+}
+
+.qiwi-update-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.qiwi-update-root-field {
+    display: grid;
+    gap: 6px;
+    color: #555;
+    font-weight: 700;
+}
+
+.qiwi-update-root-help {
+    margin: 8px 0 10px;
+    color: #777;
+    line-height: 1.6;
+}
+
+.qiwi-update-root-preview {
+    display: block;
+    overflow-x: auto;
+    padding: 9px 10px;
+    border-radius: 6px;
+    background: #f5f5f5;
+    color: #333;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qiwi-update-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
 }
 
 @keyframes qiwi-update-spin {
@@ -238,6 +328,13 @@
     color: #c94f4f;
 }
 
+.qiwi-admin-button.is-primary,
+.qiwi-admin-button.is-active {
+    border-color: #467b96;
+    background: #eef6f9;
+    color: #467b96;
+}
+
 .qiwi-nav-row,
 .qiwi-book-row,
 .qiwi-friend-category {
@@ -314,7 +411,7 @@
 
 .qiwi-friend-category-header {
     display: grid;
-    grid-template-columns: 32px minmax(160px, 1fr) auto;
+    grid-template-columns: 32px 24px minmax(160px, 1fr) auto;
     gap: 8px;
     align-items: center;
 }
@@ -339,6 +436,34 @@
     align-items: center;
     justify-content: center;
     transition: transform 0.2s ease;
+}
+
+.qiwi-friend-category-drag,
+.qiwi-friend-drag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 32px;
+    color: #aaa;
+    cursor: grab;
+    touch-action: none;
+}
+
+.qiwi-friend-category-drag:hover,
+.qiwi-friend-drag:hover {
+    color: #467b96;
+}
+
+.qiwi-friend-category-drag:active,
+.qiwi-friend-drag:active {
+    cursor: grabbing;
+}
+
+.qiwi-friend-category-drag i,
+.qiwi-friend-drag i {
+    font-size: 13px;
+    line-height: 1;
 }
 
 .qiwi-friend-category-arrow svg,
@@ -370,9 +495,14 @@
     overflow: hidden;
 }
 
+.qiwi-friend-category.is-dragging,
+.qiwi-friend-row.is-dragging {
+    opacity: 0.55;
+}
+
 .qiwi-friend-summary {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) 28px;
+    grid-template-columns: 22px 42px minmax(0, 1fr) 28px;
     gap: 10px;
     align-items: center;
     width: 100%;
@@ -463,6 +593,12 @@
         grid-template-columns: 1fr;
     }
 
+    .qiwi-update-command-actions,
+    .qiwi-update-modal-actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
     .qiwi-update-status {
         justify-self: flex-start;
     }
@@ -472,6 +608,18 @@
     .qiwi-friend-category-header,
     .qiwi-friend-editor {
         grid-template-columns: 1fr;
+    }
+
+    .qiwi-friend-category-header {
+        grid-template-columns: 32px 24px minmax(0, 1fr);
+    }
+
+    .qiwi-friend-category-header .qiwi-row-actions {
+        grid-column: 1 / -1;
+    }
+
+    .qiwi-friend-summary {
+        grid-template-columns: 22px 36px minmax(0, 1fr) 24px;
     }
 
     .qiwi-nav-row[data-level="child"] {
