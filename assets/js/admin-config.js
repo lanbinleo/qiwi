@@ -597,6 +597,66 @@
         } catch (error) {}
     }
 
+    function updateSourceKey() {
+        var config = getAdminConfig();
+        return 'qiwi:update-source:' + (config.repositoryUrl || config.updateEndpoint || 'default');
+    }
+
+    function readUpdateSource() {
+        try {
+            var value = localStorage.getItem(updateSourceKey());
+            return value === 'raw' ? 'raw' : 'api';
+        } catch (error) {
+            return 'api';
+        }
+    }
+
+    function writeUpdateSource(value) {
+        try {
+            localStorage.setItem(updateSourceKey(), value === 'raw' ? 'raw' : 'api');
+        } catch (error) {}
+    }
+
+    function currentUpdateEndpoint() {
+        var config = getAdminConfig();
+        return readUpdateSource() === 'raw' ?
+            (config.updateRawEndpoint || config.updateEndpoint) :
+            (config.updateApiEndpoint || config.updateEndpoint);
+    }
+
+    function currentUpdateSourceLabel() {
+        return readUpdateSource() === 'raw' ? 'Raw update.json' : 'GitHub API';
+    }
+
+    function decodeBase64Utf8(value) {
+        var binary = window.atob(String(value || '').replace(/\s+/g, ''));
+        if (window.TextDecoder && window.Uint8Array) {
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+        return decodeURIComponent(escape(binary));
+    }
+
+    function normalizeUpdatePayload(payload) {
+        if (payload && payload.content && String(payload.encoding || '').toLowerCase() === 'base64') {
+            return JSON.parse(decodeBase64Utf8(payload.content));
+        }
+
+        return payload;
+    }
+
+    function fetchUpdateMetadata(endpoint) {
+        return fetch(endpoint, { cache: 'no-store' })
+            .then(function(response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(normalizeUpdatePayload);
+    }
+
     function customUpdateRootKey() {
         var config = getAdminConfig();
         return 'qiwi:update-root:' + (config.themeRelativeDir || 'usr/themes/qiwi');
@@ -648,11 +708,12 @@
         var commandText = $('.qiwi-update-command code', panel);
         var settingsButton = $('[data-update-settings]', panel);
         var customRoot = readCustomUpdateRoot();
+        var customSource = readUpdateSource() !== 'api';
 
         if (commandText) commandText.textContent = currentUpdateCommand();
         if (settingsButton) {
-            settingsButton.classList.toggle('is-active', !!customRoot);
-            settingsButton.title = customRoot ? '已设置 Typecho 根目录' : '设置 Typecho 根目录';
+            settingsButton.classList.toggle('is-active', !!customRoot || customSource);
+            settingsButton.title = customRoot || customSource ? '已自定义更新设置' : '设置 Typecho 根目录与更新源';
             settingsButton.setAttribute('aria-label', settingsButton.title);
         }
     }
@@ -692,7 +753,7 @@
         if (state === 'checking') {
             status.innerHTML = '<span class="qiwi-update-spinner" aria-hidden="true"></span><span>检查中</span>';
             title.textContent = '正在检查 Qiwi 主题更新';
-            subtitle.textContent = '当前版本 v' + current + '，正在读取远程 update.json';
+            subtitle.textContent = '当前版本 v' + current + '，正在通过 ' + currentUpdateSourceLabel() + ' 读取 update.json';
             return;
         }
 
@@ -709,7 +770,7 @@
         title.textContent = isOutdated ? 'Qiwi v' + latest + ' 可更新' : 'Qiwi v' + current + ' 已是最新版';
         subtitle.textContent = isOutdated ?
             '点击展开更新日志，确认后在服务器执行下方命令。' :
-            '远程版本 v' + (latest || current) + '，点击可查看当前更新说明。';
+            '远程版本 v' + (latest || current) + '，来自 ' + currentUpdateSourceLabel() + '，点击可查看当前更新说明。';
         renderUpdateDetails(panel, data || {}, isOutdated);
     }
 
@@ -734,9 +795,15 @@
             '<div class="qiwi-update-modal" data-update-modal hidden role="dialog" aria-modal="true" aria-labelledby="qiwi-update-root-title">' +
                 '<div class="qiwi-update-modal-card">' +
                     '<div class="qiwi-update-modal-head">' +
-                        '<strong id="qiwi-update-root-title">更新命令路径</strong>' +
+                        '<strong id="qiwi-update-root-title">更新设置</strong>' +
                         '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-update-modal-close title="关闭" aria-label="关闭"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' +
                     '</div>' +
+                    '<fieldset class="qiwi-update-source-field">' +
+                        '<legend>更新源</legend>' +
+                        '<label><input type="radio" name="qiwi-update-source" value="api" data-update-source-input>GitHub API</label>' +
+                        '<label><input type="radio" name="qiwi-update-source" value="raw" data-update-source-input>Raw update.json</label>' +
+                    '</fieldset>' +
+                    '<p class="qiwi-update-root-help">默认使用 GitHub Contents API；如果你的环境访问 API 受限，可以切回 raw 文件。</p>' +
                     '<label class="qiwi-update-root-field">Typecho 根目录<input type="text" data-update-root-input placeholder="/srv/typecho"></label>' +
                     '<p class="qiwi-update-root-help">填写 /usr 前一级目录；保存后会拼接到 ' + escapeHtml(config.themeRelativeDir || 'usr/themes/qiwi') + '。</p>' +
                     '<code class="qiwi-update-root-preview" data-update-root-preview></code>' +
@@ -757,15 +824,32 @@
         var modal = $('[data-update-modal]', panel);
         var modalInput = $('[data-update-root-input]', panel);
         var modalPreview = $('[data-update-root-preview]', panel);
+        var modalSourceInputs = $all('[data-update-source-input]', panel);
+        var currentUpdateData = null;
 
         function updateRootPreview() {
             var root = normalizeRootPath(modalInput.value);
             modalPreview.textContent = root ? buildCustomUpdateCommand(root) : (config.updateCommand || 'bash update.sh');
         }
 
+        function syncSourceInputs() {
+            var source = readUpdateSource();
+            modalSourceInputs.forEach(function(input) {
+                input.checked = input.value === source;
+            });
+        }
+
+        function selectedUpdateSource() {
+            var selected = modalSourceInputs.filter(function(input) {
+                return input.checked;
+            })[0];
+            return selected && selected.value === 'raw' ? 'raw' : 'api';
+        }
+
         function openRootModal() {
             modal.hidden = false;
             modalInput.value = readCustomUpdateRoot();
+            syncSourceInputs();
             updateRootPreview();
             window.requestAnimationFrame(function() {
                 modalInput.focus();
@@ -775,6 +859,35 @@
         function closeRootModal() {
             modal.hidden = true;
             settingsButton.focus();
+        }
+
+        function checkForUpdates(force) {
+            var endpoint = currentUpdateEndpoint();
+            var cacheKey = 'qiwi:update:' + readUpdateSource() + ':' + endpoint;
+            var cached = !force ? readUpdateCache(cacheKey, config.cacheTtl || 21600000) : null;
+
+            setUpdateState(panel, 'checking');
+            refreshUpdateCommand(panel);
+
+            if (cached) {
+                currentUpdateData = cached;
+                setUpdateState(panel, 'ready', cached);
+            }
+
+            if (!window.fetch) {
+                if (!cached) setUpdateState(panel, 'error');
+                return;
+            }
+
+            fetchUpdateMetadata(endpoint)
+                .then(function(data) {
+                    currentUpdateData = data;
+                    writeUpdateCache(cacheKey, data);
+                    setUpdateState(panel, 'ready', data);
+                })
+                .catch(function() {
+                    if (!cached) setUpdateState(panel, 'error');
+                });
         }
 
         card.addEventListener('click', function() {
@@ -815,11 +928,18 @@
         });
 
         modalInput.addEventListener('input', updateRootPreview);
-
         $('[data-update-root-save]', panel).addEventListener('click', function() {
+            var beforeSource = readUpdateSource();
+            var afterSource = selectedUpdateSource();
             writeCustomUpdateRoot(normalizeRootPath(modalInput.value));
+            writeUpdateSource(afterSource);
             refreshUpdateCommand(panel);
             closeRootModal();
+            if (beforeSource !== afterSource) {
+                checkForUpdates(true);
+            } else if (currentUpdateData) {
+                setUpdateState(panel, 'ready', currentUpdateData);
+            }
         });
 
         $('[data-update-root-clear]', panel).addEventListener('click', function() {
@@ -840,32 +960,8 @@
             if (event.key === 'Escape' && !modal.hidden) closeRootModal();
         });
 
-        setUpdateState(panel, 'checking');
-        refreshUpdateCommand(panel);
-
-        var cacheKey = 'qiwi:update:' + config.updateEndpoint;
-        var cached = readUpdateCache(cacheKey, config.cacheTtl || 21600000);
-        if (cached) {
-            setUpdateState(panel, 'ready', cached);
-        }
-
-        if (!window.fetch) {
-            if (!cached) setUpdateState(panel, 'error');
-            return;
-        }
-
-        fetch(config.updateEndpoint, { cache: 'no-store' })
-            .then(function(response) {
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                return response.json();
-            })
-            .then(function(data) {
-                writeUpdateCache(cacheKey, data);
-                setUpdateState(panel, 'ready', data);
-            })
-            .catch(function() {
-                if (!cached) setUpdateState(panel, 'error');
-            });
+        syncSourceInputs();
+        checkForUpdates(false);
     }
 
     function initTabs(panel) {

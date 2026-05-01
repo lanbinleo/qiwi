@@ -183,6 +183,35 @@
     font-weight: 700;
 }
 
+.qiwi-update-source-field {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+}
+
+.qiwi-update-source-field legend {
+    width: 100%;
+    margin-bottom: 2px;
+    color: #555;
+    font-weight: 700;
+}
+
+.qiwi-update-source-field label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #555;
+    font-weight: 400;
+}
+
+.qiwi-update-source-field input {
+    width: auto;
+    margin: 0;
+}
+
 .qiwi-update-root-help {
     margin: 8px 0 10px;
     color: #777;

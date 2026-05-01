@@ -8,6 +8,79 @@ if (!function_exists('qiwiGetFieldValue')) {
             return $widget->fields->{$name};
         }
 
+        if (!empty($widget) && !empty($widget->fields)) {
+            try {
+                $value = $widget->fields->{$name};
+                if ($value !== null && $value !== '') {
+                    return $value;
+                }
+            } catch (Exception $e) {
+            } catch (Throwable $e) {
+            }
+        }
+
+        $storedValue = qiwiGetStoredFieldValue($widget, $name, null);
+        if ($storedValue !== null) {
+            return $storedValue;
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('qiwiGetStoredFieldValue')) {
+    function qiwiGetStoredFieldValue($widget, $name, $default = null)
+    {
+        if (empty($widget) || !isset($widget->cid)) {
+            return $default;
+        }
+
+        $cid = (int) $widget->cid;
+        if ($cid <= 0) {
+            return $default;
+        }
+
+        static $cache = [];
+        $cacheKey = $cid . ':' . $name;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+        $row = $db->fetchRow($db->select('type', 'str_value', 'int_value', 'float_value')
+            ->from($prefix . 'fields')
+            ->where('cid = ?', $cid)
+            ->where('name = ?', $name)
+            ->limit(1));
+
+        if (empty($row)) {
+            $cache[$cacheKey] = $default;
+            return $default;
+        }
+
+        $type = isset($row['type']) ? (string) $row['type'] : '';
+        if ($type === 'int') {
+            $cache[$cacheKey] = $row['int_value'];
+            return $cache[$cacheKey];
+        }
+
+        if ($type === 'float') {
+            $cache[$cacheKey] = $row['float_value'];
+            return $cache[$cacheKey];
+        }
+
+        if ($row['str_value'] !== null && $row['str_value'] !== '') {
+            $cache[$cacheKey] = $row['str_value'];
+            return $cache[$cacheKey];
+        }
+
+        if ($row['int_value'] !== null) {
+            $cache[$cacheKey] = $row['int_value'];
+            return $cache[$cacheKey];
+        }
+
+        $cache[$cacheKey] = $default;
         return $default;
     }
 }
@@ -230,7 +303,9 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
         $metadata = qiwiGetLocalUpdateMetadata();
         $config = [
             'currentVersion' => isset($metadata['version']) ? (string) $metadata['version'] : '',
-            'updateEndpoint' => 'https://raw.githubusercontent.com/lanbinleo/qiwi/main/update.json',
+            'updateEndpoint' => 'https://api.github.com/repos/lanbinleo/qiwi/contents/update.json',
+            'updateApiEndpoint' => 'https://api.github.com/repos/lanbinleo/qiwi/contents/update.json',
+            'updateRawEndpoint' => 'https://raw.githubusercontent.com/lanbinleo/qiwi/main/update.json',
             'repositoryUrl' => 'https://github.com/lanbinleo/qiwi',
             'updateCommand' => 'cd ' . qiwiShellQuote(__DIR__) . ' && bash update.sh',
             'themeRelativeDir' => qiwiGetThemeRelativeDirFromTypechoRoot(),
