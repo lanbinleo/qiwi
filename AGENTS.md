@@ -31,7 +31,8 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
 - `components/home-jike.php`: Jike-style home feed component.
-- `design-doc.html`: local visual/style reference. Treat as reference unless the task asks to edit it.
+- `docs/design-doc.html` and `docs/design-draft.html`: local visual/style references. Treat as reference unless the task asks to edit them.
+- `docs/screenshot*.png`: theme screenshots used by project docs.
 - `reference/`: legacy reference material. Read-only unless a task explicitly asks to sync it.
 
 ## Working Rules
