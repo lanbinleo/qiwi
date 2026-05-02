@@ -197,8 +197,8 @@ if ($currentPage == 1) {
         <?php if ($hasContent): ?>
         <?php if ($showHomeHero): ?>
         <header class="home-section-header" id="all-posts">
-            <div class="home-section-eyebrow">文章归档</div>
-            <h2>全部文章</h2>
+            <div class="home-section-eyebrow">文章列表</div>
+            <h2>最近文章</h2>
         </header>
         <?php endif; ?>
         <ul class="article-list">

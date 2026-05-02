@@ -127,15 +127,20 @@ $sidebarIconSvg = function($kind) {
         <a href="<?php echo htmlspecialchars($tagsPageUrl, ENT_QUOTES, 'UTF-8'); ?>">标签</a>
     </h3>
     <div class="article-tags">
-        <?php $tagIndex = 0; $tagTotal = 0; $visibleTagLimit = 12; ?>
+        <?php $visibleTagLimit = 12; $visibleTags = []; $tagTotal = 0; ?>
         <?php while ($tags->next()): ?>
             <?php if ((int) $tags->count <= 0) continue; ?>
             <?php $tagTotal++; ?>
-            <?php if ($tagIndex < $visibleTagLimit): ?>
-                <a href="<?php $tags->permalink(); ?>" class="tag"><?php $tags->name(); ?></a>
-                <?php $tagIndex++; ?>
+            <?php if (count($visibleTags) < $visibleTagLimit): ?>
+                <?php ob_start(); $tags->permalink(); $tagPermalink = trim(ob_get_clean()); ?>
+                <?php $visibleTags[] = ['name' => $tags->name, 'url' => $tagPermalink]; ?>
             <?php endif; ?>
         <?php endwhile; ?>
+        <?php $visibleTagTotal = count($visibleTags); ?>
+        <?php foreach ($visibleTags as $tagIndex => $tag): ?>
+            <?php $tagColor = function_exists('qiwiGetSequentialTermColor') ? qiwiGetSequentialTermColor($tagIndex, $visibleTagTotal) : 'cyan'; ?>
+            <a href="<?php echo htmlspecialchars($tag['url'], ENT_QUOTES, 'UTF-8'); ?>" class="tag tag-plain qiwi-term qiwi-term-<?php echo htmlspecialchars($tagColor, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8'); ?></a>
+        <?php endforeach; ?>
     </div>
     <?php if ($tagTotal > 0): ?>
         <a class="sidebar-more-link" href="<?php echo htmlspecialchars($tagsPageUrl, ENT_QUOTES, 'UTF-8'); ?>">查看全部 <?php echo (int) $tagTotal; ?> 个标签</a>

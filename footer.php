@@ -371,9 +371,28 @@ function initHomeHero() {
     }
 
     function fetchHitokotoItem() {
-        return fetch('https://v1.hitokoto.cn')
-            .then(function(response) { return response.json(); })
+        var controller = window.AbortController ? new AbortController() : null;
+        var timeout = null;
+        var timedOut = false;
+
+        var request = fetch('https://v1.hitokoto.cn', controller ? { signal: controller.signal } : undefined)
+            .then(function(response) {
+                if (!response.ok) return null;
+                return response.json();
+            })
+            .catch(function() { return null; });
+
+        var timeoutFallback = new Promise(function(resolve) {
+            timeout = window.setTimeout(function() {
+                timedOut = true;
+                if (controller) controller.abort();
+                resolve(null);
+            }, 2800);
+        });
+
+        return Promise.race([request, timeoutFallback])
             .then(function(data) {
+                if (!timedOut && timeout) window.clearTimeout(timeout);
                 if (!data || !data.hitokoto) return null;
                 var source = data.from || '';
                 if (data.from_who) {
@@ -391,6 +410,34 @@ function initHomeHero() {
     document.querySelectorAll('[data-home-hero]').forEach(function(hero) {
         var line = hero.querySelector('.home-hero-line');
         if (!line) return;
+
+        function updateHeroSelectionColor(source) {
+            var root = document.createElement('div');
+            var accent = null;
+            root.innerHTML = source || line.innerHTML || '';
+
+            var accentNode = root.querySelector('[class*="home-hero-accent-"]');
+            if (accentNode) {
+                String(accentNode.className || '').split(/\s+/).some(function(className) {
+                    var match = className.match(/^home-hero-accent-(caramel|red|orange|yellow|green|cyan|blue|purple)$/);
+                    if (!match) return false;
+                    accent = match[1];
+                    return true;
+                });
+            }
+
+            if (!accent) {
+                line.style.removeProperty('--home-hero-selection-color');
+                return;
+            }
+
+            line.style.setProperty(
+                '--home-hero-selection-color',
+                accent === 'caramel' ? 'var(--caramel)' : 'var(--hue-' + accent + ')'
+            );
+        }
+
+        updateHeroSelectionColor();
 
         var mode = hero.getAttribute('data-home-hero-mode') || 'list';
         var items = [];
@@ -419,7 +466,8 @@ function initHomeHero() {
         var index = 0;
         var hasCompletedList = false;
         var shouldInsertHitokoto = false;
-        var timer = null;
+        var rotationTimer = null;
+        var rotationPaused = false;
         var typingTimer = null;
         var animationToken = 0;
 
@@ -431,6 +479,7 @@ function initHomeHero() {
         function showItem(item) {
             if (!item || !item.html) return;
             animationToken++;
+            updateHeroSelectionColor(item.html);
             var token = animationToken;
             if (typingTimer) {
                 window.clearTimeout(typingTimer);
@@ -446,6 +495,7 @@ function initHomeHero() {
             window.setTimeout(function() {
                 if (token !== animationToken) return;
                 line.innerHTML = item.html;
+                updateHeroSelectionColor(item.html);
                 line.classList.remove('is-switching');
             }, 180);
         }
@@ -546,6 +596,7 @@ function initHomeHero() {
                     return;
                 }
                 line.innerHTML = item.html;
+                updateHeroSelectionColor(item.html);
                 typingTimer = null;
             }
 
@@ -555,6 +606,7 @@ function initHomeHero() {
         function nextItem() {
             if (mode === 'list') {
                 showItem(localNext());
+                scheduleNextRotation();
                 return;
             }
 
@@ -562,6 +614,7 @@ function initHomeHero() {
                 index += 1;
                 if (index < items.length) {
                     showItem(items[index]);
+                    scheduleNextRotation();
                     return;
                 }
 
@@ -571,6 +624,7 @@ function initHomeHero() {
                     shouldInsertHitokoto = true;
                     showItem(items[index]);
                     index = (index + 1) % items.length;
+                    scheduleNextRotation();
                     return;
                 }
             }
@@ -581,6 +635,7 @@ function initHomeHero() {
                     index = (index + 1) % items.length;
                     fetchHitokotoItem().then(function(item) {
                         showItem(item || fallbackItem);
+                        scheduleNextRotation();
                     });
                     shouldInsertHitokoto = false;
                     return;
@@ -589,32 +644,46 @@ function initHomeHero() {
                 showItem(items[index]);
                 index = (index + 1) % items.length;
                 shouldInsertHitokoto = true;
+                scheduleNextRotation();
                 return;
             }
 
             fetchHitokotoItem().then(function(item) {
                 showItem(item || localNext());
+                scheduleNextRotation();
             });
         }
 
-        function startRotation() {
-            if (!timer) {
-                timer = window.setInterval(nextItem, interval);
+        function scheduleNextRotation(delay) {
+            if (rotationPaused || document.hidden) return;
+
+            if (rotationTimer) {
+                window.clearTimeout(rotationTimer);
             }
+
+            rotationTimer = window.setTimeout(function() {
+                rotationTimer = null;
+                nextItem();
+            }, typeof delay === 'number' ? delay : interval);
+        }
+
+        function startRotation() {
+            rotationPaused = false;
+            if (!rotationTimer) scheduleNextRotation(interval);
         }
 
         function stopRotation() {
-            if (timer) {
-                window.clearInterval(timer);
-                timer = null;
+            rotationPaused = true;
+            if (rotationTimer) {
+                window.clearTimeout(rotationTimer);
+                rotationTimer = null;
             }
         }
 
-        hero.addEventListener('mouseenter', stopRotation);
-        hero.addEventListener('mouseleave', startRotation);
-        hero.addEventListener('focusin', stopRotation);
-        hero.addEventListener('focusout', function(event) {
-            if (!hero.contains(event.relatedTarget)) {
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopRotation();
+            } else {
                 startRotation();
             }
         });
@@ -1021,6 +1090,72 @@ function initArticleImages() {
     });
 }
 
+function initQiwiFolds() {
+    if (!('animate' in Element.prototype)) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    document.querySelectorAll('.qiwi-fold').forEach(function(fold) {
+        var summary = fold.querySelector(':scope > summary');
+        var body = fold.querySelector(':scope > .qiwi-fold-body');
+        if (!summary || !body || fold.dataset.qiwiFoldEnhanced === '1') return;
+
+        fold.dataset.qiwiFoldEnhanced = '1';
+
+        summary.addEventListener('click', function(event) {
+            if (fold.classList.contains('is-animating')) {
+                event.preventDefault();
+                return;
+            }
+
+            event.preventDefault();
+            var isOpen = fold.hasAttribute('open');
+            var startHeight = body.offsetHeight;
+            var endHeight;
+
+            fold.classList.add('is-animating');
+            body.style.overflow = 'hidden';
+
+            if (isOpen) {
+                endHeight = 0;
+            } else {
+                fold.setAttribute('open', '');
+                body.style.height = 'auto';
+                endHeight = body.scrollHeight;
+                body.style.height = '0px';
+                body.style.opacity = '0';
+            }
+
+            var animation = body.animate([
+                {
+                    height: startHeight + 'px',
+                    opacity: isOpen ? 1 : 0,
+                    transform: isOpen ? 'translateY(0) scaleY(1)' : 'translateY(-4px) scaleY(0.98)'
+                },
+                {
+                    height: endHeight + 'px',
+                    opacity: isOpen ? 0 : 1,
+                    transform: isOpen ? 'translateY(-4px) scaleY(0.98)' : 'translateY(0) scaleY(1)'
+                }
+            ], {
+                duration: 320,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+            });
+
+            animation.onfinish = function() {
+                if (isOpen) {
+                    fold.removeAttribute('open');
+                }
+                fold.classList.remove('is-animating');
+                body.style.removeProperty('height');
+                body.style.removeProperty('opacity');
+                body.style.removeProperty('overflow');
+            };
+
+            animation.oncancel = animation.onfinish;
+        });
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
@@ -1029,11 +1164,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initHomeJike();
     initCommentProfile();
     initArticleImages();
+    initQiwiFolds();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {
         item.addEventListener('click', function(e) {
-            if (e.target.closest('.tag') || e.target.closest('.article-title-link')) {
+            if (e.target.closest('.tag') || e.target.closest('.meta-category a') || e.target.closest('.article-title-link')) {
                 return;
             }
             const titleLink = this.querySelector('.article-title-link');

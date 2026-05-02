@@ -367,7 +367,8 @@
 
 .qiwi-nav-row,
 .qiwi-book-row,
-.qiwi-friend-category {
+.qiwi-friend-category,
+.qiwi-social-row {
     border: 1px solid #e6e6e6;
     border-radius: 8px;
     background: #fbfbfb;
@@ -392,6 +393,136 @@
 
 .qiwi-book-row {
     grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 1fr) auto;
+}
+
+.qiwi-social-editor {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0 0;
+}
+
+.qiwi-social-editor-head {
+    display: grid;
+    gap: 4px;
+}
+
+.qiwi-social-editor-head strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-social-editor-head span {
+    color: #777;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.qiwi-social-presets .qiwi-admin-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qiwi-social-row {
+    padding: 0;
+    overflow: hidden;
+}
+
+.qiwi-social-summary {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 28px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: #fff;
+    color: #444;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-social-summary:hover {
+    background: #f8f8f8;
+}
+
+.qiwi-social-summary-text {
+    min-width: 0;
+}
+
+.qiwi-social-summary-text strong,
+.qiwi-social-summary-text span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-social-summary-text strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-social-summary-text span {
+    color: #888;
+    font-size: 12px;
+}
+
+.qiwi-social-icon-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    background: #fff;
+    color: #467b96;
+}
+
+.qiwi-social-icon-preview i {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.qiwi-social-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.qiwi-social-arrow svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+.qiwi-social-row.is-open .qiwi-social-arrow {
+    transform: rotate(180deg);
+}
+
+.qiwi-social-editor-body {
+    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #e6e6e6;
+    background: #fbfbfb;
+}
+
+.qiwi-social-row.is-open .qiwi-social-editor-body {
+    display: grid;
+}
+
+.qiwi-social-editor-body label {
+    display: block;
+    color: #777;
+    font-size: 12px;
+}
+
+.qiwi-social-storage {
+    display: none !important;
 }
 
 .qiwi-admin-panel input,
@@ -780,7 +911,8 @@
     .qiwi-nav-row,
     .qiwi-book-row,
     .qiwi-friend-category-header,
-    .qiwi-friend-editor {
+    .qiwi-friend-editor,
+    .qiwi-social-editor-body {
         grid-template-columns: 1fr;
     }
 

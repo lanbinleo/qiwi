@@ -19,8 +19,34 @@
     border-bottom: 1px solid #d9dfe7;
 }
 
+.qiwi-admin-preview-shortcodes .qiwi-fold-no-divider[open] > summary {
+    margin-bottom: 10px;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-fold-body {
+    overflow: hidden;
+}
+
+.qiwi-admin-preview-shortcodes .qiwi-fold[open] > .qiwi-fold-body {
+    animation: qiwi-admin-fold-unfold 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: top;
+}
+
 .qiwi-admin-preview-shortcodes .qiwi-fold-body > *:last-child {
     margin-bottom: 0;
+}
+
+@keyframes qiwi-admin-fold-unfold {
+    0% {
+        opacity: 0;
+        transform: translateY(-4px) scaleY(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+    }
 }
 
 .qiwi-admin-preview-shortcodes .qiwi-text-red { color: #d64545; }
@@ -45,3 +71,68 @@
 .qiwi-admin-preview-shortcodes .qiwi-mark-cyan { background: rgba(22, 140, 150, 0.16); }
 .qiwi-admin-preview-shortcodes .qiwi-mark-blue { background: rgba(40, 107, 214, 0.16); }
 .qiwi-admin-preview-shortcodes .qiwi-mark-purple { background: rgba(123, 85, 199, 0.16); }
+
+.qiwi-wmd-button span {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 20px !important;
+    height: 20px !important;
+    background: #202328 !important;
+    border-radius: 4px;
+    color: #fff;
+    font: 700 12px/1 Arial, sans-serif;
+}
+
+.qiwi-editor-insert-menu {
+    position: relative;
+    z-index: 30;
+    width: min(560px, 100%);
+    margin: 8px 0 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #d9dfe7;
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(32, 35, 40, 0.12);
+}
+
+.qiwi-editor-insert-menu[hidden] {
+    display: none;
+}
+
+.qiwi-editor-tool-group + .qiwi-editor-tool-group {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #edf0f4;
+}
+
+.qiwi-editor-tool-title {
+    margin-bottom: 8px;
+    color: #5d6673;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qiwi-editor-tool-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.qiwi-editor-tool-button {
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid #d9dfe7;
+    border-radius: 6px;
+    background: #f8f9fb;
+    color: #202328;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.qiwi-editor-tool-button:hover,
+.qiwi-editor-tool-button:focus {
+    border-color: #9aa6b5;
+    background: #fff;
+}
