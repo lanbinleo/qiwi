@@ -3,6 +3,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationItems($this) : [];
 $qiwiTemplate = isset($this->template) ? (string) $this->template : '';
 $qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems))
+    || (function_exists('qiwiSidebarSocialUsesFontAwesome') && qiwiSidebarSocialUsesFontAwesome($this))
     || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
 $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this);
 ?>
@@ -55,11 +56,19 @@ $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLate
 </head>
 <body>
 
+<?php
+$qiwiNavbarAvatar = trim((string) $this->options->logoUrl);
+$qiwiHomePostsUrl = rtrim((string) $this->options->siteUrl, '/') . '/#all-posts';
+?>
+
 <!-- 顶部导航栏 -->
 <nav class="navbar" aria-label="主导航">
     <div class="navbar-inner">
         <div class="navbar-title">
             <a href="<?php $this->options->siteUrl(); ?>">
+                <?php if ($qiwiNavbarAvatar !== ''): ?>
+                    <img class="navbar-avatar" src="<?php echo htmlspecialchars($qiwiNavbarAvatar, ENT_QUOTES, 'UTF-8'); ?>" alt="" loading="lazy" decoding="async">
+                <?php endif; ?>
                 <?php $this->options->title(); ?>
             </a>
         </div>
@@ -69,13 +78,16 @@ $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLate
             <span class="nav-toggle-bar"></span>
         </button>
         <ul class="nav-links" id="site-navigation-menu">
-            <li><a href="<?php $this->options->siteUrl(); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
+            <li><a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
 
+            <?php $qiwiNavIndex = 0; ?>
             <?php foreach ($qiwiNavItems as $item): ?>
                 <?php
-                    $hasChildren = !empty($item['children']);
+                    $qiwiNavIndex++;
+                    $children = isset($item['children']) ? (array) $item['children'] : [];
+                    $hasChildren = !empty($children);
                     $isCurrent = !empty($item['slug']) && $this->is('page', $item['slug']);
-                    foreach ($item['children'] as $child) {
+                    foreach ($children as $child) {
                         if (!empty($child['slug']) && $this->is('page', $child['slug'])) {
                             $isCurrent = true;
                             break;
@@ -83,10 +95,17 @@ $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLate
                     }
                 ?>
                 <li<?php if ($hasChildren): ?> class="nav-item-has-children"<?php endif; ?>>
-                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($hasChildren): ?> <i class="fa-solid fa-angle-down nav-caret" aria-hidden="true"></i><?php endif; ?></a>
                     <?php if ($hasChildren): ?>
-                    <ul class="nav-submenu">
-                        <?php foreach ($item['children'] as $child): ?>
+                    <div class="nav-item-row">
+                    <?php endif; ?>
+                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($hasChildren): ?> <span class="nav-caret" aria-hidden="true"></span><?php endif; ?></a>
+                    <?php if ($hasChildren): ?>
+                    <button class="nav-submenu-toggle" type="button" aria-expanded="false" aria-controls="nav-submenu-<?php echo (int) $qiwiNavIndex; ?>" aria-label="展开 <?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?> 子菜单">
+                        <span class="nav-caret" aria-hidden="true"></span>
+                    </button>
+                    </div>
+                    <ul class="nav-submenu" id="nav-submenu-<?php echo (int) $qiwiNavIndex; ?>">
+                        <?php foreach ($children as $child): ?>
                             <li>
                                 <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($child['icon'])): ?><i class="<?php echo htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?></a>
                             </li>

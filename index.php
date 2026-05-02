@@ -16,11 +16,38 @@ $currentPage = $this->_currentPage;
 $pageSize = $this->parameter->pageSize;
 $postsToDisplay = [];
 $hasContent = false;
-$homeJikeData = $currentPage == 1 ? qiwiGetHomepageJikeData(5) : null;
+$sidebarMomentCount = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'sidebarMomentCount', 4, 1, 8) : 4;
+$homeJikeData = $currentPage == 1 ? qiwiGetHomepageJikeData($sidebarMomentCount) : null;
 $hasHomeJike = !empty($homeJikeData['items']);
-$jikePosition = $hasHomeJike ? ($this->options->jikePosition ?: 'inline') : 'off';
+$jikePosition = $hasHomeJike ? ($this->options->jikePosition ?: 'sidebar') : 'off';
+if (in_array($jikePosition, ['top', 'inline'], true)) {
+    $jikePosition = 'sidebar';
+}
 $jikeTimeMode = $hasHomeJike ? ($this->options->jikeTimeMode ?: 'absolute') : 'absolute';
 if ($jikePosition === 'off') $hasHomeJike = false;
+
+$showHomeHero = $currentPage == 1;
+$homeHeroItems = $showHomeHero ? qiwiGetHomeHeroItems($this) : [];
+$homeHeroMode = $this->options->homeHeroHitokotoMode ?: 'list';
+if (!in_array($homeHeroMode, ['list', 'loop-hitokoto', 'hitokoto-after-list'], true)) {
+    $homeHeroMode = 'list';
+}
+$homeHeroEyebrow = trim((string) ($this->options->homeHeroEyebrow ?: '写作 · 技术 · 生活 · 随笔'));
+$homeHeroQuote = trim((string) ($this->options->homeHeroQuote ?: $this->options->aboutBio));
+$homeHeroSwitchInterval = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroSwitchInterval', 5200, 1500, 30000) : 5200;
+$homeHeroTypingSpeed = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroTypingSpeed', 92, 20, 500) : 92;
+$homeHeroDeletingSpeed = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroDeletingSpeed', 24, 10, 300) : 24;
+$homeHeroTypingPause = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroTypingPause', 220, 0, 3000) : 220;
+$homeHeroAnimation = $this->options->homeHeroAnimation ?: 'fade';
+if (!in_array($homeHeroAnimation, ['fade', 'typewriter'], true)) {
+    $homeHeroAnimation = 'fade';
+}
+$homeHeroInitial = !empty($homeHeroItems) ? $homeHeroItems[0] : ['html' => '', 'text' => ''];
+$homeHeroJson = json_encode($homeHeroItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$aboutPageUrl = function_exists('qiwiGetCustomPageUrl') ? qiwiGetCustomPageUrl($this, ['page-about.php', 'page-about']) : '';
+if ($aboutPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
+    $aboutPageUrl = qiwiGetPageUrlBySlug($this, ['about']);
+}
 
 if ($currentPage == 1) {
     // === 首页：显示所有置顶文章 + 补充非置顶文章 ===
@@ -138,25 +165,42 @@ if ($currentPage == 1) {
 }
 ?>
 
-<div class="main-layout<?php echo $jikePosition === 'top' ? ' has-jike' : ''; ?>">
+<?php if ($showHomeHero): ?>
+<section class="home-hero" data-home-hero data-home-hero-mode="<?php echo htmlspecialchars($homeHeroMode, ENT_QUOTES, 'UTF-8'); ?>" data-home-hero-animation="<?php echo htmlspecialchars($homeHeroAnimation, ENT_QUOTES, 'UTF-8'); ?>" data-home-hero-interval="<?php echo (int) $homeHeroSwitchInterval; ?>" data-home-hero-typing-speed="<?php echo (int) $homeHeroTypingSpeed; ?>" data-home-hero-deleting-speed="<?php echo (int) $homeHeroDeletingSpeed; ?>" data-home-hero-typing-pause="<?php echo (int) $homeHeroTypingPause; ?>" data-home-hero-items="<?php echo htmlspecialchars($homeHeroJson, ENT_QUOTES, 'UTF-8'); ?>">
+    <div class="home-hero-inner">
+        <?php if ($homeHeroEyebrow !== ''): ?>
+            <div class="home-hero-eyebrow"><?php echo htmlspecialchars($homeHeroEyebrow, ENT_QUOTES, 'UTF-8'); ?></div>
+        <?php endif; ?>
+        <h1 class="home-hero-title" aria-live="polite">
+            <span class="home-hero-line"><?php echo $homeHeroInitial['html']; ?></span>
+        </h1>
+        <?php if ($homeHeroQuote !== ''): ?>
+            <p class="home-hero-quote"><?php echo htmlspecialchars($homeHeroQuote, ENT_QUOTES, 'UTF-8'); ?></p>
+        <?php endif; ?>
+        <div class="home-hero-actions">
+            <a class="home-hero-button home-hero-button-primary" href="#all-posts">浏览文章</a>
+            <?php if ($aboutPageUrl !== ''): ?>
+                <a class="home-hero-button home-hero-button-secondary" href="<?php echo htmlspecialchars($aboutPageUrl, ENT_QUOTES, 'UTF-8'); ?>">关于我</a>
+            <?php endif; ?>
+        </div>
+        <a class="home-hero-scroll" href="#all-posts" aria-label="跳到全部文章"></a>
+    </div>
+</section>
+<?php endif; ?>
+
+<div class="main-layout home-main-layout<?php echo ($showHomeHero && $hasContent) ? ' has-home-section-header' : ''; ?>">
     <!-- 左侧留白 -->
     <div class="layout-spacer-left"></div>
 
-    <?php if ($hasHomeJike && $jikePosition === 'top'): ?>
-        <?php $this->homeJikeData = $homeJikeData; ?>
-        <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
-        <?php $this->need('components/home-jike.php'); ?>
-    <?php endif; ?>
-
     <!-- 主要内容 -->
     <div class="main-content">
-        <?php if ($hasHomeJike && $jikePosition === 'inline'): ?>
-            <?php $this->homeJikeData = $homeJikeData; ?>
-            <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
-            <?php $this->need('components/home-jike.php'); ?>
-        <?php endif; ?>
-
         <?php if ($hasContent): ?>
+        <?php if ($showHomeHero): ?>
+        <header class="home-section-header" id="all-posts">
+            <div class="home-section-eyebrow">文章归档</div>
+            <h2>全部文章</h2>
+        </header>
+        <?php endif; ?>
         <ul class="article-list">
             <?php
             // 显示文章
@@ -205,6 +249,9 @@ if ($currentPage == 1) {
 
     <!-- 侧边栏 -->
     <aside class="sidebar">
+        <?php $this->homeJikeData = $homeJikeData; ?>
+        <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
+        <?php $this->homeJikePosition = $jikePosition; ?>
         <?php $this->need('sidebar.php'); ?>
     </aside>
 
