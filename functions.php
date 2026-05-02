@@ -336,8 +336,8 @@ function themeConfig($form)
         'logoUrl',
         null,
         null,
-        _t('站点 LOGO 地址'),
-        _t('在这里填入一个图片 URL 地址, 以在网站标题前加上一个 LOGO')
+        _t('导航栏头像 / 站点 LOGO 地址'),
+        _t('在这里填入一个图片 URL 地址，会显示在顶部导航栏的网站标题前。')
     );
 
     $form->addInput($logoUrl);
@@ -361,12 +361,77 @@ function themeConfig($form)
         [
             'ShowRecentPosts'    => _t('显示最新文章'),
             'ShowCategory'       => _t('显示分类'),
+            'ShowArchive'        => _t('显示归档'),
+            'ShowTags'           => _t('显示标签'),
         ],
-        ['ShowRecentPosts', 'ShowCategory'],
+        ['ShowRecentPosts', 'ShowCategory', 'ShowArchive', 'ShowTags'],
         _t('侧边栏显示')
     );
 
     $form->addInput($sidebarBlock->multiMode());
+
+    $sidebarSocialLinks = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'sidebarSocialLinks',
+        null,
+        null,
+        _t('侧边栏社交链接 - 原始兼容数据'),
+        _t("兼容旧版配置。新版本建议使用侧边栏 tab 里的 GitHub / Bilibili / Email / RSS 独立输入框。每行一个链接：标题|链接|Font Awesome 图标类。")
+    );
+    $form->addInput($sidebarSocialLinks);
+
+    $sidebarProfileAvatar = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarProfileAvatar',
+        null,
+        null,
+        _t('侧边栏 - 头像'),
+        _t('侧边栏顶部展示的头像 URL。留空时兼容旧版“关于页面头像”，再留空则使用默认头像。')
+    );
+    $form->addInput($sidebarProfileAvatar);
+
+    $sidebarProfileText = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'sidebarProfileText',
+        null,
+        null,
+        _t('侧边栏 - 文字'),
+        _t('显示在侧边栏头像下方的一小段文字。留空时兼容旧版“关于页面简介”。')
+    );
+    $form->addInput($sidebarProfileText);
+
+    $sidebarGithubUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarGithubUrl',
+        null,
+        null,
+        _t('侧边栏社交 - GitHub'),
+        _t('填写 GitHub 主页 URL，留空则不显示。')
+    );
+    $form->addInput($sidebarGithubUrl);
+
+    $sidebarBilibiliUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarBilibiliUrl',
+        null,
+        null,
+        _t('侧边栏社交 - Bilibili'),
+        _t('填写 Bilibili 主页 URL，留空则不显示。')
+    );
+    $form->addInput($sidebarBilibiliUrl);
+
+    $sidebarEmail = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarEmail',
+        null,
+        null,
+        _t('侧边栏社交 - Email'),
+        _t('填写邮箱地址或 mailto: 链接，留空则不显示。')
+    );
+    $form->addInput($sidebarEmail);
+
+    $sidebarRssUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarRssUrl',
+        null,
+        'feed',
+        _t('侧边栏社交 - RSS'),
+        _t('填写 RSS 地址；默认 feed 会解析为站点 RSS。留空则不显示。')
+    );
+    $form->addInput($sidebarRssUrl);
 
     // 一言打字机效果
     $enableHitokoto = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -423,17 +488,16 @@ function themeConfig($form)
     );
     $form->addInput($navItems);
 
-    // 即刻条展示位置
+    // 说说展示位置
     $jikePosition = new Typecho_Widget_Helper_Form_Element_Radio(
         'jikePosition',
         array(
             'off'    => _t('关闭'),
-            'top'    => _t('页面顶部（横跨内容区与侧边栏上方）'),
-            'inline' => _t('文章列表内（嵌入文章列表顶部）'),
+            'sidebar' => _t('右侧栏（说说时间线）'),
         ),
-        'inline',
-        _t('首页即刻条'),
-        _t('在首页展示即刻/时间机器的最新动态。需要已发布一个使用"时间机器"模板的独立页面。')
+        'sidebar',
+        _t('侧边栏说说'),
+        _t('在首页侧边栏展示时光机页面的最新说说。需要已发布一个使用“时间机器”模板的独立页面。')
     );
     $form->addInput($jikePosition);
 
@@ -444,10 +508,107 @@ function themeConfig($form)
             'relative' => _t('相对时间'),
         ),
         'absolute',
-        _t('即刻时间显示'),
+        _t('侧边栏说说 - 时间显示'),
         _t('纯日期显示为 MM-DD；相对时间支持“刚刚 / X分钟前 / X小时前 / X天前”，超过 3 天后自动回退为 MM-DD。')
     );
     $form->addInput($jikeTimeMode);
+
+    $sidebarMomentCount = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarMomentCount',
+        null,
+        '4',
+        _t('侧边栏说说 - 展示数量'),
+        _t('首页侧边栏展示的最新说说数量，建议 3-6 条。')
+    );
+    $form->addInput($sidebarMomentCount);
+
+    $homeHeroEyebrow = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroEyebrow',
+        null,
+        '写作 · 技术 · 生活 · 随笔',
+        _t('首页 Hero - 小字标签'),
+        _t('显示在首页大标题上方，建议用短词并以 · 分隔。')
+    );
+    $form->addInput($homeHeroEyebrow);
+
+    $homeHeroLines = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'homeHeroLines',
+        null,
+        "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]",
+        _t('首页 Hero - 轮播句子'),
+        _t('每行一句。支持 [caramel]文字[/caramel]、[red]、[orange]、[yellow]、[green]、[cyan]、[blue]、[purple] 标注高亮。')
+    );
+    $form->addInput($homeHeroLines);
+
+    $homeHeroQuote = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'homeHeroQuote',
+        null,
+        null,
+        _t('首页 Hero - 简短说明'),
+        _t('显示在首页 Hero 大标题下方。留空时兼容旧版“关于页面简介”。')
+    );
+    $form->addInput($homeHeroQuote);
+
+    $homeHeroSwitchInterval = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroSwitchInterval',
+        null,
+        '5200',
+        _t('首页 Hero - 文字切换时间'),
+        _t('单位毫秒。建议 3500-9000，例如 5200。')
+    );
+    $form->addInput($homeHeroSwitchInterval);
+
+    $homeHeroTypingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroTypingSpeed',
+        null,
+        '92',
+        _t('首页 Hero - 打字速度'),
+        _t('单位毫秒，每个字符出现的间隔。仅打字机模式生效，建议 60-160。')
+    );
+    $form->addInput($homeHeroTypingSpeed);
+
+    $homeHeroDeletingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroDeletingSpeed',
+        null,
+        '24',
+        _t('首页 Hero - 删除速度'),
+        _t('单位毫秒，每个字符删除的间隔。仅打字机模式生效，建议 15-80。')
+    );
+    $form->addInput($homeHeroDeletingSpeed);
+
+    $homeHeroTypingPause = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroTypingPause',
+        null,
+        '220',
+        _t('首页 Hero - 空白停顿'),
+        _t('单位毫秒。删除完上一句后，空一小会儿再打出下一句。仅打字机模式生效。')
+    );
+    $form->addInput($homeHeroTypingPause);
+
+    $homeHeroAnimation = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeHeroAnimation',
+        array(
+            'fade' => _t('淡入淡出'),
+            'typewriter' => _t('打字机（先快速删除，再打出）'),
+        ),
+        'fade',
+        _t('首页 Hero - 切换方式'),
+        _t('打字机模式会先较快删除上一句，再逐字打出下一句；动效关闭偏好下会自动停用切换。')
+    );
+    $form->addInput($homeHeroAnimation);
+
+    $homeHeroHitokotoMode = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeHeroHitokotoMode',
+        array(
+            'list' => _t('列表轮播'),
+            'loop-hitokoto' => _t('列表循环，并隔条插入一言'),
+            'hitokoto-after-list' => _t('列表播完一遍后切换为一言'),
+        ),
+        'list',
+        _t('首页 Hero - 一言模式'),
+        _t('一言来自 hitokoto 接口；接口失败时会继续显示本地列表。')
+    );
+    $form->addInput($homeHeroHitokotoMode);
 
     // 关于页面信息
     $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
@@ -1050,6 +1211,151 @@ if (!function_exists('qiwiGetOptionValue')) {
     }
 }
 
+if (!function_exists('qiwiGetPositiveIntOption')) {
+    function qiwiGetPositiveIntOption($widget, $name, $default, $min = 1, $max = 99)
+    {
+        $value = (int) qiwiGetOptionValue($widget, $name, $default);
+        if ($value < $min) {
+            return (int) $min;
+        }
+        if ($value > $max) {
+            return (int) $max;
+        }
+
+        return $value;
+    }
+}
+
+if (!function_exists('qiwiGetSidebarProfileAvatar')) {
+    function qiwiGetSidebarProfileAvatar($widget)
+    {
+        $avatar = trim((string) qiwiGetOptionValue($widget, 'sidebarProfileAvatar', ''));
+        if ($avatar === '') {
+            $avatar = trim((string) qiwiGetOptionValue($widget, 'aboutAvatar', ''));
+        }
+
+        return $avatar !== '' ? $avatar : 'https://gravatar.loli.net/avatar/default?s=160&d=mp';
+    }
+}
+
+if (!function_exists('qiwiGetSidebarProfileText')) {
+    function qiwiGetSidebarProfileText($widget)
+    {
+        $text = trim((string) qiwiGetOptionValue($widget, 'sidebarProfileText', ''));
+        if ($text === '') {
+            $text = trim((string) qiwiGetOptionValue($widget, 'aboutBio', ''));
+        }
+
+        return $text;
+    }
+}
+
+if (!function_exists('qiwiNormalizeSidebarEmailUrl')) {
+    function qiwiNormalizeSidebarEmailUrl($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        return stripos($value, 'mailto:') === 0 ? $value : 'mailto:' . $value;
+    }
+}
+
+if (!function_exists('qiwiGetHomeHeroColorNames')) {
+    function qiwiGetHomeHeroColorNames()
+    {
+        return ['caramel', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
+    }
+}
+
+if (!function_exists('qiwiRenderHomeHeroLine')) {
+    function qiwiRenderHomeHeroLine($line)
+    {
+        $line = trim((string) $line);
+        if ($line === '') {
+            return '';
+        }
+
+        $colors = implode('|', qiwiGetHomeHeroColorNames());
+        $pattern = '/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu';
+        $html = '';
+        $offset = 0;
+
+        if (preg_match_all($pattern, $line, $matches, PREG_OFFSET_CAPTURE)) {
+            foreach ($matches[0] as $index => $match) {
+                $start = $match[1];
+                $length = strlen($match[0]);
+                if ($start > $offset) {
+                    $html .= htmlspecialchars(substr($line, $offset, $start - $offset), ENT_QUOTES, 'UTF-8');
+                }
+
+                $color = strtolower($matches[1][$index][0]);
+                $text = $matches[2][$index][0];
+                $html .= '<span class="home-hero-accent home-hero-accent-' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '">'
+                    . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</span>';
+                $offset = $start + $length;
+            }
+        }
+
+        if ($offset < strlen($line)) {
+            $html .= htmlspecialchars(substr($line, $offset), ENT_QUOTES, 'UTF-8');
+        }
+
+        return $html !== '' ? $html : htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('qiwiStripHomeHeroMarks')) {
+    function qiwiStripHomeHeroMarks($line)
+    {
+        $colors = implode('|', qiwiGetHomeHeroColorNames());
+        return trim(preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', (string) $line));
+    }
+}
+
+if (!function_exists('qiwiGetHomeHeroItems')) {
+    function qiwiGetHomeHeroItems($widget)
+    {
+        $raw = (string) qiwiGetOptionValue($widget, 'homeHeroLines', '');
+        if (trim($raw) === '') {
+            $raw = "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]";
+        }
+
+        $items = [];
+        foreach (preg_split('/\R/u', $raw) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $html = qiwiRenderHomeHeroLine($line);
+            if ($html === '') {
+                continue;
+            }
+
+            $items[] = [
+                'html' => $html,
+                'text' => qiwiStripHomeHeroMarks($line),
+            ];
+
+            if (count($items) >= 16) {
+                break;
+            }
+        }
+
+        if (empty($items)) {
+            $title = trim((string) qiwiGetOptionValue($widget, 'title', 'Qiwi'));
+            $items[] = [
+                'html' => htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
+                'text' => $title,
+            ];
+        }
+
+        return $items;
+    }
+}
+
 if (!function_exists('qiwiGetPageRecords')) {
     function qiwiGetPageRecords()
     {
@@ -1169,6 +1475,15 @@ if (!function_exists('qiwiResolveNavigationTarget')) {
 
         if (preg_match('/^(https?:)?\/\//i', $target) || preg_match('/^(mailto|tel):/i', $target)) {
             return ['url' => $target, 'slug' => '', 'external' => true];
+        }
+
+        if (in_array(strtolower($target), ['feed', 'rss'], true)) {
+            $feedUrl = trim((string) qiwiGetOptionValue($widget, 'feedUrl', ''));
+            if ($feedUrl === '' && $siteUrl !== '') {
+                $feedUrl = $siteUrl . '/feed/';
+            }
+
+            return ['url' => $feedUrl !== '' ? $feedUrl : '#', 'slug' => '', 'external' => false];
         }
 
         if ($target[0] === '#') {
@@ -1293,6 +1608,103 @@ if (!function_exists('qiwiNavigationUsesFontAwesome')) {
             }
 
             if (!empty($item['children'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('qiwiGetSidebarSocialLinks')) {
+    function qiwiGetSidebarSocialLinks($widget)
+    {
+        $configuredLinks = [
+            [
+                'key' => 'github',
+                'title' => 'GitHub',
+                'target' => trim((string) qiwiGetOptionValue($widget, 'sidebarGithubUrl', '')),
+            ],
+            [
+                'key' => 'bilibili',
+                'title' => 'Bilibili',
+                'target' => trim((string) qiwiGetOptionValue($widget, 'sidebarBilibiliUrl', '')),
+            ],
+            [
+                'key' => 'email',
+                'title' => 'Email',
+                'target' => qiwiNormalizeSidebarEmailUrl(qiwiGetOptionValue($widget, 'sidebarEmail', '')),
+            ],
+            [
+                'key' => 'rss',
+                'title' => 'RSS',
+                'target' => trim((string) qiwiGetOptionValue($widget, 'sidebarRssUrl', 'feed')),
+            ],
+        ];
+
+        $links = [];
+        foreach ($configuredLinks as $link) {
+            if ($link['target'] === '') {
+                continue;
+            }
+
+            $resolved = qiwiResolveNavigationTarget($widget, $link['target']);
+            $links[] = [
+                'title' => $link['title'],
+                'url' => $resolved['url'],
+                'external' => $link['key'] === 'email' ? false : $resolved['external'],
+                'icon' => '',
+                'kind' => $link['key'],
+            ];
+        }
+
+        if (!empty($links)) {
+            return $links;
+        }
+
+        $config = trim((string) qiwiGetOptionValue($widget, 'sidebarSocialLinks', ''));
+        if ($config === '') {
+            return [];
+        }
+
+        foreach (preg_split('/\r\n|\r|\n/', $config) as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) {
+                continue;
+            }
+
+            $parts = array_map('trim', explode('|', $line, 3));
+            $title = isset($parts[0]) ? $parts[0] : '';
+            $target = isset($parts[1]) ? $parts[1] : '';
+            $icon = isset($parts[2]) ? qiwiSanitizeIconClass($parts[2]) : '';
+
+            if ($title === '' || $target === '') {
+                continue;
+            }
+
+            $resolved = qiwiResolveNavigationTarget($widget, $target);
+            $links[] = [
+                'title' => $title,
+                'url' => $resolved['url'],
+                'external' => $resolved['external'],
+                'icon' => $icon,
+                'kind' => '',
+            ];
+
+            if (count($links) >= 8) {
+                break;
+            }
+        }
+
+        return $links;
+    }
+}
+
+if (!function_exists('qiwiSidebarSocialUsesFontAwesome')) {
+    function qiwiSidebarSocialUsesFontAwesome($widget)
+    {
+        foreach (qiwiGetSidebarSocialLinks($widget) as $link) {
+            if (!empty($link['icon'])) {
                 return true;
             }
         }
