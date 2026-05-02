@@ -996,6 +996,7 @@
         panel.innerHTML =
             '<div class="qiwi-admin-tabs">' +
                 '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="home">首页</button>' +
+                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="site">网站信息</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar">侧边栏</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="nav">导航栏</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="friends">友链</button>' +
@@ -1005,6 +1006,7 @@
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw">原始数据</button>' +
             '</div>' +
             '<div class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></div>' +
+            '<div class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></div>' +
             '<div class="qiwi-admin-pane" data-qiwi-pane="sidebar"><div class="qiwi-admin-fields" data-qiwi-sidebar-fields></div></div>' +
             '<div class="qiwi-admin-pane" data-qiwi-pane="nav">' +
                 '<div class="qiwi-admin-fields" data-qiwi-nav-fields></div>' +
@@ -1033,6 +1035,7 @@
         navRow.parentNode.insertBefore(panel, navRow);
 
         moveFields(['jikePosition', 'jikeTimeMode'], $('[data-qiwi-home-fields]', panel));
+        moveFields(['logoUrl', 'footerInfo', 'defaultCopyrightInfo', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['sidebarBlock', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
         moveFields(['enableTravellings'], $('[data-qiwi-nav-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));

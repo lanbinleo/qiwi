@@ -461,11 +461,19 @@ function themeConfig($form)
     $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS代码'));
     $trackingCode = new Typecho_Widget_Helper_Form_Element_Text('trackingCode', null, null, _t('JS 追踪代码'), _t('在这里填写第三方统计 JS 代码'));
     $footerInfo = new Typecho_Widget_Helper_Form_Element_Text('footerInfo', null, null, _t('页脚信息'), _t('在这里填写页脚信息，支持 HTML'));
+    $defaultCopyrightInfo = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'defaultCopyrightInfo',
+        null,
+        null,
+        _t('默认版权说明'),
+        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]。留空则使用主题内置默认文案。")
+    );
 
     $form->addInput($customCSS);
     $form->addInput($customJS);
     $form->addInput($trackingCode);
     $form->addInput($footerInfo);
+    $form->addInput($defaultCopyrightInfo);
 
     // === 友链配置 ===
     $friendsData = new Typecho_Widget_Helper_Form_Element_Textarea(
@@ -514,6 +522,14 @@ function themeFields($layout) {
     // 设置文章简介
     $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章 - 简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符。'));
 
+    $copyrightInfo = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'copyrightInfo',
+        null,
+        null,
+        _t('文章 - 版权说明'),
+        _t("留空则使用默认版权说明。支持短代码，例如：[badge color=\"cyan\"]原创[/badge]、[callout type=\"info\" title=\"转载说明\"]请保留原文链接[/callout]、[button href=\"https://example.com\"]相关链接[/button]。")
+    );
+
     $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
 
     $navShow = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -549,6 +565,7 @@ function themeFields($layout) {
 
     if ($isPostEditor || $isUnknownEditor) {
         $layout->addItem($excerpt);
+        $layout->addItem($copyrightInfo);
         $layout->addItem($showThumbnail);
         $layout->addItem($thumbnail);
         $layout->addItem($isSticky);
@@ -666,8 +683,24 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         }
 
         $text = preg_replace('/\[mark(?:\s+color=(["\']?)[a-zA-Z]+\1)?\]([\s\S]*?)\[\/mark\]/iu', '$2', $text);
+        $text = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '$1', $text);
+        $text = preg_replace('/\[button(?:\s+[^\]]*)?\]([\s\S]*?)\[\/button\]/iu', '$1', $text);
+        $text = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '$1', $text);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[callout(?:\s+[^\]]*)?\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
+                return isset($matches[1]) ? $matches[1] : '';
+            }, $text);
+
+            if ($next === $text) {
+                break;
+            }
+
+            $text = $next;
+        }
+
         $text = preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', $text);
-        $text = preg_replace('/\[\/?(?:mark|fold|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
+        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
 
         return $text;
     }
@@ -682,16 +715,104 @@ if (!function_exists('qiwiSanitizeShortcodeColor')) {
     }
 }
 
+if (!function_exists('qiwiParseShortcodeAttrs')) {
+    function qiwiParseShortcodeAttrs($text)
+    {
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $attrs = [];
+
+        if ($text === '') {
+            return $attrs;
+        }
+
+        if (preg_match_all('/([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s\]]+))/u', $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = strtolower($match[1]);
+                $value = '';
+                foreach ([2, 3, 4] as $index) {
+                    if (isset($match[$index]) && $match[$index] !== '') {
+                        $value = $match[$index];
+                        break;
+                    }
+                }
+                $attrs[$name] = trim($value);
+            }
+        }
+
+        return $attrs;
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeType')) {
+    function qiwiSanitizeShortcodeType($type)
+    {
+        $type = strtolower(trim((string) $type));
+        $allowed = ['note', 'info', 'success', 'warning', 'danger', 'quote'];
+        return in_array($type, $allowed, true) ? $type : 'note';
+    }
+}
+
+if (!function_exists('qiwiShortcodeTypeToColor')) {
+    function qiwiShortcodeTypeToColor($type)
+    {
+        $map = [
+            'note' => 'purple',
+            'info' => 'cyan',
+            'success' => 'green',
+            'warning' => 'yellow',
+            'danger' => 'red',
+            'quote' => 'blue',
+        ];
+
+        return isset($map[$type]) ? $map[$type] : 'purple';
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeVariant')) {
+    function qiwiSanitizeShortcodeVariant($variant)
+    {
+        $variant = strtolower(trim((string) $variant));
+        $allowed = ['soft', 'outline', 'solid', 'ghost'];
+        return in_array($variant, $allowed, true) ? $variant : 'soft';
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeUrl')) {
+    function qiwiSanitizeShortcodeUrl($url)
+    {
+        $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') {
+            return '#';
+        }
+
+        if (preg_match('/^(https?:\/\/|mailto:|tel:|\/|#)/i', $url)) {
+            return $url;
+        }
+
+        return '#';
+    }
+}
+
 if (!function_exists('qiwiRenderShortcodeSegment')) {
     function qiwiRenderShortcodeSegment($html)
     {
         $colors = 'red|orange|yellow|green|cyan|blue|purple';
         $foldOpening = '\[fold(?:\s+title=(?:"[^"]*"|\'[^\']*\'|[^\]\s]+))?\]';
+        $calloutOpening = '\[callout(?:\s+[^\]]*)?\]';
+        $buttonsOpening = '\[buttons(?:\s+[^\]]*)?\]';
 
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/fold\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
         $html = preg_replace('/<p>\s*(\[\/fold\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
+        $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/callout\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/callout\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<span>$2</span>', $html);
+        $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/buttons\])\s*<\/p>/iu', '<span>$1</span>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/buttons\])\s*<\/p>/iu', '$1', $html);
 
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace_callback('/\[fold(?:\s+title=(?:"([^"]*)"|\'([^\']*)\'|([^\]\s]+)))?\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
@@ -719,6 +840,64 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         }
 
         $html = preg_replace('/<p>\s*(<details class="qiwi-fold"[\s\S]*?<\/details>)\s*<\/p>/iu', '$1', $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[callout([^\]]*)\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $type = qiwiSanitizeShortcodeType(isset($attrs['type']) ? $attrs['type'] : (isset($attrs['color']) ? $attrs['color'] : 'note'));
+                $color = isset($attrs['color']) ? qiwiSanitizeShortcodeColor($attrs['color']) : qiwiShortcodeTypeToColor($type);
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? trim($matches[2]) : '';
+                $class = 'qiwi-callout qiwi-callout-' . $color . ' qiwi-callout-type-' . $type;
+                $titleHtml = $title !== '' ? '<div class="qiwi-callout-title">' . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8') . '</div>' : '';
+
+                return '<aside class="' . $class . '">' . $titleHtml . '<div class="qiwi-callout-body">' . $body . '</div></aside>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<aside class="qiwi-callout[\s\S]*?<\/aside>)\s*<\/p>/iu', '$1', $html);
+
+        $html = preg_replace_callback('/\[badge([^\]]*)\]([\s\S]*?)\[\/badge\]/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $color = qiwiSanitizeShortcodeColor(isset($attrs['color']) ? $attrs['color'] : 'cyan');
+            $variant = qiwiSanitizeShortcodeVariant(isset($attrs['variant']) ? $attrs['variant'] : 'soft');
+            return '<span class="qiwi-badge qiwi-badge-' . $color . ' qiwi-badge-' . $variant . '">' . $matches[2] . '</span>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[button\b([^\]]*)\]([\s\S]*?)\[\/button\]/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
+            $color = qiwiSanitizeShortcodeColor(isset($attrs['color']) ? $attrs['color'] : 'cyan');
+            $variant = qiwiSanitizeShortcodeVariant(isset($attrs['variant']) ? $attrs['variant'] : (isset($attrs['style']) ? $attrs['style'] : 'outline'));
+            $target = isset($attrs['target']) && strtolower($attrs['target']) === '_blank' ? ' target="_blank" rel="noopener noreferrer"' : '';
+            $label = trim($matches[2]) !== '' ? $matches[2] : htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
+            return '<a class="qiwi-button qiwi-button-' . $color . ' qiwi-button-' . $variant . '" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        }, $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[buttons([^\]]*)\]([\s\S]*?)\[\/buttons\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $align = isset($attrs['align']) ? strtolower(trim($attrs['align'])) : 'left';
+                if (!in_array($align, ['left', 'center', 'right'], true)) {
+                    $align = 'left';
+                }
+                return '<div class="qiwi-buttons qiwi-buttons-' . $align . '">' . $matches[2] . '</div>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<div class="qiwi-buttons[\s\S]*?<\/div>)\s*<\/p>/iu', '$1', $html);
 
         $html = preg_replace_callback('/\[mark(?:\s+color=(["\']?)([a-zA-Z]+)\1)?\]([\s\S]*?)\[\/mark\]/iu', function ($matches) {
             $color = qiwiSanitizeShortcodeColor(isset($matches[2]) && $matches[2] !== '' ? $matches[2] : 'yellow');
@@ -752,6 +931,67 @@ if (!function_exists('qiwiRenderShortcodes')) {
         }
 
         return implode('', $parts);
+    }
+}
+
+if (!function_exists('qiwiRenderFieldRichText')) {
+    function qiwiRenderFieldRichText($text)
+    {
+        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $text));
+        if ($text === '') {
+            return '';
+        }
+
+        $blocks = preg_split("/\n{2,}/u", $text);
+        $html = '';
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if ($block === '') {
+                continue;
+            }
+
+            $escaped = htmlspecialchars($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $escaped = nl2br($escaped, false);
+            if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)) {
+                $html .= $escaped;
+            } else {
+                $html .= '<p>' . $escaped . '</p>';
+            }
+        }
+
+        return qiwiRenderShortcodes($html);
+    }
+}
+
+if (!function_exists('qiwiGetPostCopyrightHtml')) {
+    function qiwiGetPostCopyrightHtml($widget)
+    {
+        $custom = trim((string) qiwiGetFieldValue($widget, 'copyrightInfo', ''));
+        if ($custom !== '') {
+            return qiwiRenderFieldRichText($custom);
+        }
+
+        $themeDefault = trim((string) qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
+        if ($themeDefault !== '') {
+            return qiwiRenderFieldRichText($themeDefault);
+        }
+
+        ob_start();
+        $widget->permalink();
+        $permalink = trim(ob_get_clean());
+
+        ob_start();
+        $widget->author();
+        $author = trim(ob_get_clean());
+
+        $siteTitle = trim((string) qiwiGetOptionValue($widget, 'title', ''));
+
+        $author = $author !== '' ? $author : '作者';
+        $siteTitle = $siteTitle !== '' ? $siteTitle : '本站';
+        $permalinkEscaped = htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8');
+
+        return '<p><span class="qiwi-badge qiwi-badge-cyan qiwi-badge-soft">原创</span> 本文由 ' . htmlspecialchars($author, ENT_QUOTES, 'UTF-8') . ' 发布于 <a href="' . $permalinkEscaped . '">' . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . '</a>。</p>'
+            . '<p>转载或引用时，请保留作者与原文链接：<a href="' . $permalinkEscaped . '">' . $permalinkEscaped . '</a></p>';
     }
 }
 

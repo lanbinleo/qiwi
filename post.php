@@ -6,6 +6,25 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $postViews = qiwiRecordPostView($this->cid);
 $qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
+$qiwiCopyrightHtml = function_exists('qiwiGetPostCopyrightHtml') ? qiwiGetPostCopyrightHtml($this) : '';
+
+ob_start();
+$this->thePrev('%s', '');
+$qiwiPrevPostLink = trim(ob_get_clean());
+$qiwiPrevPostHref = '';
+$qiwiPrevPostTitle = trim(strip_tags($qiwiPrevPostLink));
+if ($qiwiPrevPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiPrevPostLink, $matches)) {
+    $qiwiPrevPostHref = html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
+ob_start();
+$this->theNext('%s', '');
+$qiwiNextPostLink = trim(ob_get_clean());
+$qiwiNextPostHref = '';
+$qiwiNextPostTitle = trim(strip_tags($qiwiNextPostLink));
+if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPostLink, $matches)) {
+    $qiwiNextPostHref = html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
 ?>
 
 <div class="article-page">
@@ -46,24 +65,53 @@ $this->need('header.php');
                 <?php qiwiContent($this); ?>
             </div>
 
-            <!-- 文章标签 -->
-            <?php if ($this->tags): ?>
-            <div class="post-tags">
-                <span class="tags-label">标签:</span>
-                <div class="article-tags">
-                    <?php $this->tags(' ', true, ''); ?>
+            <?php if ($qiwiCopyrightHtml !== '' || $this->tags): ?>
+            <section class="post-endnote" aria-label="文章附注">
+                <?php if ($qiwiCopyrightHtml !== ''): ?>
+                <div class="post-copyright">
+                    <div class="post-endnote-label">Copyright</div>
+                    <div class="post-copyright-body">
+                        <?php echo $qiwiCopyrightHtml; ?>
+                    </div>
                 </div>
-            </div>
+                <?php endif; ?>
+
+                <?php if ($this->tags): ?>
+                <div class="post-tags">
+                    <span class="post-endnote-label">Tags</span>
+                    <div class="article-tags">
+                        <?php $this->tags(' ', true, ''); ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </section>
             <?php endif; ?>
 
             <!-- 文章导航 -->
             <nav class="post-navigation">
-                <div class="nav-previous">
-                    <?php $this->thePrev('%s', '没有更早的文章了'); ?>
+                <?php if ($qiwiPrevPostHref !== ''): ?>
+                <a class="post-navigation-item nav-previous" href="<?php echo htmlspecialchars($qiwiPrevPostHref, ENT_QUOTES, 'UTF-8'); ?>">
+                    <span class="post-navigation-label">上一篇</span>
+                    <span class="post-navigation-link"><?php echo htmlspecialchars($qiwiPrevPostTitle, ENT_QUOTES, 'UTF-8'); ?></span>
+                </a>
+                <?php else: ?>
+                <div class="post-navigation-item nav-previous is-empty">
+                    <span class="post-navigation-label">上一篇</span>
+                    <span class="post-navigation-empty">没有更早的文章了</span>
                 </div>
-                <div class="nav-next">
-                    <?php $this->theNext('%s', '没有更新的文章了'); ?>
+                <?php endif; ?>
+
+                <?php if ($qiwiNextPostHref !== ''): ?>
+                <a class="post-navigation-item nav-next" href="<?php echo htmlspecialchars($qiwiNextPostHref, ENT_QUOTES, 'UTF-8'); ?>">
+                    <span class="post-navigation-label">下一篇</span>
+                    <span class="post-navigation-link"><?php echo htmlspecialchars($qiwiNextPostTitle, ENT_QUOTES, 'UTF-8'); ?></span>
+                </a>
+                <?php else: ?>
+                <div class="post-navigation-item nav-next is-empty">
+                    <span class="post-navigation-label">下一篇</span>
+                    <span class="post-navigation-empty">没有更新的文章了</span>
                 </div>
+                <?php endif; ?>
             </nav>
         </article>
 
