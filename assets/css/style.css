@@ -740,6 +740,54 @@ img {
     font-family: var(--font-mono);
 }
 
+.cat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    max-width: 100%;
+    font-size: var(--t-base);
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.cat:hover {
+    color: var(--caramel);
+}
+
+.cat::before {
+    content: "#";
+    color: var(--ink-faint);
+}
+
+.cat-plain::before {
+    content: none;
+}
+
+.cat-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cat .count {
+    font-family: var(--font-mono);
+    font-size: var(--t-micro);
+    color: var(--ink-faint);
+}
+
+.cat::before,
+.cat .count {
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.cat:hover::before,
+.cat:hover .count {
+    color: var(--caramel);
+}
+
 .sidebar-more-link {
     display: inline-flex;
     margin-top: var(--s-2);
@@ -3229,45 +3277,6 @@ body.qiwi-lightbox-open {
     column-gap: calc(var(--spacing-unit) * 3);
     row-gap: calc(var(--spacing-unit) * 1.5);
     line-height: 1.8;
-}
-
-.taxonomy-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    max-width: 100%;
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    transition: color var(--transition);
-}
-
-.taxonomy-tag:hover {
-    color: var(--color-accent);
-}
-
-.taxonomy-tag-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.taxonomy-tag-count {
-    font-size: 12px;
-    color: var(--color-text-tertiary);
-    transition: color var(--transition);
-}
-
-.taxonomy-tag-count::before {
-    content: "(";
-}
-
-.taxonomy-tag-count::after {
-    content: ")";
-}
-
-.taxonomy-tag:hover .taxonomy-tag-count {
-    color: var(--color-accent);
 }
 
 .taxonomy-list-item {

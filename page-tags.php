@@ -54,9 +54,9 @@ $pageContent = qiwiGetContent($this);
         <?php if (!empty($tagItems)): ?>
         <div class="taxonomy-cloud">
             <?php foreach ($tagItems as $tag): ?>
-                <a href="<?php echo htmlspecialchars($tag['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="taxonomy-tag" title="<?php echo (int) $tag['count']; ?> 篇文章">
-                    <span class="taxonomy-tag-name"><?php echo htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8'); ?></span>
-                    <span class="taxonomy-tag-count"><?php echo (int) $tag['count']; ?></span>
+                <a href="<?php echo htmlspecialchars($tag['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="cat" title="<?php echo (int) $tag['count']; ?> 篇文章">
+                    <span class="cat-name"><?php echo htmlspecialchars($tag['name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="count"><?php echo (int) $tag['count']; ?></span>
                 </a>
             <?php endforeach; ?>
         </div>

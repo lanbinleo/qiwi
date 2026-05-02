@@ -62,9 +62,9 @@ if ($tagsPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
         <?php while ($category->next()): ?>
             <?php if ((int) $category->count <= 0) continue; ?>
             <li>
-                <a href="<?php $category->permalink(); ?>">
-                    <?php $category->name(); ?>
-                    <span class="item-count">(<?php $category->count(); ?>)</span>
+                <a href="<?php $category->permalink(); ?>" class="cat cat-plain">
+                    <span class="cat-name"><?php $category->name(); ?></span>
+                    <span class="count"><?php $category->count(); ?></span>
                 </a>
             </li>
         <?php endwhile; ?>
@@ -79,7 +79,7 @@ if ($tagsPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
     </h3>
     <ul class="sidebar-list">
         <?php \Widget\Contents\Post\Date::alloc('type=year&format=Y年')
-            ->parse('<li><a href="{permalink}" title="查看 {date} 的文章">{date} <span class="item-count">({count})</span></a></li>'); ?>
+            ->parse('<li><a href="{permalink}" class="cat cat-plain" title="查看 {date} 的文章"><span class="cat-name">{date}</span> <span class="count">{count}</span></a></li>'); ?>
     </ul>
 </div>
 
