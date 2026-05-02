@@ -7,6 +7,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - Stack: Typecho theme using PHP templates, one main stylesheet, and small inline/browser-side JavaScript.
 - No build step: files in this directory are loaded directly by Typecho.
 - Primary goal of changes: preserve the current visual language while improving maintainability, responsiveness, and content readability.
+- Local runtime: phpstudy on Windows. Do not assume `php` is on `PATH`; use the bundled phpstudy binaries for linting.
 
 ## Important Files
 
@@ -15,20 +16,29 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `assets/css/style.css`: main source of truth for layout, typography, page templates, components, and responsive behavior.
 - `index.php`: home page layout and sticky-post aggregation logic.
 - `archive.php`: archive/search/tag/category listing page.
+- `404.php`: not-found page template.
 - `post.php`: single post layout.
+- `post-card.php`: shared post-card/list item partial.
 - `page.php`: generic page layout.
 - `page-about.php`: about page.
+- `page-archives.php`: yearly archive page.
+- `page-categories.php`: category index page.
 - `page-friends.php`: friends page and apply form.
+- `page-tags.php`: tag cloud page.
 - `page-timemachine.php`: timemachine page, publisher UI, and modal logic.
 - `sidebar.php`: sidebar blocks used on list pages.
 - `comments.php`: comment list and form.
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
+- `components/home-jike.php`: Jike-style home feed component.
+- `design-doc.html`: local visual/style reference. Treat as reference unless the task asks to edit it.
 - `reference/`: legacy reference material. Read-only unless a task explicitly asks to sync it.
 
 ## Working Rules
 
 - Treat this as a production theme: prefer small, focused edits over large rewrites.
+- Before any development change, check the current Git branch. If it is not a `dev/x.x.x` branch, for example if it is `main`, ask the user which version number should carry the work before making code changes.
+- When committing changes, use Conventional Commits style with the correct type prefix, such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`, or `perf:`.
 - Keep Typecho template calls intact. When changing markup, preserve PHP conditions and widget output.
 - Reuse the existing design tokens in `assets/css/style.css` instead of hardcoding unrelated colors or spacing.
 - When adding JavaScript, prefer progressive enhancement. The page should remain usable if the script does not run.
@@ -58,9 +68,37 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 
 There is no formal test suite in this repo. Use lightweight checks after edits:
 
-1. `php -l header.php footer.php index.php archive.php post.php page.php page-about.php page-friends.php page-timemachine.php comments.php sidebar.php functions.php`
-2. `rg -n "@media|overflow|grid-template-columns|display:\\s*none|details|summary" assets/css/style.css`
-3. If JavaScript changed, review for null-safe DOM access and keyboard accessibility.
+1. Lint all theme PHP files with both bundled phpstudy runtimes. Use `-n` so PHP 8 is not blocked by older phpstudy ini directives such as `track_errors`.
+
+```powershell
+$phpFiles = rg --files -g '*.php' -g '!reference/**'
+$phpBins = @(
+    'D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe',
+    'D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe'
+)
+foreach ($php in $phpBins) {
+    Write-Output "== $php -n =="
+    foreach ($file in $phpFiles) {
+        & $php -n -l $file
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+}
+```
+
+2. For targeted quick checks, lint only touched files with both binaries, for example:
+
+```powershell
+& 'D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe' -n -l sidebar.php
+& 'D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe' -n -l sidebar.php
+```
+
+3. For responsive/CSS work, inspect the main stylesheet for the relevant layout primitives:
+
+```powershell
+rg -n "@media|overflow|grid-template-columns|display:\s*none|details|summary" assets/css/style.css
+```
+
+4. If JavaScript changed, review for null-safe DOM access, keyboard accessibility, and progressive enhancement behavior.
 
 For responsive work, code-level proof should include:
 
