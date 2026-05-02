@@ -11,12 +11,55 @@
 
     var COLORS = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
     var COLOR_PATTERN = COLORS.join('|');
-    var FOLD_RE = /\[fold(?:\s+title=(?:"([^"]*)"|'([^']*)'|([^\]\s]+)))?\]/i;
+    var COLOR_LABELS = {
+        red: '红',
+        orange: '橙',
+        yellow: '黄',
+        green: '绿',
+        cyan: '青',
+        blue: '蓝',
+        purple: '紫'
+    };
+    var FOLD_RE = /\[fold([^\]]*)\]/i;
     var CLOSE_FOLD_RE = /\[\/fold\]/i;
 
     function sanitizeColor(color) {
         color = String(color || '').toLowerCase().trim();
         return COLORS.indexOf(color) !== -1 ? color : 'yellow';
+    }
+
+    function parseAttrs(text) {
+        var attrs = {};
+        String(text || '').replace(/([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))/g, function(_, name, doubleQuoted, singleQuoted, bare) {
+            attrs[String(name || '').toLowerCase()] = (doubleQuoted || singleQuoted || bare || '').trim();
+            return _;
+        });
+        return attrs;
+    }
+
+    function boolAttr(attrs, name, fallback) {
+        if (!Object.prototype.hasOwnProperty.call(attrs, name)) return fallback;
+
+        var value = String(attrs[name] || '').toLowerCase().trim();
+        if (['1', 'true', 'yes', 'on', 'open'].indexOf(value) !== -1) return true;
+        if (['0', 'false', 'no', 'off', 'closed'].indexOf(value) !== -1) return false;
+        return fallback;
+    }
+
+    function foldOptionsFromAttrs(attrs) {
+        var variant = String(attrs.variant || attrs.style || '').toLowerCase().trim();
+        var noDivider = ['plain', 'clean', 'no-divider', 'nodivider'].indexOf(variant) !== -1 || boolAttr(attrs, 'divider', true) === false;
+        var isOpen = boolAttr(attrs, 'open', true);
+
+        if (String(attrs.default || '').toLowerCase().trim() === 'closed' || boolAttr(attrs, 'closed', false)) {
+            isOpen = false;
+        }
+
+        return {
+            title: String(attrs.title || '').trim() || '展开内容',
+            isOpen: isOpen,
+            noDivider: noDivider
+        };
     }
 
     function isProtectedNode(node) {
@@ -88,12 +131,18 @@
         return null;
     }
 
-    function makeFold(title) {
+    function makeFold(options) {
         var details = document.createElement('details');
         details.className = 'qiwi-fold';
+        if (options && options.noDivider) {
+            details.className += ' qiwi-fold-no-divider';
+        }
+        if (!options || options.isOpen !== false) {
+            details.open = true;
+        }
 
         var summary = document.createElement('summary');
-        summary.textContent = title || '展开内容';
+        summary.textContent = options && options.title ? options.title : '展开内容';
 
         var body = document.createElement('div');
         body.className = 'qiwi-fold-body';
@@ -118,7 +167,7 @@
             var closeNode = findTextNode(root, CLOSE_FOLD_RE, openNode);
             if (!closeNode) break;
 
-            var title = (openMatch[1] || openMatch[2] || openMatch[3] || '').trim() || '展开内容';
+            var foldOptions = foldOptionsFromAttrs(parseAttrs(openMatch[1] || ''));
             var openTop = directChildOf(openNode, root);
             var closeTop = directChildOf(closeNode, root);
             if (!openTop || !closeTop) break;
@@ -126,7 +175,7 @@
             openNode.nodeValue = openNode.nodeValue.replace(FOLD_RE, '');
             closeNode.nodeValue = closeNode.nodeValue.replace(CLOSE_FOLD_RE, '');
 
-            var fold = makeFold(title);
+            var fold = makeFold(foldOptions);
             var insertBefore = openTop.nextSibling;
 
             if (openTop === closeTop) {
@@ -338,6 +387,191 @@
         };
     }
 
+    function getEditorTextarea() {
+        return document.getElementById('text') || document.querySelector('textarea[name="text"]');
+    }
+
+    function dispatchEditorInput(textarea) {
+        ['input', 'change', 'keyup'].forEach(function(type) {
+            textarea.dispatchEvent(new Event(type, {
+                bubbles: true
+            }));
+        });
+        scheduleEnhance();
+    }
+
+    function insertIntoEditor(snippetFactory) {
+        var textarea = getEditorTextarea();
+        if (!textarea) return;
+
+        var start = textarea.selectionStart || 0;
+        var end = textarea.selectionEnd || start;
+        var selected = textarea.value.slice(start, end);
+        var snippet = snippetFactory(selected);
+        var nextCursor = start + snippet.length;
+
+        textarea.focus();
+
+        if (typeof textarea.setRangeText === 'function') {
+            textarea.setRangeText(snippet, start, end, 'end');
+        } else {
+            textarea.value = textarea.value.slice(0, start) + snippet + textarea.value.slice(end);
+            textarea.selectionStart = nextCursor;
+            textarea.selectionEnd = nextCursor;
+        }
+
+        dispatchEditorInput(textarea);
+    }
+
+    function wrapInline(openTag, closeTag, fallback) {
+        insertIntoEditor(function(selected) {
+            var content = selected || fallback;
+            return openTag + content + closeTag;
+        });
+    }
+
+    function insertFoldSnippet(isPlain) {
+        insertIntoEditor(function(selected) {
+            var content = selected || '这里是折叠内容';
+            var attrs = ' title="展开内容" open=true';
+            if (isPlain) {
+                attrs += ' variant="plain"';
+            }
+            return '[fold' + attrs + ']\n' + content + '\n[/fold]';
+        });
+    }
+
+    function makeToolButton(label, title, onClick) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'qiwi-editor-tool-button';
+        button.textContent = label;
+        button.title = title;
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            onClick();
+        });
+        return button;
+    }
+
+    function buildInsertMenu(anchor) {
+        var menu = document.createElement('div');
+        menu.className = 'qiwi-editor-insert-menu';
+        menu.hidden = true;
+
+        function addGroup(title, buttons) {
+            var group = document.createElement('div');
+            group.className = 'qiwi-editor-tool-group';
+
+            var heading = document.createElement('div');
+            heading.className = 'qiwi-editor-tool-title';
+            heading.textContent = title;
+            group.appendChild(heading);
+
+            var row = document.createElement('div');
+            row.className = 'qiwi-editor-tool-row';
+            buttons.forEach(function(button) {
+                row.appendChild(button);
+            });
+            group.appendChild(row);
+            menu.appendChild(group);
+        }
+
+        addGroup('文字颜色', COLORS.map(function(color) {
+            return makeToolButton(COLOR_LABELS[color] || color, '插入 ' + color + ' 彩色文字', function() {
+                wrapInline('[' + color + ']', '[/' + color + ']', '彩色文字');
+                menu.hidden = true;
+                anchor.setAttribute('aria-expanded', 'false');
+            });
+        }));
+
+        addGroup('背景标记', COLORS.map(function(color) {
+            return makeToolButton(COLOR_LABELS[color] || color, '插入 ' + color + ' 背景标记', function() {
+                wrapInline('[mark color=' + color + ']', '[/mark]', '高亮文字');
+                menu.hidden = true;
+                anchor.setAttribute('aria-expanded', 'false');
+            });
+        }));
+
+        addGroup('折叠块', [
+            makeToolButton('默认展开', '插入默认展开的 fold', function() {
+                insertFoldSnippet(false);
+                menu.hidden = true;
+                anchor.setAttribute('aria-expanded', 'false');
+            }),
+            makeToolButton('无分隔线', '插入无标题分隔线的 fold', function() {
+                insertFoldSnippet(true);
+                menu.hidden = true;
+                anchor.setAttribute('aria-expanded', 'false');
+            })
+        ]);
+
+        return menu;
+    }
+
+    function initToolbarEnhancer() {
+        var row = document.getElementById('wmd-button-row');
+        if (!row || row.dataset.qiwiEditorTools === '1') return;
+
+        row.dataset.qiwiEditorTools = '1';
+
+        var button = document.createElement('li');
+        button.className = 'wmd-button qiwi-wmd-button';
+        button.id = 'qiwi-shortcode-button';
+        button.title = 'Qiwi 快捷插入';
+        button.setAttribute('role', 'button');
+        button.setAttribute('tabindex', '0');
+        button.setAttribute('aria-haspopup', 'true');
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = '<span>Q</span>';
+
+        var left = 500;
+        Array.prototype.forEach.call(row.children, function(item) {
+            var value = parseInt(item.style && item.style.left ? item.style.left : '', 10);
+            if (!isNaN(value)) {
+                left = Math.max(left, value + 50);
+            }
+        });
+        button.style.left = left + 'px';
+        row.style.minWidth = Math.max(row.scrollWidth, left + 28) + 'px';
+
+        var menu = buildInsertMenu(button);
+        row.appendChild(button);
+        row.parentNode.insertBefore(menu, row.nextSibling);
+
+        function toggleMenu() {
+            var isOpen = menu.hidden;
+            menu.hidden = !isOpen;
+            button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            if (isOpen) {
+                var firstButton = menu.querySelector('button');
+                if (firstButton) firstButton.focus();
+            }
+        }
+
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMenu();
+        });
+
+        button.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleMenu();
+            } else if (event.key === 'Escape') {
+                menu.hidden = true;
+                button.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            if (menu.hidden || menu.contains(event.target) || button.contains(event.target)) return;
+            menu.hidden = true;
+            button.setAttribute('aria-expanded', 'false');
+        });
+    }
+
     window.QIWI_ADMIN_EDITOR_SHORTCODES.renderShortcodes = renderShortcodes;
     window.QIWI_ADMIN_EDITOR_SHORTCODES.enhanceAll = enhanceAllPreviews;
     window.QIWI_ADMIN_EDITOR_SHORTCODES.enhancePreview = enhancePreview;
@@ -346,6 +580,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         enhanceAllPreviews();
+        initToolbarEnhancer();
 
         document.addEventListener('input', function(event) {
             if (event.target && event.target.id === 'text') {

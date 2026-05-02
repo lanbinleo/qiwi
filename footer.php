@@ -101,19 +101,53 @@ function toggleTheme() {
 function initMobileNavigation() {
     const navToggle = document.querySelector('.nav-toggle');
     const navMenu = document.getElementById('site-navigation-menu');
+    const submenuToggles = document.querySelectorAll('.nav-submenu-toggle');
 
     if (!navToggle || !navMenu) {
         return;
     }
 
+    document.body.classList.add('nav-js-enabled');
+
+    const setSubmenuState = function(toggle, isOpen) {
+        const navItem = toggle.closest('.nav-item-has-children');
+        if (!navItem) return;
+
+        navItem.classList.toggle('is-submenu-open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+
     const setMenuState = function(isOpen) {
         navMenu.classList.toggle('is-open', isOpen);
         document.body.classList.toggle('nav-open', isOpen);
         navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+        submenuToggles.forEach(function(toggle) {
+            const navItem = toggle.closest('.nav-item-has-children');
+            const hasCurrentChild = navItem && navItem.querySelector('.nav-submenu a.current');
+
+            if (isOpen && hasCurrentChild) {
+                setSubmenuState(toggle, true);
+                return;
+            }
+
+            if (!isOpen) {
+                setSubmenuState(toggle, false);
+            }
+        });
+
     };
 
     navToggle.addEventListener('click', function() {
         setMenuState(!navMenu.classList.contains('is-open'));
+    });
+
+    submenuToggles.forEach(function(toggle) {
+        toggle.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            setSubmenuState(toggle, toggle.getAttribute('aria-expanded') !== 'true');
+        });
     });
 
     navMenu.querySelectorAll('a').forEach(function(link) {
@@ -122,6 +156,17 @@ function initMobileNavigation() {
                 setMenuState(false);
             }
         });
+    });
+
+    document.addEventListener('click', function(event) {
+        if (
+            window.innerWidth <= 768
+            && navMenu.classList.contains('is-open')
+            && !navMenu.contains(event.target)
+            && !navToggle.contains(event.target)
+        ) {
+            setMenuState(false);
+        }
     });
 
     document.addEventListener('keydown', function(event) {
@@ -306,6 +351,345 @@ function initArticleToc() {
     }, { rootMargin: '-80px 0px -75% 0px' });
 
     headings.forEach(function(h) { observer.observe(h); });
+}
+
+function initHomeHero() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    function escapeHtml(text) {
+        return String(text).replace(/[&<>"']/g, function(char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char];
+        });
+    }
+
+    function fetchHitokotoItem() {
+        var controller = window.AbortController ? new AbortController() : null;
+        var timeout = null;
+        var timedOut = false;
+
+        var request = fetch('https://v1.hitokoto.cn', controller ? { signal: controller.signal } : undefined)
+            .then(function(response) {
+                if (!response.ok) return null;
+                return response.json();
+            })
+            .catch(function() { return null; });
+
+        var timeoutFallback = new Promise(function(resolve) {
+            timeout = window.setTimeout(function() {
+                timedOut = true;
+                if (controller) controller.abort();
+                resolve(null);
+            }, 2800);
+        });
+
+        return Promise.race([request, timeoutFallback])
+            .then(function(data) {
+                if (!timedOut && timeout) window.clearTimeout(timeout);
+                if (!data || !data.hitokoto) return null;
+                var source = data.from || '';
+                if (data.from_who) {
+                    source = source ? source + ' - ' + data.from_who : data.from_who;
+                }
+                var text = source ? data.hitokoto + ' —— ' + source : data.hitokoto;
+                return {
+                    html: escapeHtml(data.hitokoto),
+                    text: data.hitokoto
+                };
+            })
+            .catch(function() { return null; });
+    }
+
+    document.querySelectorAll('[data-home-hero]').forEach(function(hero) {
+        var line = hero.querySelector('.home-hero-line');
+        if (!line) return;
+
+        function updateHeroSelectionColor(source) {
+            var root = document.createElement('div');
+            var accent = null;
+            root.innerHTML = source || line.innerHTML || '';
+
+            var accentNode = root.querySelector('[class*="home-hero-accent-"]');
+            if (accentNode) {
+                String(accentNode.className || '').split(/\s+/).some(function(className) {
+                    var match = className.match(/^home-hero-accent-(caramel|red|orange|yellow|green|cyan|blue|purple)$/);
+                    if (!match) return false;
+                    accent = match[1];
+                    return true;
+                });
+            }
+
+            if (!accent) {
+                line.style.removeProperty('--home-hero-selection-color');
+                return;
+            }
+
+            line.style.setProperty(
+                '--home-hero-selection-color',
+                accent === 'caramel' ? 'var(--caramel)' : 'var(--hue-' + accent + ')'
+            );
+        }
+
+        updateHeroSelectionColor();
+
+        var mode = hero.getAttribute('data-home-hero-mode') || 'list';
+        var items = [];
+        try {
+            items = JSON.parse(hero.getAttribute('data-home-hero-items') || '[]');
+        } catch (error) {
+            items = [];
+        }
+
+        if (!items.length) return;
+        if (items.length <= 1 && mode === 'list') return;
+
+        var animation = hero.getAttribute('data-home-hero-animation') || 'fade';
+        var interval = parseInt(hero.getAttribute('data-home-hero-interval') || '5200', 10);
+        if (!interval || interval < 1500) interval = 5200;
+        var typingSpeed = parseInt(hero.getAttribute('data-home-hero-typing-speed') || '92', 10);
+        var deletingSpeed = parseInt(hero.getAttribute('data-home-hero-deleting-speed') || '24', 10);
+        var typingPause = parseInt(hero.getAttribute('data-home-hero-typing-pause') || '220', 10);
+        if (!typingSpeed || typingSpeed < 20) typingSpeed = 92;
+        if (!deletingSpeed || deletingSpeed < 10) deletingSpeed = 24;
+        if (isNaN(typingPause) || typingPause < 0) typingPause = 220;
+        if (animation === 'typewriter') {
+            line.classList.add('is-typewriter');
+        }
+
+        var index = 0;
+        var hasCompletedList = false;
+        var shouldInsertHitokoto = false;
+        var rotationTimer = null;
+        var rotationPaused = false;
+        var typingTimer = null;
+        var animationToken = 0;
+
+        function localNext() {
+            index = (index + 1) % items.length;
+            return items[index];
+        }
+
+        function showItem(item) {
+            if (!item || !item.html) return;
+            animationToken++;
+            updateHeroSelectionColor(item.html);
+            var token = animationToken;
+            if (typingTimer) {
+                window.clearTimeout(typingTimer);
+                typingTimer = null;
+            }
+
+            if (animation === 'typewriter') {
+                typeItem(item, token);
+                return;
+            }
+
+            line.classList.add('is-switching');
+            window.setTimeout(function() {
+                if (token !== animationToken) return;
+                line.innerHTML = item.html;
+                updateHeroSelectionColor(item.html);
+                line.classList.remove('is-switching');
+            }, 180);
+        }
+
+        function typeItem(item, token) {
+            var currentText = line.textContent || '';
+
+            function renderText(text) {
+                line.textContent = text;
+            }
+
+            function htmlToTokens(html) {
+                var root = document.createElement('div');
+                root.innerHTML = html || '';
+                var tokens = [];
+
+                function walk(node, classes) {
+                    if (node.nodeType === 3) {
+                        Array.prototype.forEach.call(node.nodeValue || '', function(char) {
+                            tokens.push({ char: char, classes: classes.slice() });
+                        });
+                        return;
+                    }
+
+                    if (node.nodeType !== 1) return;
+
+                    var nextClasses = classes.slice();
+                    if (node.className) {
+                        String(node.className).split(/\s+/).forEach(function(className) {
+                            if (className && className.indexOf('home-hero-accent') === 0) {
+                                nextClasses.push(className);
+                            }
+                        });
+                    }
+
+                    Array.prototype.forEach.call(node.childNodes, function(child) {
+                        walk(child, nextClasses);
+                    });
+                }
+
+                Array.prototype.forEach.call(root.childNodes, function(child) {
+                    walk(child, []);
+                });
+
+                return tokens;
+            }
+
+            function renderTokens(tokens, count) {
+                var html = '';
+                var activeClasses = '';
+                var hasOpenSpan = false;
+
+                function closeSpan() {
+                    if (hasOpenSpan) {
+                        html += '</span>';
+                        hasOpenSpan = false;
+                        activeClasses = '';
+                    }
+                }
+
+                tokens.slice(0, count).forEach(function(token) {
+                    var className = token.classes.join(' ');
+                    if (className !== activeClasses) {
+                        closeSpan();
+                        if (className) {
+                            html += '<span class="' + className + '">';
+                            activeClasses = className;
+                            hasOpenSpan = true;
+                        }
+                    }
+                    html += escapeHtml(token.char);
+                });
+
+                closeSpan();
+                line.innerHTML = html;
+            }
+
+            var nextTokens = htmlToTokens(item.html);
+
+            function deleteStep() {
+                if (token !== animationToken) return;
+                if (currentText.length > 0) {
+                    currentText = currentText.slice(0, -1);
+                    renderText(currentText);
+                    typingTimer = window.setTimeout(deleteStep, deletingSpeed);
+                    return;
+                }
+                typingTimer = window.setTimeout(typeStep, typingPause);
+            }
+
+            var cursor = 0;
+            function typeStep() {
+                if (token !== animationToken) return;
+                if (cursor < nextTokens.length) {
+                    cursor++;
+                    renderTokens(nextTokens, cursor);
+                    typingTimer = window.setTimeout(typeStep, typingSpeed);
+                    return;
+                }
+                line.innerHTML = item.html;
+                updateHeroSelectionColor(item.html);
+                typingTimer = null;
+            }
+
+            deleteStep();
+        }
+
+        function nextItem() {
+            if (mode === 'list') {
+                showItem(localNext());
+                scheduleNextRotation();
+                return;
+            }
+
+            if (!hasCompletedList) {
+                index += 1;
+                if (index < items.length) {
+                    showItem(items[index]);
+                    scheduleNextRotation();
+                    return;
+                }
+
+                hasCompletedList = true;
+                index = 0;
+                if (mode === 'loop-hitokoto') {
+                    shouldInsertHitokoto = true;
+                    showItem(items[index]);
+                    index = (index + 1) % items.length;
+                    scheduleNextRotation();
+                    return;
+                }
+            }
+
+            if (mode === 'loop-hitokoto') {
+                if (shouldInsertHitokoto) {
+                    var fallbackItem = items[index];
+                    index = (index + 1) % items.length;
+                    fetchHitokotoItem().then(function(item) {
+                        showItem(item || fallbackItem);
+                        scheduleNextRotation();
+                    });
+                    shouldInsertHitokoto = false;
+                    return;
+                }
+
+                showItem(items[index]);
+                index = (index + 1) % items.length;
+                shouldInsertHitokoto = true;
+                scheduleNextRotation();
+                return;
+            }
+
+            fetchHitokotoItem().then(function(item) {
+                showItem(item || localNext());
+                scheduleNextRotation();
+            });
+        }
+
+        function scheduleNextRotation(delay) {
+            if (rotationPaused || document.hidden) return;
+
+            if (rotationTimer) {
+                window.clearTimeout(rotationTimer);
+            }
+
+            rotationTimer = window.setTimeout(function() {
+                rotationTimer = null;
+                nextItem();
+            }, typeof delay === 'number' ? delay : interval);
+        }
+
+        function startRotation() {
+            rotationPaused = false;
+            if (!rotationTimer) scheduleNextRotation(interval);
+        }
+
+        function stopRotation() {
+            rotationPaused = true;
+            if (rotationTimer) {
+                window.clearTimeout(rotationTimer);
+                rotationTimer = null;
+            }
+        }
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopRotation();
+            } else {
+                startRotation();
+            }
+        });
+
+        startRotation();
+    });
 }
 
 function initHomeJike() {
@@ -706,18 +1090,86 @@ function initArticleImages() {
     });
 }
 
+function initQiwiFolds() {
+    if (!('animate' in Element.prototype)) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    document.querySelectorAll('.qiwi-fold').forEach(function(fold) {
+        var summary = fold.querySelector(':scope > summary');
+        var body = fold.querySelector(':scope > .qiwi-fold-body');
+        if (!summary || !body || fold.dataset.qiwiFoldEnhanced === '1') return;
+
+        fold.dataset.qiwiFoldEnhanced = '1';
+
+        summary.addEventListener('click', function(event) {
+            if (fold.classList.contains('is-animating')) {
+                event.preventDefault();
+                return;
+            }
+
+            event.preventDefault();
+            var isOpen = fold.hasAttribute('open');
+            var startHeight = body.offsetHeight;
+            var endHeight;
+
+            fold.classList.add('is-animating');
+            body.style.overflow = 'hidden';
+
+            if (isOpen) {
+                endHeight = 0;
+            } else {
+                fold.setAttribute('open', '');
+                body.style.height = 'auto';
+                endHeight = body.scrollHeight;
+                body.style.height = '0px';
+                body.style.opacity = '0';
+            }
+
+            var animation = body.animate([
+                {
+                    height: startHeight + 'px',
+                    opacity: isOpen ? 1 : 0,
+                    transform: isOpen ? 'translateY(0) scaleY(1)' : 'translateY(-4px) scaleY(0.98)'
+                },
+                {
+                    height: endHeight + 'px',
+                    opacity: isOpen ? 0 : 1,
+                    transform: isOpen ? 'translateY(-4px) scaleY(0.98)' : 'translateY(0) scaleY(1)'
+                }
+            ], {
+                duration: 320,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+            });
+
+            animation.onfinish = function() {
+                if (isOpen) {
+                    fold.removeAttribute('open');
+                }
+                fold.classList.remove('is-animating');
+                body.style.removeProperty('height');
+                body.style.removeProperty('opacity');
+                body.style.removeProperty('overflow');
+            };
+
+            animation.oncancel = animation.onfinish;
+        });
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initArticleToc();
+    initHomeHero();
     initHomeJike();
     initCommentProfile();
     initArticleImages();
+    initQiwiFolds();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {
         item.addEventListener('click', function(e) {
-            if (e.target.closest('.tag') || e.target.closest('.article-title-link')) {
+            if (e.target.closest('.tag') || e.target.closest('.meta-category a') || e.target.closest('.article-title-link')) {
                 return;
             }
             const titleLink = this.querySelector('.article-title-link');

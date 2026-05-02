@@ -336,8 +336,8 @@ function themeConfig($form)
         'logoUrl',
         null,
         null,
-        _t('站点 LOGO 地址'),
-        _t('在这里填入一个图片 URL 地址, 以在网站标题前加上一个 LOGO')
+        _t('导航栏头像 / 站点 LOGO 地址'),
+        _t('在这里填入一个图片 URL 地址，会显示在顶部导航栏的网站标题前。')
     );
 
     $form->addInput($logoUrl);
@@ -361,12 +361,41 @@ function themeConfig($form)
         [
             'ShowRecentPosts'    => _t('显示最新文章'),
             'ShowCategory'       => _t('显示分类'),
+            'ShowArchive'        => _t('显示归档'),
+            'ShowTags'           => _t('显示标签'),
         ],
-        ['ShowRecentPosts', 'ShowCategory'],
+        ['ShowRecentPosts', 'ShowCategory', 'ShowArchive', 'ShowTags'],
         _t('侧边栏显示')
     );
 
     $form->addInput($sidebarBlock->multiMode());
+
+    $sidebarSocialLinks = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'sidebarSocialLinks',
+        null,
+        null,
+        _t('侧边栏社交链接 - 原始数据'),
+        _t("结构化编辑器会自动同步到这里。每行一个链接：标题|链接|Font Awesome 图标类。可用于手动微调或兼容旧版配置。")
+    );
+    $form->addInput($sidebarSocialLinks);
+
+    $sidebarProfileAvatar = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarProfileAvatar',
+        null,
+        null,
+        _t('侧边栏 - 头像'),
+        _t('侧边栏顶部展示的头像 URL。留空时兼容旧版“关于页面头像”，再留空则使用默认头像。')
+    );
+    $form->addInput($sidebarProfileAvatar);
+
+    $sidebarProfileText = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'sidebarProfileText',
+        null,
+        null,
+        _t('侧边栏 - 文字'),
+        _t('显示在侧边栏头像下方的一小段文字。留空时兼容旧版“关于页面简介”。')
+    );
+    $form->addInput($sidebarProfileText);
 
     // 一言打字机效果
     $enableHitokoto = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -423,17 +452,16 @@ function themeConfig($form)
     );
     $form->addInput($navItems);
 
-    // 即刻条展示位置
+    // 说说展示位置
     $jikePosition = new Typecho_Widget_Helper_Form_Element_Radio(
         'jikePosition',
         array(
             'off'    => _t('关闭'),
-            'top'    => _t('页面顶部（横跨内容区与侧边栏上方）'),
-            'inline' => _t('文章列表内（嵌入文章列表顶部）'),
+            'sidebar' => _t('右侧栏（说说时间线）'),
         ),
-        'inline',
-        _t('首页即刻条'),
-        _t('在首页展示即刻/时间机器的最新动态。需要已发布一个使用"时间机器"模板的独立页面。')
+        'sidebar',
+        _t('侧边栏说说'),
+        _t('在首页侧边栏展示时光机页面的最新说说。需要已发布一个使用“时间机器”模板的独立页面。')
     );
     $form->addInput($jikePosition);
 
@@ -444,10 +472,107 @@ function themeConfig($form)
             'relative' => _t('相对时间'),
         ),
         'absolute',
-        _t('即刻时间显示'),
+        _t('侧边栏说说 - 时间显示'),
         _t('纯日期显示为 MM-DD；相对时间支持“刚刚 / X分钟前 / X小时前 / X天前”，超过 3 天后自动回退为 MM-DD。')
     );
     $form->addInput($jikeTimeMode);
+
+    $sidebarMomentCount = new Typecho_Widget_Helper_Form_Element_Text(
+        'sidebarMomentCount',
+        null,
+        '4',
+        _t('侧边栏说说 - 展示数量'),
+        _t('首页侧边栏展示的最新说说数量，建议 3-6 条。')
+    );
+    $form->addInput($sidebarMomentCount);
+
+    $homeHeroEyebrow = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroEyebrow',
+        null,
+        '写作 · 技术 · 生活 · 随笔',
+        _t('首页 Hero - 小字标签'),
+        _t('显示在首页大标题上方，建议用短词并以 · 分隔。')
+    );
+    $form->addInput($homeHeroEyebrow);
+
+    $homeHeroLines = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'homeHeroLines',
+        null,
+        "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]",
+        _t('首页 Hero - 轮播句子'),
+        _t('每行一句。支持 [caramel]文字[/caramel]、[red]、[orange]、[yellow]、[green]、[cyan]、[blue]、[purple] 标注高亮。')
+    );
+    $form->addInput($homeHeroLines);
+
+    $homeHeroQuote = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'homeHeroQuote',
+        null,
+        null,
+        _t('首页 Hero - 简短说明'),
+        _t('显示在首页 Hero 大标题下方。留空时兼容旧版“关于页面简介”。')
+    );
+    $form->addInput($homeHeroQuote);
+
+    $homeHeroSwitchInterval = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroSwitchInterval',
+        null,
+        '5200',
+        _t('首页 Hero - 文字切换时间'),
+        _t('单位毫秒。建议 3500-9000，例如 5200。')
+    );
+    $form->addInput($homeHeroSwitchInterval);
+
+    $homeHeroTypingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroTypingSpeed',
+        null,
+        '92',
+        _t('首页 Hero - 打字速度'),
+        _t('单位毫秒，每个字符出现的间隔。仅打字机模式生效，建议 60-160。')
+    );
+    $form->addInput($homeHeroTypingSpeed);
+
+    $homeHeroDeletingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroDeletingSpeed',
+        null,
+        '24',
+        _t('首页 Hero - 删除速度'),
+        _t('单位毫秒，每个字符删除的间隔。仅打字机模式生效，建议 15-80。')
+    );
+    $form->addInput($homeHeroDeletingSpeed);
+
+    $homeHeroTypingPause = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeHeroTypingPause',
+        null,
+        '220',
+        _t('首页 Hero - 空白停顿'),
+        _t('单位毫秒。删除完上一句后，空一小会儿再打出下一句。仅打字机模式生效。')
+    );
+    $form->addInput($homeHeroTypingPause);
+
+    $homeHeroAnimation = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeHeroAnimation',
+        array(
+            'fade' => _t('淡入淡出'),
+            'typewriter' => _t('打字机（先快速删除，再打出）'),
+        ),
+        'fade',
+        _t('首页 Hero - 切换方式'),
+        _t('打字机模式会先较快删除上一句，再逐字打出下一句；动效关闭偏好下会自动停用切换。')
+    );
+    $form->addInput($homeHeroAnimation);
+
+    $homeHeroHitokotoMode = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeHeroHitokotoMode',
+        array(
+            'list' => _t('列表轮播'),
+            'loop-hitokoto' => _t('列表循环，并隔条插入一言'),
+            'hitokoto-after-list' => _t('列表播完一遍后切换为一言'),
+        ),
+        'list',
+        _t('首页 Hero - 一言模式'),
+        _t('一言来自 hitokoto 接口；接口失败时会继续显示本地列表。')
+    );
+    $form->addInput($homeHeroHitokotoMode);
 
     // 关于页面信息
     $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
@@ -461,11 +586,19 @@ function themeConfig($form)
     $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS代码'));
     $trackingCode = new Typecho_Widget_Helper_Form_Element_Text('trackingCode', null, null, _t('JS 追踪代码'), _t('在这里填写第三方统计 JS 代码'));
     $footerInfo = new Typecho_Widget_Helper_Form_Element_Text('footerInfo', null, null, _t('页脚信息'), _t('在这里填写页脚信息，支持 HTML'));
+    $defaultCopyrightInfo = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'defaultCopyrightInfo',
+        null,
+        null,
+        _t('默认版权说明'),
+        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]。留空则使用主题内置默认文案。")
+    );
 
     $form->addInput($customCSS);
     $form->addInput($customJS);
     $form->addInput($trackingCode);
     $form->addInput($footerInfo);
+    $form->addInput($defaultCopyrightInfo);
 
     // === 友链配置 ===
     $friendsData = new Typecho_Widget_Helper_Form_Element_Textarea(
@@ -514,6 +647,14 @@ function themeFields($layout) {
     // 设置文章简介
     $excerpt = new Typecho_Widget_Helper_Form_Element_Textarea('excerpt', null, null, _t('文章 - 简介'), _t('在这里填写文章的简介，将在文章列表中显示，为空则默认摘录正文前200个字符。'));
 
+    $copyrightInfo = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'copyrightInfo',
+        null,
+        null,
+        _t('文章 - 版权说明'),
+        _t("留空则使用默认版权说明。支持短代码，例如：[badge color=\"cyan\"]原创[/badge]、[callout type=\"info\" title=\"转载说明\"]请保留原文链接[/callout]、[button href=\"https://example.com\"]相关链接[/button]。")
+    );
+
     $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
 
     $navShow = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -549,6 +690,7 @@ function themeFields($layout) {
 
     if ($isPostEditor || $isUnknownEditor) {
         $layout->addItem($excerpt);
+        $layout->addItem($copyrightInfo);
         $layout->addItem($showThumbnail);
         $layout->addItem($thumbnail);
         $layout->addItem($isSticky);
@@ -645,16 +787,10 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         $colors = 'red|orange|yellow|green|cyan|blue|purple';
 
         for ($i = 0; $i < 4; $i++) {
-            $next = preg_replace_callback('/\[fold(?:\s+title=(?:"([^"]*)"|\'([^\']*)\'|([^\]\s]+)))?\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
-                $title = '';
-                foreach ([1, 2, 3] as $index) {
-                    if (isset($matches[$index]) && trim($matches[$index]) !== '') {
-                        $title = trim($matches[$index]);
-                        break;
-                    }
-                }
-
-                $body = isset($matches[4]) ? $matches[4] : '';
+            $next = preg_replace_callback('/\[fold([^\]]*)\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
                 return trim($title . ' ' . $body);
             }, $text);
 
@@ -666,8 +802,24 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         }
 
         $text = preg_replace('/\[mark(?:\s+color=(["\']?)[a-zA-Z]+\1)?\]([\s\S]*?)\[\/mark\]/iu', '$2', $text);
+        $text = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '$1', $text);
+        $text = preg_replace('/\[button(?:\s+[^\]]*)?\]([\s\S]*?)\[\/button\]/iu', '$1', $text);
+        $text = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '$1', $text);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[callout(?:\s+[^\]]*)?\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
+                return isset($matches[1]) ? $matches[1] : '';
+            }, $text);
+
+            if ($next === $text) {
+                break;
+            }
+
+            $text = $next;
+        }
+
         $text = preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', $text);
-        $text = preg_replace('/\[\/?(?:mark|fold|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
+        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
 
         return $text;
     }
@@ -682,33 +834,304 @@ if (!function_exists('qiwiSanitizeShortcodeColor')) {
     }
 }
 
+if (!function_exists('qiwiGetTermColorNames')) {
+    function qiwiGetTermColorNames()
+    {
+        return ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
+    }
+}
+
+if (!function_exists('qiwiGetSequentialTermColor')) {
+    function qiwiGetSequentialTermColor($index, $total)
+    {
+        $total = max(1, (int) $total);
+        $index = max(0, (int) $index);
+
+        if ($total === 1) {
+            $colors = ['red'];
+        } elseif ($total === 2) {
+            $colors = ['red', 'blue'];
+        } elseif ($total === 3) {
+            $colors = ['red', 'green', 'blue'];
+        } elseif ($total === 4) {
+            $colors = ['red', 'yellow', 'green', 'blue'];
+        } elseif ($total === 5) {
+            $colors = ['red', 'yellow', 'green', 'blue', 'purple'];
+        } elseif ($total === 6) {
+            $colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
+        } else {
+            $colors = qiwiGetTermColorNames();
+        }
+
+        return $colors[$index % count($colors)];
+    }
+}
+
+if (!function_exists('qiwiGetTermValue')) {
+    function qiwiGetTermValue($term, $key, $default = '')
+    {
+        if (is_array($term) && isset($term[$key])) {
+            return $term[$key];
+        }
+
+        if (is_object($term) && isset($term->{$key})) {
+            return $term->{$key};
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('qiwiGetStableTermColor')) {
+    function qiwiGetStableTermColor($term)
+    {
+        $colors = qiwiGetTermColorNames();
+        $key = (string) qiwiGetTermValue($term, 'slug', '');
+        if ($key === '') {
+            $key = (string) qiwiGetTermValue($term, 'name', '');
+        }
+        if ($key === '') {
+            $key = (string) qiwiGetTermValue($term, 'mid', '');
+        }
+
+        $index = (int) (sprintf('%u', crc32($key !== '' ? $key : 'term')) % count($colors));
+        return $colors[$index];
+    }
+}
+
+if (!function_exists('qiwiGetCategoryColorMap')) {
+    function qiwiGetCategoryColorMap()
+    {
+        static $map = null;
+        if ($map !== null) {
+            return $map;
+        }
+
+        $map = [];
+        $rows = [];
+
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $sortAsc = class_exists('Typecho_Db') ? Typecho_Db::SORT_ASC : \Typecho\Db::SORT_ASC;
+            $rows = $db->fetchAll($db->select('mid', 'name', 'slug')
+                ->from('table.metas')
+                ->where('type = ?', 'category')
+                ->where('count > ?', 0)
+                ->order('table.metas.order', $sortAsc)
+                ->order('table.metas.mid', $sortAsc));
+        } catch (Exception $e) {
+            $rows = [];
+        } catch (Throwable $e) {
+            $rows = [];
+        }
+
+        $total = count($rows);
+        foreach ($rows as $index => $row) {
+            $color = qiwiGetSequentialTermColor($index, $total);
+            foreach (['mid', 'slug', 'name'] as $key) {
+                if (isset($row[$key]) && (string) $row[$key] !== '') {
+                    $map[$key . ':' . (string) $row[$key]] = $color;
+                }
+            }
+        }
+
+        return $map;
+    }
+}
+
+if (!function_exists('qiwiGetCategoryTermColor')) {
+    function qiwiGetCategoryTermColor($term)
+    {
+        $map = qiwiGetCategoryColorMap();
+        foreach (['mid', 'slug', 'name'] as $key) {
+            $value = (string) qiwiGetTermValue($term, $key, '');
+            if ($value !== '' && isset($map[$key . ':' . $value])) {
+                return $map[$key . ':' . $value];
+            }
+        }
+
+        return qiwiGetStableTermColor($term);
+    }
+}
+
+if (!function_exists('qiwiRenderTermLinks')) {
+    function qiwiRenderTermLinks($terms, $className = '', $colorMode = 'stable')
+    {
+        if (empty($terms) || !is_array($terms)) {
+            return '';
+        }
+
+        $links = [];
+        $total = count($terms);
+        foreach ($terms as $index => $term) {
+            $name = trim((string) qiwiGetTermValue($term, 'name', ''));
+            $url = trim((string) qiwiGetTermValue($term, 'permalink', '#'));
+            if ($name === '') {
+                continue;
+            }
+
+            if ($colorMode === 'category') {
+                $color = qiwiGetCategoryTermColor($term);
+            } elseif ($colorMode === 'sequence') {
+                $color = qiwiGetSequentialTermColor($index, $total);
+            } else {
+                $color = qiwiGetStableTermColor($term);
+            }
+            $classes = trim('qiwi-term qiwi-term-' . $color . ' ' . $className);
+            $links[] = '<a href="' . htmlspecialchars($url !== '' ? $url : '#', ENT_QUOTES, 'UTF-8') . '" class="' . htmlspecialchars($classes, ENT_QUOTES, 'UTF-8') . '">'
+                . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '</a>';
+        }
+
+        return implode('', $links);
+    }
+}
+
+if (!function_exists('qiwiParseShortcodeAttrs')) {
+    function qiwiParseShortcodeAttrs($text)
+    {
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $attrs = [];
+
+        if ($text === '') {
+            return $attrs;
+        }
+
+        if (preg_match_all('/([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s\]]+))/u', $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = strtolower($match[1]);
+                $value = '';
+                foreach ([2, 3, 4] as $index) {
+                    if (isset($match[$index]) && $match[$index] !== '') {
+                        $value = $match[$index];
+                        break;
+                    }
+                }
+                $attrs[$name] = trim($value);
+            }
+        }
+
+        return $attrs;
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeType')) {
+    function qiwiSanitizeShortcodeType($type)
+    {
+        $type = strtolower(trim((string) $type));
+        $allowed = ['note', 'info', 'success', 'warning', 'danger', 'quote'];
+        return in_array($type, $allowed, true) ? $type : 'note';
+    }
+}
+
+if (!function_exists('qiwiShortcodeTypeToColor')) {
+    function qiwiShortcodeTypeToColor($type)
+    {
+        $map = [
+            'note' => 'purple',
+            'info' => 'cyan',
+            'success' => 'green',
+            'warning' => 'yellow',
+            'danger' => 'red',
+            'quote' => 'blue',
+        ];
+
+        return isset($map[$type]) ? $map[$type] : 'purple';
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeVariant')) {
+    function qiwiSanitizeShortcodeVariant($variant)
+    {
+        $variant = strtolower(trim((string) $variant));
+        $allowed = ['soft', 'outline', 'solid', 'ghost'];
+        return in_array($variant, $allowed, true) ? $variant : 'soft';
+    }
+}
+
+if (!function_exists('qiwiShortcodeBoolAttr')) {
+    function qiwiShortcodeBoolAttr($attrs, $name, $default = false)
+    {
+        if (!isset($attrs[$name])) {
+            return $default;
+        }
+
+        $value = strtolower(trim((string) $attrs[$name]));
+        if (in_array($value, ['1', 'true', 'yes', 'on', 'open'], true)) {
+            return true;
+        }
+
+        if (in_array($value, ['0', 'false', 'no', 'off', 'closed'], true)) {
+            return false;
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('qiwiSanitizeShortcodeUrl')) {
+    function qiwiSanitizeShortcodeUrl($url)
+    {
+        $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') {
+            return '#';
+        }
+
+        if (preg_match('/^(https?:\/\/|mailto:|tel:|\/|#)/i', $url)) {
+            return $url;
+        }
+
+        return '#';
+    }
+}
+
 if (!function_exists('qiwiRenderShortcodeSegment')) {
     function qiwiRenderShortcodeSegment($html)
     {
         $colors = 'red|orange|yellow|green|cyan|blue|purple';
-        $foldOpening = '\[fold(?:\s+title=(?:"[^"]*"|\'[^\']*\'|[^\]\s]+))?\]';
+        $foldOpening = '\[fold(?:\s+[^\]]*)?\]';
+        $calloutOpening = '\[callout(?:\s+[^\]]*)?\]';
+        $buttonsOpening = '\[buttons(?:\s+[^\]]*)?\]';
 
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/fold\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
         $html = preg_replace('/<p>\s*(\[\/fold\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
+        $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/callout\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/callout\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<span>$2</span>', $html);
+        $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/buttons\])\s*<\/p>/iu', '<span>$1</span>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/buttons\])\s*<\/p>/iu', '$1', $html);
 
         for ($i = 0; $i < 4; $i++) {
-            $next = preg_replace_callback('/\[fold(?:\s+title=(?:"([^"]*)"|\'([^\']*)\'|([^\]\s]+)))?\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
-                $title = '';
-                foreach ([1, 2, 3] as $index) {
-                    if (isset($matches[$index]) && trim($matches[$index]) !== '') {
-                        $title = trim($matches[$index]);
-                        break;
-                    }
-                }
-
+            $next = preg_replace_callback('/\[fold([^\]]*)\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
                 if ($title === '') {
                     $title = '展开内容';
                 }
 
-                $body = isset($matches[4]) ? $matches[4] : '';
-                return '<details class="qiwi-fold"><summary>' . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8') . '</summary><div class="qiwi-fold-body">' . $body . '</div></details>';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                $isOpen = qiwiShortcodeBoolAttr($attrs, 'open', true);
+                if (isset($attrs['default']) && strtolower(trim((string) $attrs['default'])) === 'closed') {
+                    $isOpen = false;
+                }
+                if (qiwiShortcodeBoolAttr($attrs, 'closed', false)) {
+                    $isOpen = false;
+                }
+
+                $variant = isset($attrs['variant']) ? strtolower(trim((string) $attrs['variant'])) : '';
+                if ($variant === '' && isset($attrs['style'])) {
+                    $variant = strtolower(trim((string) $attrs['style']));
+                }
+                $noDivider = in_array($variant, ['plain', 'clean', 'no-divider', 'nodivider'], true)
+                    || qiwiShortcodeBoolAttr($attrs, 'divider', true) === false;
+                $class = 'qiwi-fold' . ($noDivider ? ' qiwi-fold-no-divider' : '');
+                $openAttr = $isOpen ? ' open' : '';
+
+                return '<details class="' . $class . '"' . $openAttr . '><summary>' . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8') . '</summary><div class="qiwi-fold-body">' . $body . '</div></details>';
             }, $html);
 
             if ($next === $html) {
@@ -718,7 +1141,65 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
             $html = $next;
         }
 
-        $html = preg_replace('/<p>\s*(<details class="qiwi-fold"[\s\S]*?<\/details>)\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(<details class="qiwi-fold(?:\s+[^"]*)?"[\s\S]*?<\/details>)\s*<\/p>/iu', '$1', $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[callout([^\]]*)\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $type = qiwiSanitizeShortcodeType(isset($attrs['type']) ? $attrs['type'] : (isset($attrs['color']) ? $attrs['color'] : 'note'));
+                $color = isset($attrs['color']) ? qiwiSanitizeShortcodeColor($attrs['color']) : qiwiShortcodeTypeToColor($type);
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? trim($matches[2]) : '';
+                $class = 'qiwi-callout qiwi-callout-' . $color . ' qiwi-callout-type-' . $type;
+                $titleHtml = $title !== '' ? '<div class="qiwi-callout-title">' . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8') . '</div>' : '';
+
+                return '<aside class="' . $class . '">' . $titleHtml . '<div class="qiwi-callout-body">' . $body . '</div></aside>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<aside class="qiwi-callout[\s\S]*?<\/aside>)\s*<\/p>/iu', '$1', $html);
+
+        $html = preg_replace_callback('/\[badge([^\]]*)\]([\s\S]*?)\[\/badge\]/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $color = qiwiSanitizeShortcodeColor(isset($attrs['color']) ? $attrs['color'] : 'cyan');
+            $variant = qiwiSanitizeShortcodeVariant(isset($attrs['variant']) ? $attrs['variant'] : 'soft');
+            return '<span class="qiwi-badge qiwi-badge-' . $color . ' qiwi-badge-' . $variant . '">' . $matches[2] . '</span>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[button\b([^\]]*)\]([\s\S]*?)\[\/button\]/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
+            $color = qiwiSanitizeShortcodeColor(isset($attrs['color']) ? $attrs['color'] : 'cyan');
+            $variant = qiwiSanitizeShortcodeVariant(isset($attrs['variant']) ? $attrs['variant'] : (isset($attrs['style']) ? $attrs['style'] : 'outline'));
+            $target = isset($attrs['target']) && strtolower($attrs['target']) === '_blank' ? ' target="_blank" rel="noopener noreferrer"' : '';
+            $label = trim($matches[2]) !== '' ? $matches[2] : htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
+            return '<a class="qiwi-button qiwi-button-' . $color . ' qiwi-button-' . $variant . '" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        }, $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[buttons([^\]]*)\]([\s\S]*?)\[\/buttons\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $align = isset($attrs['align']) ? strtolower(trim($attrs['align'])) : 'left';
+                if (!in_array($align, ['left', 'center', 'right'], true)) {
+                    $align = 'left';
+                }
+                return '<div class="qiwi-buttons qiwi-buttons-' . $align . '">' . $matches[2] . '</div>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<div class="qiwi-buttons[\s\S]*?<\/div>)\s*<\/p>/iu', '$1', $html);
 
         $html = preg_replace_callback('/\[mark(?:\s+color=(["\']?)([a-zA-Z]+)\1)?\]([\s\S]*?)\[\/mark\]/iu', function ($matches) {
             $color = qiwiSanitizeShortcodeColor(isset($matches[2]) && $matches[2] !== '' ? $matches[2] : 'yellow');
@@ -752,6 +1233,67 @@ if (!function_exists('qiwiRenderShortcodes')) {
         }
 
         return implode('', $parts);
+    }
+}
+
+if (!function_exists('qiwiRenderFieldRichText')) {
+    function qiwiRenderFieldRichText($text)
+    {
+        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $text));
+        if ($text === '') {
+            return '';
+        }
+
+        $blocks = preg_split("/\n{2,}/u", $text);
+        $html = '';
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if ($block === '') {
+                continue;
+            }
+
+            $escaped = htmlspecialchars($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $escaped = nl2br($escaped, false);
+            if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)) {
+                $html .= $escaped;
+            } else {
+                $html .= '<p>' . $escaped . '</p>';
+            }
+        }
+
+        return qiwiRenderShortcodes($html);
+    }
+}
+
+if (!function_exists('qiwiGetPostCopyrightHtml')) {
+    function qiwiGetPostCopyrightHtml($widget)
+    {
+        $custom = trim((string) qiwiGetFieldValue($widget, 'copyrightInfo', ''));
+        if ($custom !== '') {
+            return qiwiRenderFieldRichText($custom);
+        }
+
+        $themeDefault = trim((string) qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
+        if ($themeDefault !== '') {
+            return qiwiRenderFieldRichText($themeDefault);
+        }
+
+        ob_start();
+        $widget->permalink();
+        $permalink = trim(ob_get_clean());
+
+        ob_start();
+        $widget->author();
+        $author = trim(ob_get_clean());
+
+        $siteTitle = trim((string) qiwiGetOptionValue($widget, 'title', ''));
+
+        $author = $author !== '' ? $author : '作者';
+        $siteTitle = $siteTitle !== '' ? $siteTitle : '本站';
+        $permalinkEscaped = htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8');
+
+        return '<p><span class="qiwi-badge qiwi-badge-cyan qiwi-badge-soft">原创</span> 本文由 ' . htmlspecialchars($author, ENT_QUOTES, 'UTF-8') . ' 发布于 <a href="' . $permalinkEscaped . '">' . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . '</a>。</p>'
+            . '<p>转载或引用时，请保留作者与原文链接：<a href="' . $permalinkEscaped . '">' . $permalinkEscaped . '</a></p>';
     }
 }
 
@@ -807,6 +1349,151 @@ if (!function_exists('qiwiGetOptionValue')) {
         }
 
         return $default;
+    }
+}
+
+if (!function_exists('qiwiGetPositiveIntOption')) {
+    function qiwiGetPositiveIntOption($widget, $name, $default, $min = 1, $max = 99)
+    {
+        $value = (int) qiwiGetOptionValue($widget, $name, $default);
+        if ($value < $min) {
+            return (int) $min;
+        }
+        if ($value > $max) {
+            return (int) $max;
+        }
+
+        return $value;
+    }
+}
+
+if (!function_exists('qiwiGetSidebarProfileAvatar')) {
+    function qiwiGetSidebarProfileAvatar($widget)
+    {
+        $avatar = trim((string) qiwiGetOptionValue($widget, 'sidebarProfileAvatar', ''));
+        if ($avatar === '') {
+            $avatar = trim((string) qiwiGetOptionValue($widget, 'aboutAvatar', ''));
+        }
+
+        return $avatar !== '' ? $avatar : 'https://gravatar.loli.net/avatar/default?s=160&d=mp';
+    }
+}
+
+if (!function_exists('qiwiGetSidebarProfileText')) {
+    function qiwiGetSidebarProfileText($widget)
+    {
+        $text = trim((string) qiwiGetOptionValue($widget, 'sidebarProfileText', ''));
+        if ($text === '') {
+            $text = trim((string) qiwiGetOptionValue($widget, 'aboutBio', ''));
+        }
+
+        return $text;
+    }
+}
+
+if (!function_exists('qiwiNormalizeSidebarEmailUrl')) {
+    function qiwiNormalizeSidebarEmailUrl($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        return stripos($value, 'mailto:') === 0 ? $value : 'mailto:' . $value;
+    }
+}
+
+if (!function_exists('qiwiGetHomeHeroColorNames')) {
+    function qiwiGetHomeHeroColorNames()
+    {
+        return ['caramel', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
+    }
+}
+
+if (!function_exists('qiwiRenderHomeHeroLine')) {
+    function qiwiRenderHomeHeroLine($line)
+    {
+        $line = trim((string) $line);
+        if ($line === '') {
+            return '';
+        }
+
+        $colors = implode('|', qiwiGetHomeHeroColorNames());
+        $pattern = '/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu';
+        $html = '';
+        $offset = 0;
+
+        if (preg_match_all($pattern, $line, $matches, PREG_OFFSET_CAPTURE)) {
+            foreach ($matches[0] as $index => $match) {
+                $start = $match[1];
+                $length = strlen($match[0]);
+                if ($start > $offset) {
+                    $html .= htmlspecialchars(substr($line, $offset, $start - $offset), ENT_QUOTES, 'UTF-8');
+                }
+
+                $color = strtolower($matches[1][$index][0]);
+                $text = $matches[2][$index][0];
+                $html .= '<span class="home-hero-accent home-hero-accent-' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '">'
+                    . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</span>';
+                $offset = $start + $length;
+            }
+        }
+
+        if ($offset < strlen($line)) {
+            $html .= htmlspecialchars(substr($line, $offset), ENT_QUOTES, 'UTF-8');
+        }
+
+        return $html !== '' ? $html : htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('qiwiStripHomeHeroMarks')) {
+    function qiwiStripHomeHeroMarks($line)
+    {
+        $colors = implode('|', qiwiGetHomeHeroColorNames());
+        return trim(preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', (string) $line));
+    }
+}
+
+if (!function_exists('qiwiGetHomeHeroItems')) {
+    function qiwiGetHomeHeroItems($widget)
+    {
+        $raw = (string) qiwiGetOptionValue($widget, 'homeHeroLines', '');
+        if (trim($raw) === '') {
+            $raw = "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]";
+        }
+
+        $items = [];
+        foreach (preg_split('/\R/u', $raw) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $html = qiwiRenderHomeHeroLine($line);
+            if ($html === '') {
+                continue;
+            }
+
+            $items[] = [
+                'html' => $html,
+                'text' => qiwiStripHomeHeroMarks($line),
+            ];
+
+            if (count($items) >= 16) {
+                break;
+            }
+        }
+
+        if (empty($items)) {
+            $title = trim((string) qiwiGetOptionValue($widget, 'title', 'Qiwi'));
+            $items[] = [
+                'html' => htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
+                'text' => $title,
+            ];
+        }
+
+        return $items;
     }
 }
 
@@ -931,6 +1618,15 @@ if (!function_exists('qiwiResolveNavigationTarget')) {
             return ['url' => $target, 'slug' => '', 'external' => true];
         }
 
+        if (in_array(strtolower($target), ['feed', 'rss'], true)) {
+            $feedUrl = trim((string) qiwiGetOptionValue($widget, 'feedUrl', ''));
+            if ($feedUrl === '' && $siteUrl !== '') {
+                $feedUrl = $siteUrl . '/feed/';
+            }
+
+            return ['url' => $feedUrl !== '' ? $feedUrl : '#', 'slug' => '', 'external' => false];
+        }
+
         if ($target[0] === '#') {
             return ['url' => $target, 'slug' => '', 'external' => false];
         }
@@ -1053,6 +1749,62 @@ if (!function_exists('qiwiNavigationUsesFontAwesome')) {
             }
 
             if (!empty($item['children'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('qiwiGetSidebarSocialLinks')) {
+    function qiwiGetSidebarSocialLinks($widget)
+    {
+        $config = trim((string) qiwiGetOptionValue($widget, 'sidebarSocialLinks', ''));
+        $links = [];
+
+        foreach (preg_split('/\r\n|\r|\n/', $config) as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) {
+                continue;
+            }
+
+            $parts = array_map('trim', explode('|', $line, 3));
+            $title = isset($parts[0]) ? $parts[0] : '';
+            $target = isset($parts[1]) ? $parts[1] : '';
+            $icon = isset($parts[2]) ? qiwiSanitizeIconClass($parts[2]) : '';
+
+            if ($title === '' || $target === '') {
+                continue;
+            }
+
+            if (strpos($target, '@') !== false && !preg_match('/^[a-z][a-z0-9+.-]*:/i', $target)) {
+                $target = qiwiNormalizeSidebarEmailUrl($target);
+            }
+
+            $resolved = qiwiResolveNavigationTarget($widget, $target);
+            $links[] = [
+                'title' => $title,
+                'url' => $resolved['url'],
+                'external' => $resolved['external'] && !preg_match('/^(mailto|tel):/i', $resolved['url']),
+                'icon' => $icon,
+                'kind' => '',
+            ];
+
+            if (count($links) >= 12) {
+                break;
+            }
+        }
+
+        return $links;
+    }
+}
+
+if (!function_exists('qiwiSidebarSocialUsesFontAwesome')) {
+    function qiwiSidebarSocialUsesFontAwesome($widget)
+    {
+        foreach (qiwiGetSidebarSocialLinks($widget) as $link) {
+            if (!empty($link['icon'])) {
                 return true;
             }
         }

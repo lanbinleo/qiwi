@@ -32,7 +32,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
                 <?php if ($this->categories): ?>
                 <span class="meta-category">
-                    <?php $this->category(','); ?>
+                    <?php echo qiwiRenderTermLinks($this->categories, 'meta-category-link', 'category'); ?>
                 </span>
                 <?php endif; ?>
                 <?php if ($this->fields->isSticky == 1): ?>
@@ -55,7 +55,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             </p>
             <?php if ($this->tags): ?>
             <div class="article-tags">
-                <?php $this->tags(' ', true, ''); ?>
+                <?php echo qiwiRenderTermLinks($this->tags, 'tag'); ?>
             </div>
             <?php endif; ?>
         </div>

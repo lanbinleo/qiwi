@@ -248,7 +248,7 @@
     border: 1px solid #d9d9d9;
     border-radius: 8px;
     background: #fff;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .qiwi-admin-tabs {
@@ -277,6 +277,7 @@
 .qiwi-admin-pane {
     display: none;
     padding: 16px;
+    overflow: visible;
 }
 
 .qiwi-admin-pane.is-active {
@@ -366,7 +367,8 @@
 
 .qiwi-nav-row,
 .qiwi-book-row,
-.qiwi-friend-category {
+.qiwi-friend-category,
+.qiwi-social-row {
     border: 1px solid #e6e6e6;
     border-radius: 8px;
     background: #fbfbfb;
@@ -391,6 +393,136 @@
 
 .qiwi-book-row {
     grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 1fr) auto;
+}
+
+.qiwi-social-editor {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0 0;
+}
+
+.qiwi-social-editor-head {
+    display: grid;
+    gap: 4px;
+}
+
+.qiwi-social-editor-head strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-social-editor-head span {
+    color: #777;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.qiwi-social-presets .qiwi-admin-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qiwi-social-row {
+    padding: 0;
+    overflow: hidden;
+}
+
+.qiwi-social-summary {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 28px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: #fff;
+    color: #444;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-social-summary:hover {
+    background: #f8f8f8;
+}
+
+.qiwi-social-summary-text {
+    min-width: 0;
+}
+
+.qiwi-social-summary-text strong,
+.qiwi-social-summary-text span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-social-summary-text strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-social-summary-text span {
+    color: #888;
+    font-size: 12px;
+}
+
+.qiwi-social-icon-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    background: #fff;
+    color: #467b96;
+}
+
+.qiwi-social-icon-preview i {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.qiwi-social-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.qiwi-social-arrow svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+.qiwi-social-row.is-open .qiwi-social-arrow {
+    transform: rotate(180deg);
+}
+
+.qiwi-social-editor-body {
+    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #e6e6e6;
+    background: #fbfbfb;
+}
+
+.qiwi-social-row.is-open .qiwi-social-editor-body {
+    display: grid;
+}
+
+.qiwi-social-editor-body label {
+    display: block;
+    color: #777;
+    font-size: 12px;
+}
+
+.qiwi-social-storage {
+    display: none !important;
 }
 
 .qiwi-admin-panel input,
@@ -616,6 +748,150 @@
     background: #fafafa;
 }
 
+.qiwi-config-transfer {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 14px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fbfbfb;
+}
+
+.qiwi-config-transfer-head {
+    display: grid;
+    gap: 4px;
+}
+
+.qiwi-config-transfer-head strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-config-transfer-head span,
+.qiwi-config-transfer-status {
+    color: #777;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.qiwi-config-transfer textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.qiwi-config-transfer-actions {
+    margin: 0;
+}
+
+.qiwi-config-transfer-status {
+    margin: 0;
+}
+
+.qiwi-config-transfer-status.is-error {
+    color: #c94f4f;
+}
+
+.qiwi-raw-details {
+    margin-bottom: 10px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.qiwi-raw-details summary {
+    padding: 11px 12px;
+    color: #444;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.qiwi-raw-details .qiwi-managed-field {
+    padding: 0 12px 12px;
+}
+
+.qiwi-markup-enhanced textarea {
+    margin-top: 0;
+}
+
+.qiwi-markup-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+    overflow: visible;
+}
+
+.qiwi-markup-menu {
+    position: relative;
+}
+
+.qiwi-markup-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.qiwi-markup-trigger i {
+    font-size: 11px;
+}
+
+.qiwi-markup-popover {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    bottom: calc(100% + 6px);
+    display: none;
+    min-width: 164px;
+    padding: 6px;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.qiwi-markup-menu.is-open .qiwi-markup-popover {
+    display: grid;
+    gap: 4px;
+}
+
+.qiwi-markup-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #444;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-markup-option:hover {
+    background: #f5f5f5;
+    color: #467b96;
+}
+
+.qiwi-markup-option[data-swatch]::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d4c4b0;
+}
+
+.qiwi-markup-option[data-swatch="red"]::before { background: #e59a9a; }
+.qiwi-markup-option[data-swatch="orange"]::before { background: #e0ad7d; }
+.qiwi-markup-option[data-swatch="yellow"]::before { background: #ded07f; }
+.qiwi-markup-option[data-swatch="green"]::before { background: #a9c997; }
+.qiwi-markup-option[data-swatch="cyan"]::before { background: #8ed0cc; }
+.qiwi-markup-option[data-swatch="blue"]::before { background: #9ebce5; }
+.qiwi-markup-option[data-swatch="purple"]::before { background: #c2a6e4; }
+
 @media (max-width: 900px) {
     .qiwi-update-card,
     .qiwi-update-command {
@@ -635,7 +911,8 @@
     .qiwi-nav-row,
     .qiwi-book-row,
     .qiwi-friend-category-header,
-    .qiwi-friend-editor {
+    .qiwi-friend-editor,
+    .qiwi-social-editor-body {
         grid-template-columns: 1fr;
     }
 
