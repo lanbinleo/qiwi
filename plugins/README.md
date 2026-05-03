@@ -6,3 +6,4 @@
 
 - `QiwiSitemap`：标准 sitemap、robots.txt、RSS/Atom 发现链接和 Qiwi 风格 sitemap 可视化页面。
 
+运行主题根目录的 `update.sh` 更新主题时，会自动把这里的伴生插件同步到 Typecho 的 `usr/plugins/` 目录。首次启用仍需要进入 Typecho 后台启用对应插件。

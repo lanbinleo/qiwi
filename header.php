@@ -6,19 +6,148 @@ $qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiN
     || (function_exists('qiwiSidebarSocialUsesFontAwesome') && qiwiSidebarSocialUsesFontAwesome($this))
     || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
 $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this);
+$qiwiCapture = function ($callback) {
+    ob_start();
+    $callback();
+    return trim(ob_get_clean());
+};
+$qiwiNormalizeLang = function ($lang) {
+    $lang = trim((string) $lang);
+    if ($lang === '') {
+        return 'zh-CN';
+    }
+
+    $parts = preg_split('/[-_]/', $lang);
+    $primary = strtolower($parts[0]);
+    if (empty($parts[1])) {
+        return $primary;
+    }
+
+    $region = $parts[1];
+    if (strlen($region) === 2) {
+        $region = strtoupper($region);
+    } else {
+        $region = ucfirst(strtolower($region));
+    }
+
+    return $primary . '-' . $region;
+};
+$qiwiToAbsoluteUrl = function ($url) {
+    $url = trim((string) $url);
+    if ($url === '') {
+        return '';
+    }
+
+    if (preg_match('/^https?:\/\//i', $url)) {
+        return $url;
+    }
+
+    if (strpos($url, '//') === 0) {
+        return 'https:' . $url;
+    }
+
+    $siteUrl = rtrim((string) $this->options->siteUrl, '/');
+    return $siteUrl . '/' . ltrim($url, '/');
+};
+$qiwiCanonicalFromPath = function ($url) {
+    $siteUrl = rtrim((string) $this->options->siteUrl, '/');
+    $path = parse_url((string) $url, PHP_URL_PATH);
+    if ($path === null || $path === false || $path === '') {
+        $path = '/';
+    }
+
+    return $siteUrl . '/' . ltrim($path, '/');
+};
+$qiwiLang = $qiwiNormalizeLang($qiwiCapture(function () { $this->options->lang(); }));
+$qiwiSiteTitle = $qiwiCapture(function () { $this->options->title(); });
+$qiwiTitlePrefix = $qiwiCapture(function () {
+    $this->archiveTitle([
+        'category' => _t('分类 %s 下的文章'),
+        'search'   => _t('包含关键字 %s 的文章'),
+        'tag'      => _t('标签 %s 下的文章'),
+        'author'   => _t('%s 发布的文章')
+    ], '', ' - ');
+});
+$qiwiSingleTitle = $this->is('single') ? $qiwiCapture(function () { $this->title(); }) : '';
+$qiwiPageTitle = $qiwiTitlePrefix . $qiwiSiteTitle;
+if ($this->is('single') && $qiwiSingleTitle !== '' && strpos($qiwiTitlePrefix, $qiwiSingleTitle) === false) {
+    $qiwiPageTitle = $qiwiSingleTitle . ' - ' . $qiwiSiteTitle;
+}
+
+$qiwiDescription = '';
+if ($this->is('single')) {
+    $qiwiFieldExcerpt = function_exists('qiwiGetFieldValue') ? qiwiGetFieldValue($this, 'excerpt', '') : '';
+    if (trim((string) $qiwiFieldExcerpt) !== '' && function_exists('qiwiExtractPlainText')) {
+        $qiwiDescription = qiwiExtractPlainText($qiwiFieldExcerpt);
+    } elseif (function_exists('qiwiExcerptText')) {
+        $qiwiDescription = qiwiExcerptText($this->content, 150);
+    } else {
+        $qiwiDescription = $qiwiCapture(function () { $this->excerpt(150, ''); });
+    }
+} else {
+    $qiwiDescription = $qiwiCapture(function () { $this->options->description(); });
+}
+$qiwiDescription = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $qiwiDescription)));
+
+$qiwiKeywords = $this->is('single')
+    ? $qiwiCapture(function () { $this->tags(',', false); })
+    : $qiwiCapture(function () { $this->options->keywords(); });
+$qiwiAuthor = $this->is('single')
+    ? $qiwiCapture(function () { $this->author(); })
+    : $qiwiSiteTitle;
+
+$qiwiPermalink = $this->is('single') ? $qiwiCapture(function () { $this->permalink(); }) : '';
+$qiwiRequestPath = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+$qiwiCanonicalUrl = $this->is('single') ? $qiwiCanonicalFromPath($qiwiPermalink) : $qiwiCanonicalFromPath($qiwiRequestPath);
+
+$qiwiThemeUrl = rtrim($qiwiCapture(function () { $this->options->themeUrl(); }), '/');
+$qiwiThumbnail = $this->is('single') && function_exists('qiwiGetFieldValue') ? qiwiGetFieldValue($this, 'thumbnail', '') : '';
+$qiwiOgImage = $qiwiToAbsoluteUrl($qiwiThumbnail);
+if ($qiwiOgImage === '') {
+    $qiwiOgImage = $qiwiToAbsoluteUrl($this->options->logoUrl);
+}
+if ($qiwiOgImage === '') {
+    $qiwiOgImage = $qiwiThemeUrl . '/apple-touch-icon.png';
+}
+
+$qiwiIsArticle = $this->is('single') && !$this->is('page');
+$qiwiJsonLd = null;
+if ($qiwiIsArticle) {
+    $qiwiJsonLd = [
+        '@context' => 'https://schema.org',
+        '@type' => 'BlogPosting',
+        'headline' => $qiwiSingleTitle,
+        'description' => $qiwiDescription,
+        'url' => $qiwiCanonicalUrl,
+        'mainEntityOfPage' => [
+            '@type' => 'WebPage',
+            '@id' => $qiwiCanonicalUrl,
+        ],
+        'author' => [
+            '@type' => 'Person',
+            'name' => $qiwiAuthor,
+        ],
+        'publisher' => [
+            '@type' => 'Organization',
+            'name' => $qiwiSiteTitle,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => $qiwiThemeUrl . '/apple-touch-icon.png',
+            ],
+        ],
+        'datePublished' => date('c', (int) $this->created),
+        'dateModified' => date('c', !empty($this->modified) ? (int) $this->modified : (int) $this->created),
+        'image' => [$qiwiOgImage],
+    ];
+}
 ?>
 <!DOCTYPE html>
-<html lang="<?php $this->options->lang(); ?>">
+<html lang="<?php echo htmlspecialchars($qiwiLang, ENT_QUOTES, 'UTF-8'); ?>">
 <head>
     <meta charset="<?php $this->options->charset(); ?>">
     <meta name="renderer" content="webkit">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php $this->archiveTitle([
-            'category' => _t('分类 %s 下的文章'),
-            'search'   => _t('包含关键字 %s 的文章'),
-            'tag'      => _t('标签 %s 下的文章'),
-            'author'   => _t('%s 发布的文章')
-        ], '', ' - '); ?><?php $this->options->title(); ?></title>
+    <title><?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
@@ -27,15 +156,38 @@ $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLate
     <?php endif; ?>
 
     <!-- Meta Tags -->
-    <meta name="description" content="<?php if ($this->is('single')) $this->excerpt(150, ''); else $this->options->description(); ?>">
-    <meta name="keywords" content="<?php if ($this->is('single')) $this->tags(',', false); else $this->options->keywords(); ?>">
-    <meta name="author" content="<?php if ($this->is('single')) $this->author(); else $this->options->title(); ?>">
+    <meta name="description" content="<?php echo htmlspecialchars($qiwiDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if (trim($qiwiKeywords) !== ''): ?>
+    <meta name="keywords" content="<?php echo htmlspecialchars($qiwiKeywords, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <meta name="author" content="<?php echo htmlspecialchars($qiwiAuthor, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="canonical" href="<?php echo htmlspecialchars($qiwiCanonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:site_name" content="<?php echo htmlspecialchars($qiwiSiteTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:title" content="<?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?php echo htmlspecialchars($qiwiDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:type" content="<?php echo $qiwiIsArticle ? 'article' : 'website'; ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($qiwiCanonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image" content="<?php echo htmlspecialchars($qiwiOgImage, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if ($qiwiIsArticle): ?>
+    <meta property="article:published_time" content="<?php echo htmlspecialchars(date('c', (int) $this->created), ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="article:modified_time" content="<?php echo htmlspecialchars(date('c', !empty($this->modified) ? (int) $this->modified : (int) $this->created), ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:description" content="<?php echo htmlspecialchars($qiwiDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:image" content="<?php echo htmlspecialchars($qiwiOgImage, ENT_QUOTES, 'UTF-8'); ?>">
 
     <!-- Favicon -->
-    <link rel="icon" href="<?php $this->options->themeUrl('favicon.ico'); ?>">
+    <link rel="icon" href="<?php $this->options->themeUrl('favicon.ico'); ?>" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?php $this->options->themeUrl('favicon-32x32.png'); ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?php $this->options->themeUrl('apple-touch-icon.png'); ?>">
 
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="<?php $this->options->title(); ?>" href="<?php $this->options->feedUrl(); ?>">
+
+    <?php if ($qiwiJsonLd !== null): ?>
+    <script type="application/ld+json"><?php echo json_encode($qiwiJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?></script>
+    <?php endif; ?>
 
     <!-- EXTENSIONS: LATEX -->
     <?php if ($qiwiUseLatex): ?>

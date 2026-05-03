@@ -1,8 +1,16 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.4.1";
+$version = "1.4.2";
 $releaseNotes = [
+    "1.4.2" => <<<EOT
+- 新增 canonical、Open Graph、Twitter Card 与文章页 BlogPosting JSON-LD，增强搜索引擎和社交分享识别
+- 规范 HTML lang 输出为 zh-CN 形式，并使用站点头像补齐 favicon、32x32 图标和 Apple Touch Icon
+- 优化移动端导航抽屉位置与隐藏状态，避免展开后停在页面顶部，并防止隐藏链接进入键盘焦点流
+- 提升辅助文字颜色对比度，改善 Lighthouse Accessibility 结果
+- 为文章列表缩略图与文章头图补充尺寸、异步解码和加载优先级提示
+- update.sh 新增伴生插件同步步骤，主题更新后会把 plugins 目录同步到 Typecho 的 usr/plugins
+EOT,
     "1.4.1" => <<<EOT
 - 新增 QiwiSitemap 伴生插件源码，提供标准 sitemap、robots.txt 与 RSS/Atom 发现链接
 - Sitemap 使用真实发布时间与修改时间生成 lastmod，并过滤未发布、加密和未来内容
@@ -180,6 +188,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.4.2" => "2026-05-03",
   "1.4.1" => "2026-05-03",
   "1.4.0" => "2026-05-02",
   "1.3.5" => "2026-05-01",

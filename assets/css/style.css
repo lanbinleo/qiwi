@@ -12,7 +12,7 @@
     --paper-edge-2: #4a4a52;
     --ink: #e4e4e7;
     --ink-soft: #a1a1aa;
-    --ink-faint: #71717a;
+    --ink-faint: #90909a;
 
     /* 焦糖墨 */
     --caramel: #d4c4b0;
@@ -118,7 +118,7 @@
     --paper-edge-2: #d4d4d6;
     --ink: #3f3f46;
     --ink-soft: #71717a;
-    --ink-faint: #a1a1aa;
+    --ink-faint: #696971;
     --caramel: #8b7355;
     --caramel-soft: #d4c4b0;
     --hue-red: #c84f61;
@@ -4131,28 +4131,27 @@ body.qiwi-lightbox-open {
     }
 
     .nav-links {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 180;
+        position: absolute;
+        top: calc(100% + var(--s-2));
+        left: var(--s-3);
+        right: var(--s-3);
+        z-index: 230;
         display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: var(--s-1);
-        max-height: min(82svh, 620px);
-        padding: calc(60px + var(--s-4) + env(safe-area-inset-top)) var(--s-3) var(--s-4);
+        max-height: calc(100svh - 72px - var(--s-5));
+        padding: var(--s-3);
         overflow-y: auto;
         overscroll-behavior: contain;
         background: rgba(24, 24, 27, 0.98);
-        border: 0;
-        border-bottom: 1px solid var(--color-border);
-        border-radius: 0 0 var(--r-lg) var(--r-lg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--r-lg);
         box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateY(calc(-100% - var(--s-4)));
+        transform: translateY(-8px);
         transition: opacity var(--transition), visibility var(--transition), transform var(--transition);
     }
 
