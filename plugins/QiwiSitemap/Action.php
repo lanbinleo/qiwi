@@ -97,6 +97,22 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->outputUrlSet($this->taxonomyNodes('tag'));
     }
 
+    public function moments()
+    {
+        if (!$this->boolOption('enableMomentsFeed', true)) {
+            $this->notFound();
+            return;
+        }
+
+        $page = $this->timemachinePage();
+        if (empty($page)) {
+            $this->notFound();
+            return;
+        }
+
+        $this->outputXml($this->momentsFeedXml($page), 'application/rss+xml; charset=UTF-8');
+    }
+
     public function robots()
     {
         if (!$this->boolOption('enableRobots', true)) {
@@ -115,6 +131,10 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             $lines[] = '# RSS: ' . $feedUrl;
         }
 
+        if ($this->boolOption('enableMomentsFeed', true)) {
+            $lines[] = '# Moments RSS: ' . $this->routeUrl('/timemachine.xml');
+        }
+
         $this->outputText(implode("\n", $lines) . "\n");
     }
 
@@ -130,6 +150,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $description = $this->xml($this->optionValue($options, 'description'));
         $homeUrl = $this->xml(rtrim($this->optionValue($options, 'siteUrl'), '/') . '/');
         $feedUrl = $this->xml($this->feedUrl());
+        $momentsUrl = $this->xml($this->routeUrl('/timemachine.xml'));
         $avatarUrl = $this->xml($this->avatarUrl());
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -163,6 +184,9 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         if ($feedUrl !== '') {
             $xml .= '<a class="pill" href="' . $feedUrl . '">RSS 订阅</a>';
         }
+        if ($this->boolOption('enableMomentsFeed', true)) {
+            $xml .= '<a class="pill" href="' . $momentsUrl . '">说说 RSS</a>';
+        }
         $xml .= '</nav>';
         $xml .= '<xsl:choose>';
         $xml .= '<xsl:when test="sitemap:sitemapindex"><div class="panel"><table><thead><tr><th>Sitemap</th><th class="date">Last Modified</th></tr></thead><tbody><xsl:for-each select="sitemap:sitemapindex/sitemap:sitemap"><tr><td class="loc"><a href="{sitemap:loc}"><xsl:value-of select="sitemap:loc"/></a></td><td class="date"><xsl:value-of select="sitemap:lastmod"/></td></tr></xsl:for-each></tbody></table></div></xsl:when>';
@@ -172,6 +196,64 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $xml .= '</xsl:template></xsl:stylesheet>';
 
         $this->outputXml($xml, 'text/xsl; charset=UTF-8');
+    }
+
+    private function momentsFeedXml(array $page)
+    {
+        $options = $this->siteOptions();
+        $pageUrl = $this->contentUrl($page);
+        $feedUrl = $this->routeUrl('/timemachine.xml');
+        $siteTitle = $this->optionValue($options, 'title');
+        $pageTitle = isset($page['title']) ? trim((string) $page['title']) : _t('时光机');
+        $author = $this->authorInfo(isset($page['authorId']) ? (int) $page['authorId'] : 0);
+        $items = $this->momentComments($page);
+        $lastBuild = !empty($items) ? (int) $items[0]['created'] : $this->contentLastmod($page);
+        $avatarUrl = $this->avatarUrl();
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">' . "\n";
+        $xml .= '<channel>' . "\n";
+        $xml .= '<title>' . $this->xml($siteTitle . ' - ' . _t('说说')) . '</title>' . "\n";
+        $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
+        $xml .= '<atom:link href="' . $this->xml($feedUrl) . '" rel="self" type="application/rss+xml" />' . "\n";
+        $xml .= '<description>' . $this->xml(sprintf(_t('来自「%s」的时光机动态'), $pageTitle)) . '</description>' . "\n";
+        $xml .= '<language>zh-CN</language>' . "\n";
+        $xml .= '<lastBuildDate>' . $this->dateForRss($lastBuild) . '</lastBuildDate>' . "\n";
+
+        if ($avatarUrl !== '') {
+            $xml .= '<image>' . "\n";
+            $xml .= '<url>' . $this->xml($avatarUrl) . '</url>' . "\n";
+            $xml .= '<title>' . $this->xml($siteTitle) . '</title>' . "\n";
+            $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
+            $xml .= '</image>' . "\n";
+        }
+
+        foreach ($items as $item) {
+            $itemLink = $pageUrl . '#comment-' . (int) $item['coid'];
+            $content = $this->renderMomentContent(isset($item['text']) ? $item['text'] : '');
+            $title = $this->momentTitle($item, $content);
+            $excerpt = trim(strip_tags($content));
+
+            $xml .= '<item>' . "\n";
+            $xml .= '<title>' . $this->xml($title) . '</title>' . "\n";
+            $xml .= '<link>' . $this->xml($itemLink) . '</link>' . "\n";
+            $xml .= '<guid isPermaLink="false">' . $this->xml($feedUrl . '#coid-' . (int) $item['coid']) . '</guid>' . "\n";
+            $xml .= '<pubDate>' . $this->dateForRss(isset($item['created']) ? (int) $item['created'] : 0) . '</pubDate>' . "\n";
+            $xml .= '<dc:creator>' . $this->xml($author['screenName']) . '</dc:creator>' . "\n";
+            if ($excerpt !== '') {
+                $xml .= '<description><![CDATA[' . $this->cdata(strip_tags($excerpt)) . ']]></description>' . "\n";
+            }
+            $xml .= '<content:encoded><![CDATA[' . "\n" . $this->cdata($content) . "\n" . ']]></content:encoded>' . "\n";
+            if ($avatarUrl !== '') {
+                $xml .= '<media:thumbnail url="' . $this->xml($avatarUrl) . '" />' . "\n";
+            }
+            $xml .= '</item>' . "\n";
+        }
+
+        $xml .= '</channel>' . "\n";
+        $xml .= '</rss>';
+
+        return $xml;
     }
 
     private function outputUrlSet(array $nodes)
@@ -248,6 +330,159 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         }
 
         return $nodes;
+    }
+
+    private function timemachinePage()
+    {
+        $db = Typecho_Db::get();
+        $options = $this->siteOptions();
+        $cid = (int) $this->option('momentsPageCid', '0');
+
+        $select = $db->select()->from('table.contents')
+            ->where('table.contents.type = ?', 'page')
+            ->where('table.contents.status = ?', 'publish')
+            ->where('(table.contents.password IS NULL OR table.contents.password = ?)', '')
+            ->where('table.contents.created < ?', $options->gmtTime)
+            ->order('table.contents.order', Typecho_Db::SORT_ASC)
+            ->order('table.contents.cid', Typecho_Db::SORT_ASC)
+            ->limit(1);
+
+        if ($cid > 0) {
+            $select->where('table.contents.cid = ?', $cid);
+        } else {
+            $select->where('table.contents.template = ?', 'page-timemachine.php');
+        }
+
+        return $db->fetchRow($select);
+    }
+
+    private function momentComments(array $page)
+    {
+        $db = Typecho_Db::get();
+        $limit = $this->intOption('momentsFeedLimit', 20, 1, 100);
+
+        return $db->fetchAll($db->select()->from('table.comments')
+            ->where('table.comments.cid = ?', $page['cid'])
+            ->where('table.comments.status = ?', 'approved')
+            ->where('table.comments.type = ?', 'comment')
+            ->where('table.comments.authorId = ?', $page['authorId'])
+            ->order('table.comments.created', Typecho_Db::SORT_DESC)
+            ->limit($limit));
+    }
+
+    private function authorInfo($uid)
+    {
+        $fallback = array('screenName' => $this->optionValue($this->siteOptions(), 'title'), 'url' => '', 'mail' => '');
+        if ($uid <= 0) {
+            return $fallback;
+        }
+
+        $db = Typecho_Db::get();
+        $row = $db->fetchRow($db->select('screenName', 'url', 'mail')
+            ->from('table.users')
+            ->where('uid = ?', $uid)
+            ->limit(1));
+
+        if (!$row) {
+            return $fallback;
+        }
+
+        return array(
+            'screenName' => isset($row['screenName']) && $row['screenName'] !== '' ? $row['screenName'] : $fallback['screenName'],
+            'url' => isset($row['url']) ? $row['url'] : '',
+            'mail' => isset($row['mail']) ? $row['mail'] : '',
+        );
+    }
+
+    private function renderMomentContent($text)
+    {
+        $text = str_replace(array("\r\n", "\r"), "\n", (string) $text);
+        if ($text === '') {
+            return '';
+        }
+
+        $html = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $html = $this->renderMomentBlockquotes($html);
+        $html = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/u', array($this, 'markdownImage'), $html);
+        $html = preg_replace('/\*\*([^*]+)\*\*/u', '<strong>$1</strong>', $html);
+        $html = preg_replace('/\*([^*]+)\*/u', '<em>$1</em>', $html);
+        $html = preg_replace('/`([^`]+)`/u', '<code>$1</code>', $html);
+        $html = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/u', array($this, 'markdownLink'), $html);
+        $html = nl2br($html);
+
+        return QiwiSitemap_Plugin::renderFeedHtml($html);
+    }
+
+    private function renderMomentBlockquotes($html)
+    {
+        $lines = explode("\n", $html);
+        $result = array();
+        $quoteLines = array();
+
+        foreach ($lines as $line) {
+            if (preg_match('/^&gt;\s?(.*)$/u', $line, $matches)) {
+                $quoteLines[] = $matches[1];
+                continue;
+            }
+
+            if (!empty($quoteLines)) {
+                $result[] = '<blockquote>' . implode("\n", $quoteLines) . '</blockquote>';
+                $quoteLines = array();
+            }
+
+            $result[] = $line;
+        }
+
+        if (!empty($quoteLines)) {
+            $result[] = '<blockquote>' . implode("\n", $quoteLines) . '</blockquote>';
+        }
+
+        return implode("\n", $result);
+    }
+
+    private function markdownImage($matches)
+    {
+        $src = $this->safeUrl(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($src === '#') {
+            return $matches[0];
+        }
+
+        return '<img src="' . $this->escapeHtml($src) . '" alt="' . $this->escapeHtml(html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . '" />';
+    }
+
+    private function markdownLink($matches)
+    {
+        $href = $this->safeUrl(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($href === '#') {
+            return $matches[1];
+        }
+
+        return '<a href="' . $this->escapeHtml($href) . '">' . $matches[1] . '</a>';
+    }
+
+    private function safeUrl($url)
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return '#';
+        }
+
+        return preg_match('/^(https?:\/\/|mailto:|tel:|\/|#)/i', $url) ? $url : '#';
+    }
+
+    private function momentTitle(array $item, $content = null)
+    {
+        $text = $content !== null ? trim(strip_tags((string) $content)) : (isset($item['text']) ? trim(strip_tags((string) $item['text'])) : '');
+        $text = preg_replace('/\s+/u', ' ', $text);
+        if ($text === '') {
+            return _t('一条说说');
+        }
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($text, 0, 42, 'UTF-8') . (mb_strlen($text, 'UTF-8') > 42 ? '...' : '');
+        }
+
+        return strlen($text) > 84 ? substr($text, 0, 84) . '...' : $text;
     }
 
     private function contentUrl(array $row)
@@ -389,6 +624,22 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         return date('c', (int) $timestamp);
     }
 
+    private function dateForRss($timestamp)
+    {
+        $timestamp = (int) $timestamp;
+        return date('r', $timestamp > 0 ? $timestamp : time());
+    }
+
+    private function cdata($value)
+    {
+        return str_replace(']]>', ']]]]><![CDATA[>', (string) $value);
+    }
+
+    private function escapeHtml($value)
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
     private function avatarUrl()
     {
         $settingsAvatar = trim($this->option('avatarUrl', ''));
@@ -446,6 +697,20 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
     private function boolOption($name, $default)
     {
         return $this->option($name, $default ? '1' : '0') === '1';
+    }
+
+    private function intOption($name, $default, $min, $max)
+    {
+        $value = (int) $this->option($name, (string) $default);
+        if ($value < $min) {
+            return $min;
+        }
+
+        if ($value > $max) {
+            return $max;
+        }
+
+        return $value;
     }
 
     private function option($name, $default)

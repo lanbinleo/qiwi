@@ -8,12 +8,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  MaxQiwi
- * @version 1.0.0
+ * @version 1.4.3
  * @link    https://www.maxqi.top/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 {
-    private static $feedAvatarContext = null;
+    private static $feedContext = null;
 
     private static $routes = array(
         array('name' => 'index', 'url' => '/sitemap.xml', 'action' => 'action'),
@@ -21,6 +21,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         array('name' => 'pages', 'url' => '/sitemap-pages.xml', 'action' => 'pages'),
         array('name' => 'categories', 'url' => '/sitemap-categories.xml', 'action' => 'categories'),
         array('name' => 'tags', 'url' => '/sitemap-tags.xml', 'action' => 'tags'),
+        array('name' => 'moments', 'url' => '/timemachine.xml', 'action' => 'moments'),
         array('name' => 'xsl', 'url' => '/sitemap.xsl', 'action' => 'xsl'),
         array('name' => 'robots', 'url' => '/robots.txt', 'action' => 'robots'),
     );
@@ -49,7 +50,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('Widget_Archive')->feedItem = array(__CLASS__, 'feedItem');
         Typecho_Plugin::factory('Widget_Archive')->commentFeedItem = array(__CLASS__, 'commentFeedItem');
 
-        return _t('Qiwi Sitemap 已启用：/sitemap.xml、/robots.txt 和 RSS/Atom 发现链接已准备好。');
+        return _t('Qiwi Sitemap 已启用：/sitemap.xml、/timemachine.xml、/robots.txt 和 RSS/Atom 发现链接已准备好。');
     }
 
     public static function deactivate()
@@ -139,6 +140,33 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         );
         $form->addInput($enableRobots);
 
+        $enableMomentsFeed = new Typecho_Widget_Helper_Form_Element_Radio(
+            'enableMomentsFeed',
+            array('1' => _t('启用'), '0' => _t('关闭')),
+            '1',
+            _t('时光机 RSS'),
+            _t('输出 /timemachine.xml，自动读取使用 page-timemachine.php 模板的独立页面，并只包含页面作者自己的已审核评论。')
+        );
+        $form->addInput($enableMomentsFeed);
+
+        $momentsPageCid = new Typecho_Widget_Helper_Form_Element_Text(
+            'momentsPageCid',
+            null,
+            null,
+            _t('时光机页面 CID'),
+            _t('通常留空自动查找 page-timemachine.php。若有多个时光机页面，可填写指定页面 CID。')
+        );
+        $form->addInput($momentsPageCid);
+
+        $momentsFeedLimit = new Typecho_Widget_Helper_Form_Element_Text(
+            'momentsFeedLimit',
+            null,
+            '20',
+            _t('时光机 RSS 条数'),
+            _t('默认输出最近 20 条，范围 1-100。')
+        );
+        $form->addInput($momentsFeedLimit);
+
         $enableFeedDiscovery = new Typecho_Widget_Helper_Form_Element_Radio(
             'enableFeedDiscovery',
             array('1' => _t('启用'), '0' => _t('关闭')),
@@ -147,6 +175,15 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             _t('在页面 head 中补充 RSS、Atom 与 sitemap 发现链接，便于浏览器、阅读器和爬虫识别订阅入口。')
         );
         $form->addInput($enableFeedDiscovery);
+
+        $enableFeedShortcodeCompat = new Typecho_Widget_Helper_Form_Element_Radio(
+            'enableFeedShortcodeCompat',
+            array('1' => _t('启用'), '0' => _t('关闭')),
+            '1',
+            _t('RSS 短代码兼容'),
+            _t('将 [fold]、[red]、[mark]、[badge]、[callout]、[button] 等主题短代码转换为阅读器更容易渲染的普通 HTML。')
+        );
+        $form->addInput($enableFeedShortcodeCompat);
 
         $enableFeedAvatar = new Typecho_Widget_Helper_Form_Element_Radio(
             'enableFeedAvatar',
@@ -193,6 +230,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         $rssUrl = self::normalUrl(self::optionValue($options, 'feedUrl'));
         $rss1Url = self::normalUrl(self::optionValue($options, 'feedRssUrl'));
         $atomUrl = self::normalUrl(self::optionValue($options, 'feedAtomUrl'));
+        $momentsUrl = self::routeUrl('/timemachine.xml', $options);
 
         echo "\n" . '<link rel="sitemap" type="application/xml" title="' . $siteTitle . ' Sitemap" href="' . self::escapeHtml($sitemapUrl) . '">' . "\n";
 
@@ -207,31 +245,36 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         if ($atomUrl !== '' && $atomUrl !== $rssUrl) {
             echo '<link rel="alternate" type="application/atom+xml" title="' . $siteTitle . ' Atom" href="' . self::escapeHtml($atomUrl) . '">' . "\n";
         }
+
+        if (self::setting($settings, 'enableMomentsFeed', '1') === '1') {
+            echo '<link rel="alternate" type="application/rss+xml" title="' . $siteTitle . ' 说说 RSS" href="' . self::escapeHtml($momentsUrl) . '">' . "\n";
+        }
     }
 
     public static function handleInit($archive, $select)
     {
         $settings = self::settings();
-        if (self::setting($settings, 'enableFeedAvatar', '1') !== '1') {
-            return;
-        }
-
         $parameter = $archive->parameter;
         if (empty($parameter) || $parameter->type !== 'feed') {
             return;
         }
 
         $options = Helper::options();
-        $avatarUrl = self::avatarUrl($settings, $options);
-        if ($avatarUrl === '') {
+        $enableAvatar = self::setting($settings, 'enableFeedAvatar', '1') === '1';
+        $enableShortcodes = self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1';
+        $avatarUrl = $enableAvatar ? self::avatarUrl($settings, $options) : '';
+
+        if (!$enableShortcodes && ($avatarUrl === '')) {
             return;
         }
 
-        self::$feedAvatarContext = array(
+        self::$feedContext = array(
             'avatarUrl' => $avatarUrl,
             'title' => self::optionValue($options, 'title'),
             'homeUrl' => rtrim(self::optionValue($options, 'siteUrl'), '/') . '/',
             'feedType' => (string) $archive->feedType,
+            'enableAvatar' => $enableAvatar && $avatarUrl !== '',
+            'enableShortcodes' => $enableShortcodes,
         );
 
         ob_start(array(__CLASS__, 'filterFeedXml'));
@@ -249,14 +292,22 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     public static function filterFeedXml($xml)
     {
-        if (self::$feedAvatarContext === null || trim($xml) === '') {
+        if (self::$feedContext === null || trim($xml) === '') {
             return $xml;
         }
 
-        $avatarUrl = self::xml(self::$feedAvatarContext['avatarUrl']);
-        $title = self::xml(self::$feedAvatarContext['title']);
-        $homeUrl = self::xml(self::$feedAvatarContext['homeUrl']);
-        $feedType = self::$feedAvatarContext['feedType'];
+        if (!empty(self::$feedContext['enableShortcodes'])) {
+            $xml = self::filterFeedShortcodes($xml);
+        }
+
+        if (empty(self::$feedContext['enableAvatar'])) {
+            return $xml;
+        }
+
+        $avatarUrl = self::xml(self::$feedContext['avatarUrl']);
+        $title = self::xml(self::$feedContext['title']);
+        $homeUrl = self::xml(self::$feedContext['homeUrl']);
+        $feedType = self::$feedContext['feedType'];
 
         if ($feedType === 'ATOM 1.0' && strpos($xml, '<icon>') === false) {
             return preg_replace_callback(
@@ -354,6 +405,168 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         return '<media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="' . self::xml($avatarUrl) . '" />' . "\n";
     }
 
+    public static function renderFeedHtml($html)
+    {
+        $html = (string) $html;
+        if ($html === '') {
+            return '';
+        }
+
+        $parts = preg_split('/(<pre\b[\s\S]*?<\/pre>|<code\b[\s\S]*?<\/code>)/iu', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach ($parts as $index => $part) {
+            if (preg_match('/^<(pre|code)\b/iu', $part)) {
+                continue;
+            }
+
+            $parts[$index] = self::renderFeedHtmlSegment($part);
+        }
+
+        return implode('', $parts);
+    }
+
+    private static function filterFeedShortcodes($xml)
+    {
+        return preg_replace_callback('/<!\[CDATA\[([\s\S]*?)\]\]>/u', function ($matches) {
+            return '<![CDATA[' . str_replace(']]>', ']]]]><![CDATA[>', self::renderFeedHtml($matches[1])) . ']]>';
+        }, $xml);
+    }
+
+    private static function renderFeedHtmlSegment($html)
+    {
+        $colors = 'red|orange|yellow|green|cyan|blue|purple';
+
+        $html = preg_replace_callback('/<details\b[^>]*class=(["\'])[^"\']*\bqiwi-fold\b[^"\']*\1[^>]*>\s*<summary>([\s\S]*?)<\/summary>\s*<div\b[^>]*class=(["\'])[^"\']*\bqiwi-fold-body\b[^"\']*\3[^>]*>([\s\S]*?)<\/div>\s*<\/details>/iu', function ($matches) {
+            $title = trim(strip_tags($matches[2]));
+            $body = isset($matches[4]) ? $matches[4] : '';
+            return self::feedBlock($title, $body);
+        }, $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[fold([^\]]*)\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
+                $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                return self::feedBlock($title, isset($matches[2]) ? $matches[2] : '');
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[callout([^\]]*)\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
+                $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                return '<blockquote>' . ($title !== '' ? '<p><strong>' . self::escapeHtml(strip_tags($title)) . '</strong></p>' : '') . $body . '</blockquote>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace_callback('/\[button\b([^\]]*)\]([\s\S]*?)\[\/button\]/iu', function ($matches) {
+            $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = self::safeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
+            $label = trim($matches[2]) !== '' ? $matches[2] : self::escapeHtml($href);
+            return '<a href="' . self::escapeHtml($href) . '">' . $label . '</a>';
+        }, $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '<div>$1</div>', $html);
+            if ($next === $html) {
+                break;
+            }
+            $html = $next;
+        }
+
+        $html = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '<strong>$1</strong>', $html);
+
+        $html = preg_replace_callback('/\[mark(?:\s+color=(["\']?)([a-zA-Z]+)\1)?\]([\s\S]*?)\[\/mark\]/iu', function ($matches) {
+            $color = self::shortcodeColor(isset($matches[2]) && $matches[2] !== '' ? $matches[2] : 'yellow', true);
+            return '<span style="background-color:' . $color . ';">' . $matches[3] . '</span>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', function ($matches) {
+            return '<span style="color:' . self::shortcodeColor($matches[1], false) . ';">' . $matches[2] . '</span>';
+        }, $html);
+
+        $html = preg_replace_callback('/<span\b([^>]*class=(["\'])[^"\']*\bqiwi-text-(' . $colors . ')\b[^"\']*\2[^>]*)>/iu', function ($matches) {
+            return '<span style="color:' . self::shortcodeColor($matches[3], false) . ';">';
+        }, $html);
+
+        $html = preg_replace_callback('/<span\b([^>]*class=(["\'])[^"\']*\bqiwi-mark-(' . $colors . ')\b[^"\']*\2[^>]*)>/iu', function ($matches) {
+            return '<span style="background-color:' . self::shortcodeColor($matches[3], true) . ';">';
+        }, $html);
+
+        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
+
+        return $html;
+    }
+
+    private static function feedBlock($title, $body)
+    {
+        $title = trim(strip_tags((string) $title));
+        $titleHtml = $title !== '' ? '<p><strong>' . self::escapeHtml($title) . '</strong></p>' : '';
+        return '<div>' . $titleHtml . '<div>' . $body . '</div></div>';
+    }
+
+    private static function parseShortcodeAttrs($text)
+    {
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $attrs = array();
+        if ($text === '') {
+            return $attrs;
+        }
+
+        if (preg_match_all('/([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s\]]+))/u', $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = strtolower($match[1]);
+                $value = '';
+                foreach (array(2, 3, 4) as $index) {
+                    if (isset($match[$index]) && $match[$index] !== '') {
+                        $value = $match[$index];
+                        break;
+                    }
+                }
+                $attrs[$name] = trim($value);
+            }
+        }
+
+        return $attrs;
+    }
+
+    private static function safeUrl($url)
+    {
+        $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') {
+            return '#';
+        }
+
+        return preg_match('/^(https?:\/\/|mailto:|tel:|\/|#)/i', $url) ? $url : '#';
+    }
+
+    private static function shortcodeColor($color, $isBackground)
+    {
+        $map = array(
+            'red' => $isBackground ? '#fde2e2' : '#d64545',
+            'orange' => $isBackground ? '#fdebd7' : '#d97a20',
+            'yellow' => $isBackground ? '#fff2bf' : '#a87900',
+            'green' => $isBackground ? '#dff3e5' : '#2f8f4e',
+            'cyan' => $isBackground ? '#d9f3f5' : '#168c96',
+            'blue' => $isBackground ? '#dfeaff' : '#286bd6',
+            'purple' => $isBackground ? '#ede5ff' : '#7b55c7',
+        );
+
+        $color = strtolower(trim((string) $color));
+        return isset($map[$color]) ? $map[$color] : ($isBackground ? $map['yellow'] : $map['blue']);
+    }
+
     private static function avatarUrl($settings, $options)
     {
         $settingsAvatar = self::setting($settings, 'avatarUrl', '');
@@ -381,6 +594,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             _t('评论 RSS 2.0') => self::optionValue($options, 'commentsFeedUrl'),
             _t('评论 RSS 1.0') => self::optionValue($options, 'commentsFeedRssUrl'),
             _t('评论 Atom 1.0') => self::optionValue($options, 'commentsFeedAtomUrl'),
+            _t('说说 RSS') => self::routeUrl('/timemachine.xml', $options),
             _t('Sitemap') => self::routeUrl('/sitemap.xml', $options),
             _t('文章 Sitemap') => self::routeUrl('/sitemap-posts.xml', $options),
             _t('页面 Sitemap') => self::routeUrl('/sitemap-pages.xml', $options),

@@ -33,6 +33,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
 - `components/home-jike.php`: Jike-style home feed component.
+- `plugins/QiwiSitemap/`: Qiwi Sitemap plugin source maintained with this theme.
 - `docs/design-doc.html`: local visual/style references. Treat as reference unless the task asks to edit them.
 - `docs/screenshot*.png`: theme screenshots used by project docs.
 - `reference/`: legacy reference material. Read-only unless a task explicitly asks to sync it.
@@ -47,6 +48,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - When adding JavaScript, prefer progressive enhancement. The page should remain usable if the script does not run.
 - Avoid browser-only assumptions that break no-JS or small-screen use cases.
 - Do not edit `reference/` files unless the task explicitly asks for it.
+- Plugin development source lives under this theme, for example `plugins/QiwiSitemap/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
 
 ## Theme Configuration Rules
 
