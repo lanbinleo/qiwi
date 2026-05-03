@@ -587,6 +587,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     private static function linksDescription()
     {
         $options = Helper::options();
+        $timemachineUrl = self::timemachinePageUrl($options);
         $links = array(
             _t('RSS 2.0') => self::optionValue($options, 'feedUrl'),
             _t('RSS 1.0') => self::optionValue($options, 'feedRssUrl'),
@@ -594,6 +595,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             _t('评论 RSS 2.0') => self::optionValue($options, 'commentsFeedUrl'),
             _t('评论 RSS 1.0') => self::optionValue($options, 'commentsFeedRssUrl'),
             _t('评论 Atom 1.0') => self::optionValue($options, 'commentsFeedAtomUrl'),
+            _t('Time Machine') => $timemachineUrl,
             _t('说说 RSS') => self::routeUrl('/timemachine.xml', $options),
             _t('Sitemap') => self::routeUrl('/sitemap.xml', $options),
             _t('文章 Sitemap') => self::routeUrl('/sitemap-posts.xml', $options),
@@ -613,6 +615,48 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         }
 
         return _t('当前可用订阅与索引入口：') . implode(' · ', $items);
+    }
+
+    private static function timemachinePageUrl($options)
+    {
+        try {
+            $settings = self::settings();
+            $cid = (int) self::setting($settings, 'momentsPageCid', '0');
+            $db = Typecho_Db::get();
+            $select = $db->select()->from('table.contents')
+                ->where('table.contents.type = ?', 'page')
+                ->where('table.contents.status = ?', 'publish')
+                ->where('(table.contents.password IS NULL OR table.contents.password = ?)', '')
+                ->where('table.contents.created < ?', $options->gmtTime)
+                ->order('table.contents.order', Typecho_Db::SORT_ASC)
+                ->order('table.contents.cid', Typecho_Db::SORT_ASC)
+                ->limit(1);
+
+            if ($cid > 0) {
+                $select->where('table.contents.cid = ?', $cid);
+            } else {
+                $select->where('table.contents.template = ?', 'page-timemachine.php');
+            }
+
+            $row = $db->fetchRow($select);
+            if (!$row || Typecho_Router::get('page') === null) {
+                return '';
+            }
+
+            if (isset($row['slug'])) {
+                $row['slug'] = rawurlencode($row['slug']);
+            }
+
+            $date = new Typecho_Date($row['created']);
+            $row['date'] = $date;
+            $row['year'] = $date->year;
+            $row['month'] = $date->month;
+            $row['day'] = $date->day;
+
+            return Typecho_Common::url(Typecho_Router::url('page', $row), $options->index);
+        } catch (Exception $e) {
+            return '';
+        }
     }
 
     private static function normalUrl($url)

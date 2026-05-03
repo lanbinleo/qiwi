@@ -211,7 +211,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $avatarUrl = $this->avatarUrl();
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">' . "\n";
+        $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">' . "\n";
         $xml .= '<channel>' . "\n";
         $xml .= '<title>' . $this->xml($siteTitle . ' - ' . _t('说说')) . '</title>' . "\n";
         $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
@@ -244,9 +244,6 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
                 $xml .= '<description><![CDATA[' . $this->cdata(strip_tags($excerpt)) . ']]></description>' . "\n";
             }
             $xml .= '<content:encoded><![CDATA[' . "\n" . $this->cdata($content) . "\n" . ']]></content:encoded>' . "\n";
-            if ($avatarUrl !== '') {
-                $xml .= '<media:thumbnail url="' . $this->xml($avatarUrl) . '" />' . "\n";
-            }
             $xml .= '</item>' . "\n";
         }
 
