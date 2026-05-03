@@ -25,8 +25,16 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         array('name' => 'robots', 'url' => '/robots.txt', 'action' => 'robots'),
     );
 
+    private static $legacyRoutes = array(
+        'sitemap_action_route',
+        'sitemap_tags_route',
+        'sitemap_category_route',
+    );
+
     public static function activate()
     {
+        self::removeRoutes();
+
         foreach (self::$routes as $route) {
             Helper::addRoute(
                 'qiwi_sitemap_' . $route['name'] . '_route',
@@ -46,6 +54,15 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     public static function deactivate()
     {
+        self::removeRoutes();
+    }
+
+    private static function removeRoutes()
+    {
+        foreach (self::$legacyRoutes as $routeName) {
+            Helper::removeRoute($routeName);
+        }
+
         foreach (self::$routes as $route) {
             Helper::removeRoute('qiwi_sitemap_' . $route['name'] . '_route');
         }
