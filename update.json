@@ -1,13 +1,14 @@
 {
-  "version": "1.4.2",
+  "version": "1.4.3",
   "releaseDate": "2026-05-03",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "新增 canonical、Open Graph、Twitter Card 与文章页 BlogPosting JSON-LD",
-    "规范 HTML lang 输出为 zh-CN 形式，并补齐 favicon、32x32 图标和 Apple Touch Icon",
-    "优化移动端导航抽屉位置与隐藏状态，避免隐藏链接进入键盘焦点流",
-    "提升辅助文字颜色对比度，并为文章缩略图与头图补充性能提示属性",
-    "update.sh 新增伴生插件同步步骤，主题更新后会同步 plugins 目录到 Typecho 插件目录"
+    "修复新增 thread-* 文集首次保存时完整 Thread 结构可能丢失的问题",
+    "修复列表分页页侧边栏“闲言碎语”不显示的问题",
+    "修复移动端滚动后展开导航抽屉位置错误与背景仍可滚动的问题",
+    "新增 thread-* 分类的 Thread 专题文集页面，使用无侧边栏阅读路线布局",
+    "新增 QiwiTheme 主题伴生插件，将 Thread JSON 存入独立数据表",
+    "后台分类编辑页支持 Thread 块编辑、文章选择、排序、保存和 JSON 查看"
   ]
 }

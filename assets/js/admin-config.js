@@ -23,6 +23,35 @@
         return String(value || '').replace(/^\s+|\s+$/g, '');
     }
 
+    function copyText(text, done) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                if (done) done();
+            }).catch(function() {
+                copyTextFallback(text, done);
+            });
+            return;
+        }
+
+        copyTextFallback(text, done);
+    }
+
+    function copyTextFallback(text, done) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            if (done) done();
+        } catch (error) {}
+        document.body.removeChild(textarea);
+    }
+
     function fieldByName(name) {
         return $('[name="' + name + '"], [name="' + name + '[]"], #' + name);
     }
@@ -1702,7 +1731,658 @@
         });
     }
 
+    function defaultThreadData(rawDescription) {
+        return {
+            schema: 'qiwi-thread',
+            version: 1,
+            subtitle: '',
+            summary: cleanThreadOptional(rawDescription || ''),
+            status: 'ongoing',
+            startedAt: '',
+            field: '',
+            order: 'asc',
+            blocks: []
+        };
+    }
+
+    function parseThreadData(rawDescription) {
+        var text = trim(rawDescription || '');
+        if (!text) return defaultThreadData('');
+
+        try {
+            var data = JSON.parse(text);
+            if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== 'qiwi-thread') {
+                return defaultThreadData(text);
+            }
+
+            data.version = parseInt(data.version || 1, 10) || 1;
+            data.subtitle = cleanThreadOptional(data.subtitle || '');
+            data.summary = cleanThreadOptional(data.summary || '');
+            data.status = ['ongoing', 'completed', 'paused'].indexOf(data.status) === -1 ? 'ongoing' : data.status;
+            data.startedAt = cleanThreadOptional(data.startedAt || '');
+            data.field = cleanThreadOptional(data.field || '');
+            data.order = data.order === 'desc' ? 'desc' : 'asc';
+            data.blocks = Array.isArray(data.blocks) ? data.blocks.map(function(block) {
+                if (block && block.type === 'text') block.type = 'markdown';
+                if (block && typeof block === 'object') {
+                    ['slug', 'title', 'label', 'role', 'note', 'content'].forEach(function(key) {
+                        if (Object.prototype.hasOwnProperty.call(block, key)) {
+                            block[key] = cleanThreadOptional(block[key]);
+                        }
+                    });
+                }
+                return block;
+            }) : [];
+            return data;
+        } catch (error) {
+            return defaultThreadData(text);
+        }
+    }
+
+    function cleanThreadOptional(value) {
+        value = trim(value || '');
+        var legacyHint = 'slug 以 thread- 开头时启用。完整结构保存在 Qiwi Theme 伴生插件表，分类描述只保留短摘要。';
+        if (value && trim(value.split(legacyHint).join('')) === '') {
+            return '';
+        }
+
+        return value === '0' ? '' : value;
+    }
+
+    function getThreadBlockField(row, key) {
+        var input = $('[data-thread-block-field="' + key + '"]', row);
+        return input ? input.value : '';
+    }
+
+    function threadBlockSummary(block) {
+        if (!block || block.type === 'post') {
+            return trim(block && (block.title || block.slug || block.cid)) || '未关联文章';
+        }
+        return trim(block.title || block.content) || '文字块';
+    }
+
+    function renderThreadBlock(block, expanded) {
+        block = block || { type: 'post' };
+        var type = block.type === 'post' ? 'post' : 'markdown';
+        var row = document.createElement('div');
+        var chevronSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>';
+        var typeLabel = type === 'post' ? '文章' : '文字';
+        var postTitle = trim(block.title || '');
+        var postHint = postTitle || (block.cid ? ('CID #' + block.cid) : (block.slug ? block.slug : '还没有选择文章'));
+
+        row.className = 'qiwi-thread-block is-' + type + (expanded ? ' is-open' : '');
+        row.setAttribute('data-thread-block-type', type);
+        row.innerHTML =
+            '<button type="button" class="qiwi-thread-block-summary" data-thread-action="toggle-block" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
+                '<span class="qiwi-thread-block-drag" data-thread-drag draggable="true" title="拖拽排序" aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>' +
+                '<span class="qiwi-thread-block-type">' + escapeHtml(typeLabel) + '</span>' +
+                '<span class="qiwi-thread-block-title">' + escapeHtml(threadBlockSummary(block)) + '</span>' +
+                '<span class="qiwi-thread-block-arrow">' + chevronSvg + '</span>' +
+            '</button>' +
+            '<div class="qiwi-thread-block-editor">' +
+                '<input type="hidden" data-thread-block-field="type" value="' + escapeHtml(type) + '">' +
+                (type === 'post'
+                    ? '<input type="hidden" data-thread-block-field="cid" value="' + escapeHtml(block.cid || '') + '">' +
+                      '<input type="hidden" data-thread-block-field="slug" value="' + escapeHtml(block.slug || '') + '">' +
+                      '<input type="hidden" data-thread-block-field="title" value="' + escapeHtml(postTitle) + '">' +
+                      '<div class="qiwi-thread-post-picker qiwi-thread-wide">' +
+                          '<div><span>已选文章</span><strong data-thread-selected-title>' + escapeHtml(postHint) + '</strong></div>' +
+                          '<button type="button" class="qiwi-admin-button" data-thread-action="choose-post"><i class="fa-regular fa-file-lines" aria-hidden="true"></i> 选择文章</button>' +
+                      '</div>' +
+                      '<label>显示编号<input type="text" data-thread-block-field="label" value="' + escapeHtml(block.label || '') + '" placeholder="例如 01"></label>' +
+                      '<label>角色<input type="text" data-thread-block-field="role" value="' + escapeHtml(block.role || '') + '" placeholder="文章 / 总结 / 起点"></label>' +
+                      '<label class="qiwi-thread-wide">阅读提示 / Markdown<textarea rows="3" data-thread-block-field="note" placeholder="显示在文章摘要下方，可留空">' + escapeHtml(block.note || '') + '</textarea></label>'
+                    : '<label class="qiwi-thread-wide">标题<input type="text" data-thread-block-field="title" value="' + escapeHtml(block.title || '') + '" placeholder="可留空"></label>' +
+                      '<label class="qiwi-thread-wide">文字 / Markdown<textarea rows="7" data-thread-block-field="content" placeholder="支持 Markdown，也可以直接写普通文字">' + escapeHtml(block.content || '') + '</textarea></label>'
+                ) +
+                '<div class="qiwi-row-actions qiwi-thread-wide">' +
+                    '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-thread-action="up" title="上移" aria-label="上移"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>' +
+                    '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-thread-action="down" title="下移" aria-label="下移"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>' +
+                    '<button type="button" class="qiwi-admin-button qiwi-icon-button is-danger" data-thread-action="delete" title="删除块" aria-label="删除块"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>' +
+                '</div>' +
+            '</div>';
+
+        return row;
+    }
+
+    function initThreadCategoryEditor() {
+        var description = document.querySelector('textarea[name="description"]');
+        var slugInput = document.querySelector('input[name="slug"]');
+        var nameInput = document.querySelector('input[name="name"]');
+        var toolsConfig = window.QIWI_THEME_TOOLS || window.QIWI_THREAD_TOOLS || {};
+        var threadMid = parseInt(toolsConfig.mid || '0', 10) || 0;
+        if (!description || !slugInput || $('.qiwi-thread-category-panel')) return;
+
+        var row = fieldRow(description) || description.parentNode;
+        if (!row || !row.parentNode) return;
+
+        var panel = document.createElement('div');
+        panel.className = 'qiwi-thread-category-panel';
+        panel.innerHTML =
+            '<div class="qiwi-thread-admin-head">' +
+                '<div><strong>文集配置</strong><p>slug 以 <code>thread-</code> 开头时启用。这里就是文集的主编辑区；文章块会直接决定前台阅读路线，不需要再给文章额外勾选这个分类。</p></div>' +
+            '</div>' +
+            '<div class="qiwi-thread-fields">' +
+                '<label>副标题 / 问题<input type="text" data-thread-field="subtitle" placeholder="例如：我如何重新理解写作？"></label>' +
+                '<label>状态<select data-thread-field="status"><option value="ongoing">连载中</option><option value="completed">已完成</option><option value="paused">暂缓</option></select></label>' +
+                '<label>开始时间<input type="text" data-thread-field="startedAt" placeholder="例如 2026-01"></label>' +
+                '<label>领域<input type="text" data-thread-field="field" placeholder="例如 写作 · 博客"></label>' +
+                '<label>默认排序<select data-thread-field="order"><option value="asc">从旧到新</option><option value="desc">从新到旧</option></select></label>' +
+                '<label class="qiwi-thread-wide">简介 / Markdown<textarea rows="4" data-thread-field="summary" placeholder="这个文集想串起什么问题？"></textarea></label>' +
+            '</div>' +
+            '<div class="qiwi-admin-toolbar qiwi-thread-block-toolbar">' +
+                '<button type="button" class="qiwi-admin-button" data-thread-add="post"><i class="fa-regular fa-file-lines" aria-hidden="true"></i> 添加文章</button>' +
+                '<button type="button" class="qiwi-admin-button" data-thread-add="markdown"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i> 添加文字</button>' +
+            '</div>' +
+            '<div class="qiwi-thread-block-list" data-thread-block-list></div>' +
+            '<div class="qiwi-thread-footer-actions">' +
+                '<p class="qiwi-thread-status" data-thread-status></p>' +
+                '<div class="qiwi-admin-toolbar">' +
+                    '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-thread-action="open-json" title="查看原始 JSON" aria-label="查看原始 JSON"><i class="fa-solid fa-code" aria-hidden="true"></i></button>' +
+                    '<button type="button" class="qiwi-admin-button is-primary" data-thread-action="save-json"><i class="fa-regular fa-floppy-disk" aria-hidden="true"></i> 保存文集</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="qiwi-thread-modal" data-thread-post-modal aria-hidden="true">' +
+                '<div class="qiwi-thread-modal-backdrop" data-thread-modal-close></div>' +
+                '<div class="qiwi-thread-modal-panel" role="dialog" aria-modal="true" aria-label="选择文章">' +
+                    '<div class="qiwi-thread-modal-head"><strong>选择文章</strong><button type="button" class="qiwi-admin-button qiwi-icon-button" data-thread-modal-close aria-label="关闭"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>' +
+                    '<div class="qiwi-thread-post-search"><input type="search" data-thread-post-search placeholder="搜索标题、slug 或 CID"><button type="button" class="qiwi-admin-button" data-thread-action="search-posts"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> 搜索</button></div>' +
+                    '<div class="qiwi-thread-post-results" data-thread-post-results></div>' +
+                    '<button type="button" class="qiwi-admin-button qiwi-thread-load-more" data-thread-action="load-more-posts">加载更多</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="qiwi-thread-modal" data-thread-json-modal aria-hidden="true">' +
+                '<div class="qiwi-thread-modal-backdrop" data-thread-modal-close></div>' +
+                '<div class="qiwi-thread-modal-panel" role="dialog" aria-modal="true" aria-label="原始 JSON">' +
+                    '<div class="qiwi-thread-modal-head"><strong>原始 JSON</strong><button type="button" class="qiwi-admin-button qiwi-icon-button" data-thread-modal-close aria-label="关闭"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>' +
+                    '<textarea readonly rows="16" data-thread-json-output></textarea>' +
+                    '<div class="qiwi-thread-modal-actions"><button type="button" class="qiwi-admin-button" data-thread-action="copy-json"><i class="fa-regular fa-copy" aria-hidden="true"></i> 复制 JSON</button></div>' +
+                '</div>' +
+            '</div>';
+
+        row.parentNode.insertBefore(panel, row);
+        row.classList.add('qiwi-thread-raw-row');
+
+        var hiddenPayload = document.createElement('input');
+        hiddenPayload.type = 'hidden';
+        hiddenPayload.name = 'qiwiThreadData';
+        if (description.form) {
+            description.form.appendChild(hiddenPayload);
+        }
+
+        var list = $('[data-thread-block-list]', panel);
+        var status = $('[data-thread-status]', panel);
+        var postModal = $('[data-thread-post-modal]', panel);
+        var jsonModal = $('[data-thread-json-modal]', panel);
+        var postResults = $('[data-thread-post-results]', panel);
+        var postSearch = $('[data-thread-post-search]', panel);
+        var jsonOutput = $('[data-thread-json-output]', panel);
+        var draggedBlock = null;
+        var pickerBlock = null;
+        var pickerPage = 1;
+        var pickerQuery = '';
+        var pickerLoading = false;
+        var threadState = defaultThreadData('');
+        var isRendering = false;
+        var pluginDataLoaded = false;
+
+        function isThreadSlug() {
+            return /^thread-/.test(trim(slugInput.value || ''));
+        }
+
+        function setStatus(message, isError) {
+            status.textContent = message || '';
+            status.classList.toggle('is-error', !!isError);
+        }
+
+        function compactDescription(data) {
+            return cleanThreadOptional(data.summary || data.subtitle || '').slice(0, 140);
+        }
+
+        function currentData() {
+            var data = parseThreadData(JSON.stringify(threadState || defaultThreadData('')));
+            $all('[data-thread-field]', panel).forEach(function(input) {
+                data[input.getAttribute('data-thread-field')] = input.value;
+            });
+            data.schema = 'qiwi-thread';
+            data.version = 1;
+            data.blocks = $all('.qiwi-thread-block', list).map(function(blockRow) {
+                var type = getThreadBlockField(blockRow, 'type') || blockRow.getAttribute('data-thread-block-type') || 'post';
+                var block = { type: type };
+                if (type === 'post') {
+                    var cid = parseInt(getThreadBlockField(blockRow, 'cid') || '0', 10);
+                    if (cid > 0) block.cid = cid;
+                    ['slug', 'title', 'label', 'role', 'note'].forEach(function(key) {
+                        var value = cleanThreadOptional(getThreadBlockField(blockRow, key));
+                        if (value) block[key] = value;
+                    });
+                } else {
+                    ['title', 'content'].forEach(function(key) {
+                        var value = cleanThreadOptional(getThreadBlockField(blockRow, key));
+                        if (value) block[key] = value;
+                    });
+                }
+                return block;
+            });
+            return data;
+        }
+
+        function sync() {
+            if (isRendering || !isThreadSlug()) return;
+            var data = currentData();
+            hiddenPayload.value = JSON.stringify(data, null, 2);
+            description.value = compactDescription(data);
+            if (threadMid > 0) {
+                setStatus('文集改动待保存，保存后会同步分类基础信息和完整结构。');
+            } else {
+                setStatus('新增文集会在首次保存时同步分类基础信息和完整结构。');
+            }
+        }
+
+        function render(data) {
+            threadState = parseThreadData(JSON.stringify(data || defaultThreadData('')));
+            isRendering = true;
+            $('[data-thread-field="subtitle"]', panel).value = data.subtitle || '';
+            $('[data-thread-field="summary"]', panel).value = data.summary || '';
+            $('[data-thread-field="status"]', panel).value = data.status || 'ongoing';
+            $('[data-thread-field="startedAt"]', panel).value = data.startedAt || '';
+            $('[data-thread-field="field"]', panel).value = data.field || '';
+            $('[data-thread-field="order"]', panel).value = data.order || 'asc';
+            list.innerHTML = '';
+            (data.blocks || []).forEach(function(block) {
+                list.appendChild(renderThreadBlock(block, false));
+            });
+            if (!list.children.length) {
+                var empty = document.createElement('div');
+                empty.className = 'qiwi-admin-empty';
+                empty.textContent = '还没有内容块。添加文章或文字后，前台会直接按这里的顺序渲染文集。';
+                list.appendChild(empty);
+            }
+            isRendering = false;
+        }
+
+        function updateVisibility() {
+            var active = isThreadSlug();
+            panel.classList.toggle('is-active', active);
+            row.classList.toggle('is-thread-active', active);
+            document.body.classList.toggle('qiwi-thread-editor-page', active);
+            if (active) {
+                loadThreadData();
+            }
+        }
+
+        function endpointWithMid(endpoint) {
+            if (!endpoint) return '';
+            return endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'mid=' + encodeURIComponent(threadMid);
+        }
+
+        function endpointWithParams(endpoint, params) {
+            var query = [];
+            Object.keys(params || {}).forEach(function(key) {
+                if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+                    query.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
+                }
+            });
+            return endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + query.join('&');
+        }
+
+        function openModal(modal) {
+            if (!modal) return;
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeModals() {
+            [postModal, jsonModal].forEach(function(modal) {
+                if (!modal) return;
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+            });
+            pickerBlock = null;
+        }
+
+        function openJsonModal() {
+            if (!jsonOutput) return;
+            jsonOutput.value = JSON.stringify(currentData(), null, 2);
+            openModal(jsonModal);
+            jsonOutput.focus();
+        }
+
+        function renderPostResults(items, append) {
+            if (!append) postResults.innerHTML = '';
+            if (!items || !items.length) {
+                if (!append) {
+                    var empty = document.createElement('div');
+                    empty.className = 'qiwi-admin-empty';
+                    empty.textContent = '没有找到可选文章。';
+                    postResults.appendChild(empty);
+                }
+                return;
+            }
+
+            items.forEach(function(item) {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'qiwi-thread-post-result';
+                button.setAttribute('data-thread-action', 'select-post');
+                button.setAttribute('data-post-cid', item.cid || '');
+                button.setAttribute('data-post-slug', item.slug || '');
+                button.setAttribute('data-post-title', item.title || '');
+                button.innerHTML =
+                    '<span><strong>' + escapeHtml(item.title || '未命名文章') + '</strong><em>' + escapeHtml(item.excerpt || item.slug || '') + '</em></span>' +
+                    '<small>#' + escapeHtml(item.cid || '') + ' · ' + escapeHtml(item.date || '') + '</small>';
+                postResults.appendChild(button);
+            });
+        }
+
+        function loadPosts(reset) {
+            if (!toolsConfig.postsEndpoint || pickerLoading) return;
+            pickerLoading = true;
+            if (reset) pickerPage = 1;
+            setStatus('正在读取文章列表...');
+
+            fetch(endpointWithParams(toolsConfig.postsEndpoint, {
+                q: pickerQuery,
+                page: pickerPage,
+                limit: 12
+            }), {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                if (!response.ok) throw new Error('读取文章列表失败');
+                return response.json();
+            }).then(function(payload) {
+                renderPostResults(payload && payload.items ? payload.items : [], !reset);
+                pickerPage += 1;
+                setStatus('');
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '读取文章列表失败。', true);
+            }).then(function() {
+                pickerLoading = false;
+            });
+        }
+
+        function openPostPicker(blockRow) {
+            pickerBlock = blockRow;
+            pickerQuery = '';
+            if (postSearch) postSearch.value = '';
+            if (postResults) postResults.innerHTML = '';
+            openModal(postModal);
+            if (postSearch) postSearch.focus();
+            loadPosts(true);
+        }
+
+        function selectPostFromButton(button) {
+            if (!pickerBlock || !button) return;
+            var cid = button.getAttribute('data-post-cid') || '';
+            var slug = button.getAttribute('data-post-slug') || '';
+            var title = button.getAttribute('data-post-title') || '';
+            var cidInput = $('[data-thread-block-field="cid"]', pickerBlock);
+            var slugInput = $('[data-thread-block-field="slug"]', pickerBlock);
+            var titleInput = $('[data-thread-block-field="title"]', pickerBlock);
+            var selected = $('[data-thread-selected-title]', pickerBlock);
+            var summary = $('.qiwi-thread-block-title', pickerBlock);
+            if (cidInput) cidInput.value = cid;
+            if (slugInput) slugInput.value = slug;
+            if (titleInput) titleInput.value = title;
+            if (selected) selected.textContent = title || ('CID #' + cid);
+            if (summary) summary.textContent = title || ('CID #' + cid);
+            closeModals();
+            sync();
+        }
+
+        function loadThreadData() {
+            if (pluginDataLoaded) {
+                return;
+            }
+
+            pluginDataLoaded = true;
+            if (!toolsConfig.readEndpoint || threadMid <= 0) {
+                render(parseThreadData(description.value));
+                return;
+            }
+
+            fetch(endpointWithMid(toolsConfig.readEndpoint), {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                if (!response.ok) throw new Error('读取 Thread 数据失败');
+                return response.json();
+            }).then(function(payload) {
+                render(parseThreadData(payload && payload.data ? payload.data : description.value));
+                setStatus(payload && payload.data ? '已从 Qiwi Theme 插件读取文集数据。' : '还没有保存过文集结构。');
+            }).catch(function() {
+                render(parseThreadData(description.value));
+                setStatus('无法读取插件数据，当前显示分类描述里的兼容内容。', true);
+            });
+        }
+
+        function saveThreadData(done) {
+            if (!isThreadSlug()) {
+                if (done) done(true);
+                return;
+            }
+
+            var data = currentData();
+            hiddenPayload.value = JSON.stringify(data, null, 2);
+            description.value = compactDescription(data);
+            setStatus('正在保存文集...');
+
+            if (!toolsConfig.saveEndpoint || threadMid <= 0) {
+                setStatus('完整文集结构会随新增分类一起保存。');
+                if (done) done(true);
+                return;
+            }
+
+            fetch(toolsConfig.saveEndpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mid: threadMid,
+                    data: JSON.stringify(data, null, 2)
+                })
+            }).then(function(response) {
+                if (!response.ok) throw new Error('保存 Thread 数据失败');
+                return response.json();
+            }).then(function(payload) {
+                if (!payload || !payload.success) throw new Error('保存 Thread 数据失败');
+                threadState = data;
+                setStatus('文集已保存。');
+                if (done) done(true);
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '保存 Thread 数据失败。', true);
+                if (done) done(false);
+            });
+        }
+
+        function addBlock(type) {
+            var empty = $('.qiwi-admin-empty', list);
+            if (empty) empty.remove();
+            if (type === 'text') type = 'markdown';
+            list.appendChild(renderThreadBlock({ type: type }, true));
+            sync();
+        }
+
+        function submitThreadForm() {
+            var form = description.closest('form');
+            if (form && typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+                return;
+            }
+
+            if (form) {
+                var event = document.createEvent('Event');
+                event.initEvent('submit', true, true);
+                form.dispatchEvent(event);
+                return;
+            }
+
+            saveThreadData();
+        }
+
+        panel.addEventListener('input', function(event) {
+            var row = event.target.closest('.qiwi-thread-block');
+            if (row) {
+                var title = $('.qiwi-thread-block-title', row);
+                if (title) title.textContent = threadBlockSummary(currentData().blocks[$all('.qiwi-thread-block', list).indexOf(row)]);
+            }
+            sync();
+        });
+
+        panel.addEventListener('change', sync);
+
+        panel.addEventListener('click', function(event) {
+            var add = event.target.closest('[data-thread-add]');
+            if (add) {
+                addBlock(add.getAttribute('data-thread-add'));
+                return;
+            }
+
+            var button = event.target.closest('[data-thread-action]');
+            if (!button) return;
+            var action = button.getAttribute('data-thread-action');
+            var blockRow = button.closest('.qiwi-thread-block');
+
+            if (action === 'toggle-block' && blockRow) {
+                if (event.target.closest('[data-thread-drag]')) return;
+                var isOpen = !blockRow.classList.contains('is-open');
+                blockRow.classList.toggle('is-open', isOpen);
+                button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                return;
+            }
+
+            if (action === 'choose-post' && blockRow) {
+                openPostPicker(blockRow);
+                return;
+            }
+
+            if (action === 'select-post') {
+                selectPostFromButton(button);
+                return;
+            }
+
+            if (action === 'open-json') {
+                openJsonModal();
+                return;
+            }
+
+            if (action === 'search-posts') {
+                pickerQuery = trim(postSearch ? postSearch.value : '');
+                loadPosts(true);
+                return;
+            }
+
+            if (action === 'load-more-posts') {
+                loadPosts(false);
+                return;
+            }
+
+            if (action === 'delete' && blockRow) blockRow.remove();
+            if (action === 'up' && blockRow && blockRow.previousElementSibling) list.insertBefore(blockRow, blockRow.previousElementSibling);
+            if (action === 'down' && blockRow && blockRow.nextElementSibling) list.insertBefore(blockRow.nextElementSibling, blockRow);
+
+            if (action === 'save-json') {
+                submitThreadForm();
+                return;
+            }
+
+            if (action === 'copy-json') {
+                var json = JSON.stringify(currentData(), null, 2);
+                copyText(json, function() {
+                    setStatus('JSON 已复制。');
+                });
+                return;
+            }
+
+            sync();
+            if (!$all('.qiwi-thread-block', list).length) render(parseThreadData(description.value));
+        });
+
+        panel.addEventListener('click', function(event) {
+            if (event.target.closest('[data-thread-modal-close]')) {
+                closeModals();
+            }
+        });
+
+        if (postSearch) {
+            postSearch.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    pickerQuery = trim(postSearch.value);
+                    loadPosts(true);
+                }
+            });
+        }
+
+        list.addEventListener('dragstart', function(event) {
+            var handle = event.target.closest('[data-thread-drag]');
+            if (!handle) {
+                event.preventDefault();
+                return;
+            }
+            draggedBlock = handle.closest('.qiwi-thread-block');
+            if (!draggedBlock) return;
+            draggedBlock.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', 'thread-block');
+        });
+
+        list.addEventListener('dragover', function(event) {
+            if (!draggedBlock) return;
+            var target = event.target.closest('.qiwi-thread-block');
+            if (!target || target === draggedBlock) return;
+            event.preventDefault();
+            var rect = target.getBoundingClientRect();
+            var before = event.clientY < rect.top + rect.height / 2;
+            list.insertBefore(draggedBlock, before ? target : target.nextSibling);
+        });
+
+        list.addEventListener('drop', function(event) {
+            if (!draggedBlock) return;
+            event.preventDefault();
+            sync();
+        });
+
+        list.addEventListener('dragend', function() {
+            if (draggedBlock) draggedBlock.classList.remove('is-dragging');
+            draggedBlock = null;
+            sync();
+        });
+
+        description.addEventListener('input', function() {
+            if (!isRendering && isThreadSlug()) sync();
+        });
+        slugInput.addEventListener('input', updateVisibility);
+        if (nameInput) {
+            nameInput.addEventListener('input', function() {
+                if (!trim(slugInput.value) && /^thread-/i.test(trim(nameInput.value))) updateVisibility();
+            });
+        }
+
+        var form = description.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                if (!isThreadSlug() || form.dataset.qiwiThreadSubmitting === '1') return;
+
+                event.preventDefault();
+                saveThreadData(function(ok) {
+                    if (!ok && threadMid > 0) return;
+                    form.dataset.qiwiThreadSubmitting = '1';
+                    form.submit();
+                });
+            });
+        }
+
+        updateVisibility();
+    }
+
     function init() {
+        initThreadCategoryEditor();
+
         var navTextarea = fieldByName('navItems');
         var friendsTextarea = fieldByName('friendsData');
         var bookInput = fieldByName('bookReference');

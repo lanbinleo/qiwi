@@ -32,8 +32,10 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `comments.php`: comment list and form.
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
+- `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, and `CHANGELOG.md` when bumping releases.
 - `components/home-jike.php`: Jike-style home feed component.
 - `plugins/QiwiSitemap/`: Qiwi Sitemap plugin source maintained with this theme.
+- `plugins/QiwiTheme/`: Qiwi Theme companion plugin source for `thread-*` admin editing and Thread data storage.
 - `docs/design-doc.html`: local visual/style references. Treat as reference unless the task asks to edit them.
 - `docs/screenshot*.png`: theme screenshots used by project docs.
 - `reference/`: legacy reference material. Read-only unless a task explicitly asks to sync it.

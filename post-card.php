@@ -31,9 +31,12 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
                 <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?></span>
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
                 <?php if ($this->categories): ?>
+                <?php $qiwiCategoryLinks = qiwiRenderTermLinks($this->categories, 'meta-category-link', 'category'); ?>
+                <?php if ($qiwiCategoryLinks !== ''): ?>
                 <span class="meta-category">
-                    <?php echo qiwiRenderTermLinks($this->categories, 'meta-category-link', 'category'); ?>
+                    <?php echo $qiwiCategoryLinks; ?>
                 </span>
+                <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($this->fields->isSticky == 1): ?>
                 <span class="meta-sticky">置顶</span>

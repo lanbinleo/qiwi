@@ -3,9 +3,9 @@
  * Qiwi Theme - 首页
  *
  * @package Qiwi
- * @author MaxQi
- * @version 1.2.7
- * @link http://mura.ink
+ * @author Leo
+ * @version 1.4.3
+ * @link https://maxqi.top
  */
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
@@ -17,9 +17,14 @@ $pageSize = $this->parameter->pageSize;
 $postsToDisplay = [];
 $hasContent = false;
 $sidebarMomentCount = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'sidebarMomentCount', 4, 1, 8) : 4;
-$homeJikeData = $currentPage == 1 ? qiwiGetHomepageJikeData($sidebarMomentCount) : null;
+$homeJikeData = function_exists('qiwiGetHomepageJikeData') ? qiwiGetHomepageJikeData($sidebarMomentCount) : null;
 $hasHomeJike = !empty($homeJikeData['items']);
 $jikePosition = $hasHomeJike ? ($this->options->jikePosition ?: 'sidebar') : 'off';
+if ((string) $jikePosition === '1') {
+    $jikePosition = 'sidebar';
+} elseif ((string) $jikePosition === '0') {
+    $jikePosition = 'off';
+}
 if (in_array($jikePosition, ['top', 'inline'], true)) {
     $jikePosition = 'sidebar';
 }

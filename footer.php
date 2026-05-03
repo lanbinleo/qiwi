@@ -114,6 +114,41 @@ function initMobileNavigation() {
         return !mobileNavMedia || mobileNavMedia.matches;
     };
 
+    const preventBackgroundScroll = function(event) {
+        if (!navMenu.classList.contains('is-open')) {
+            return;
+        }
+
+        if (navMenu.contains(event.target)) {
+            return;
+        }
+
+        event.preventDefault();
+    };
+
+    const lockPageScroll = function() {
+        if (!isMobileNav() || document.body.dataset.qiwiNavScrollLocked === '1') {
+            return;
+        }
+
+        document.body.dataset.qiwiNavScrollLocked = '1';
+        document.documentElement.classList.add('nav-open');
+        document.addEventListener('wheel', preventBackgroundScroll, { passive: false });
+        document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+    };
+
+    const unlockPageScroll = function() {
+        if (document.body.dataset.qiwiNavScrollLocked !== '1') {
+            document.documentElement.classList.remove('nav-open');
+            return;
+        }
+
+        delete document.body.dataset.qiwiNavScrollLocked;
+        document.documentElement.classList.remove('nav-open');
+        document.removeEventListener('wheel', preventBackgroundScroll);
+        document.removeEventListener('touchmove', preventBackgroundScroll);
+    };
+
     const setFocusableTree = function(root, isFocusable) {
         if (!root) return;
 
@@ -186,9 +221,15 @@ function initMobileNavigation() {
     };
 
     const setMenuState = function(isOpen) {
+        isOpen = Boolean(isOpen && isMobileNav());
         navMenu.classList.toggle('is-open', isOpen);
         document.body.classList.toggle('nav-open', isOpen);
         navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen) {
+            lockPageScroll();
+        } else {
+            unlockPageScroll();
+        }
         updateMenuAccessibility(isOpen);
 
         submenuToggles.forEach(function(toggle) {

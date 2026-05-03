@@ -4,6 +4,14 @@
  */
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
+
+$qiwiArchiveSlug = method_exists($this, 'getArchiveSlug') ? (string) $this->getArchiveSlug() : '';
+$qiwiIsThreadArchive = $this->is('category') && function_exists('qiwiIsThreadSlug') && qiwiIsThreadSlug($qiwiArchiveSlug);
+if ($qiwiIsThreadArchive) {
+    $this->need('components/thread-archive.php');
+    $this->need('footer.php');
+    return;
+}
 ?>
 
 <div class="main-layout">
