@@ -456,7 +456,8 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
 
     private function optionValue($options, $name)
     {
-        return isset($options->{$name}) ? trim((string) $options->{$name}) : '';
+        $value = $options->{$name};
+        return $value !== null ? trim((string) $value) : '';
     }
 
     private function pluginOptions()
