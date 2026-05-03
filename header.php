@@ -32,7 +32,32 @@ $qiwiNormalizeLang = function ($lang) {
 
     return $primary . '-' . $region;
 };
-$qiwiToAbsoluteUrl = function ($url) {
+$qiwiCleanMetaValue = function ($value) {
+    if (is_array($value) || is_object($value)) {
+        return '';
+    }
+
+    $value = trim((string) $value);
+    if ($value === '' || $value === '0') {
+        return '';
+    }
+
+    return $value;
+};
+$qiwiCleanMetaText = function ($value) use ($qiwiCleanMetaValue) {
+    $value = $qiwiCleanMetaValue($value);
+    if ($value === '') {
+        return '';
+    }
+
+    return trim(preg_replace('/\s+/u', ' ', strip_tags($value)));
+};
+$qiwiToAbsoluteUrl = function ($url) use ($qiwiCleanMetaValue) {
+    $url = $qiwiCleanMetaValue($url);
+    if ($url === '') {
+        return '';
+    }
+
     $url = trim((string) $url);
     if ($url === '') {
         return '';
@@ -77,7 +102,7 @@ if ($this->is('single') && $qiwiSingleTitle !== '' && strpos($qiwiTitlePrefix, $
 $qiwiDescription = '';
 if ($this->is('single')) {
     $qiwiFieldExcerpt = function_exists('qiwiGetFieldValue') ? qiwiGetFieldValue($this, 'excerpt', '') : '';
-    if (trim((string) $qiwiFieldExcerpt) !== '' && function_exists('qiwiExtractPlainText')) {
+    if ($qiwiCleanMetaValue($qiwiFieldExcerpt) !== '' && function_exists('qiwiExtractPlainText')) {
         $qiwiDescription = qiwiExtractPlainText($qiwiFieldExcerpt);
     } elseif (function_exists('qiwiExcerptText')) {
         $qiwiDescription = qiwiExcerptText($this->content, 150);
@@ -87,7 +112,13 @@ if ($this->is('single')) {
 } else {
     $qiwiDescription = $qiwiCapture(function () { $this->options->description(); });
 }
-$qiwiDescription = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $qiwiDescription)));
+$qiwiDescription = $qiwiCleanMetaText($qiwiDescription);
+if ($qiwiDescription === '') {
+    $qiwiDescription = $qiwiCleanMetaText($qiwiCapture(function () { $this->options->description(); }));
+}
+if ($qiwiDescription === '') {
+    $qiwiDescription = $qiwiSiteTitle;
+}
 
 $qiwiKeywords = $this->is('single')
     ? $qiwiCapture(function () { $this->tags(',', false); })
