@@ -208,7 +208,6 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $author = $this->authorInfo(isset($page['authorId']) ? (int) $page['authorId'] : 0);
         $items = $this->momentComments($page);
         $lastBuild = !empty($items) ? (int) $items[0]['created'] : $this->contentLastmod($page);
-        $avatarUrl = $this->avatarUrl();
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">' . "\n";
@@ -219,14 +218,6 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $xml .= '<description>' . $this->xml(sprintf(_t('来自「%s」的时光机动态'), $pageTitle)) . '</description>' . "\n";
         $xml .= '<language>zh-CN</language>' . "\n";
         $xml .= '<lastBuildDate>' . $this->dateForRss($lastBuild) . '</lastBuildDate>' . "\n";
-
-        if ($avatarUrl !== '') {
-            $xml .= '<image>' . "\n";
-            $xml .= '<url>' . $this->xml($avatarUrl) . '</url>' . "\n";
-            $xml .= '<title>' . $this->xml($siteTitle) . '</title>' . "\n";
-            $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
-            $xml .= '</image>' . "\n";
-        }
 
         foreach ($items as $item) {
             $itemLink = $pageUrl . '#comment-' . (int) $item['coid'];
