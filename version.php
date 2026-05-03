@@ -1,8 +1,17 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.4.2";
+$version = "1.4.3";
 $releaseNotes = [
+    "1.4.3" => <<<EOT
+- 修复新增 thread-* 文集首次保存时文章块、文字块和文集元数据可能丢失的问题
+- 修复首页分页、分类分页等列表页侧边栏“闲言碎语”不显示的问题
+- 修复移动端页面滚动后展开导航抽屉位置错误、导航消失与背景仍可滚动的问题
+- 新增 Thread 专题文集：slug 以 thread- 开头的分类会使用独立的无侧边栏文集页面
+- Thread 页面支持文集简介、状态、领域、时间信息、阅读路线、文章块、文字块与 Markdown 块
+- 新增 QiwiTheme 主题伴生插件，将 Thread 完整 JSON 存入插件表，分类描述只保留短摘要以避开数据库字段限制
+- 后台分类编辑页会在启用插件后接管 thread-* 文集描述，提供可视化块编辑、文章选择、排序、保存与 JSON 查看
+EOT,
     "1.4.2" => <<<EOT
 - 新增 canonical、Open Graph、Twitter Card 与文章页 BlogPosting JSON-LD，增强搜索引擎和社交分享识别
 - 规范 HTML lang 输出为 zh-CN 形式，并使用站点头像补齐 favicon、32x32 图标和 Apple Touch Icon
@@ -188,6 +197,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.4.3" => "2026-05-03",
   "1.4.2" => "2026-05-03",
   "1.4.1" => "2026-05-03",
   "1.4.0" => "2026-05-02",

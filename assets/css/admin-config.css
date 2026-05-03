@@ -748,6 +748,376 @@
     background: #fafafa;
 }
 
+.qiwi-thread-editor-page .col-mb-12.col-tb-6.col-tb-offset-3 {
+    float: none;
+    width: min(100%, 1040px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.qiwi-thread-editor-page .typecho-page-main form .submit,
+.qiwi-thread-editor-page .typecho-page-main form p.submit,
+.qiwi-thread-editor-page form .submit {
+    display: none;
+}
+
+.qiwi-thread-category-panel {
+    display: none;
+    margin: 0 0 22px;
+    padding: 22px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+}
+
+.qiwi-thread-category-panel.is-active {
+    display: block;
+}
+
+.qiwi-thread-admin-head {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.qiwi-thread-admin-head strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #333;
+    font-size: 17px;
+}
+
+.qiwi-thread-admin-head p {
+    margin: 0;
+    color: #888;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.qiwi-thread-admin-head code {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #f4f4f4;
+    color: #555;
+}
+
+.qiwi-thread-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 18px;
+    margin-bottom: 18px;
+}
+
+.qiwi-thread-fields label,
+.qiwi-thread-block-editor label {
+    display: grid;
+    gap: 7px;
+    color: #777;
+    font-size: 12px;
+}
+
+.qiwi-thread-fields input,
+.qiwi-thread-fields select,
+.qiwi-thread-fields textarea,
+.qiwi-thread-block-editor input,
+.qiwi-thread-block-editor textarea {
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.qiwi-thread-wide {
+    grid-column: 1 / -1;
+}
+
+.qiwi-thread-block-toolbar {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid #ededed;
+    border-radius: 8px;
+    background: #fbfbfb;
+}
+
+.qiwi-thread-block {
+    margin-bottom: 10px;
+    overflow: hidden;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.qiwi-thread-block.is-dragging {
+    opacity: 0.55;
+}
+
+.qiwi-thread-block-summary {
+    display: grid;
+    grid-template-columns: 22px 72px minmax(0, 1fr) 28px;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    padding: 12px 14px;
+    border: 0;
+    background: #fff;
+    color: #444;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-thread-block-summary:hover {
+    background: #f8f8f8;
+}
+
+.qiwi-thread-block-drag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    color: #aaa;
+    cursor: grab;
+}
+
+.qiwi-thread-block-type {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    padding: 0 8px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fafafa;
+    color: #777;
+    font-size: 12px;
+}
+
+.qiwi-thread-block-title {
+    min-width: 0;
+    overflow: hidden;
+    color: #333;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-thread-block-arrow {
+    display: inline-flex;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.qiwi-thread-block-arrow svg {
+    width: 16px;
+    height: 16px;
+}
+
+.qiwi-thread-block.is-open .qiwi-thread-block-arrow {
+    transform: rotate(180deg);
+}
+
+.qiwi-thread-block-editor {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 16px;
+    border-top: 1px solid #e6e6e6;
+    background: #fbfbfb;
+}
+
+.qiwi-thread-block.is-open .qiwi-thread-block-editor {
+    display: grid;
+}
+
+.qiwi-thread-status {
+    min-height: 18px;
+    margin: 0;
+    color: #467b96;
+    font-size: 12px;
+}
+
+.qiwi-thread-status.is-error {
+    color: #b42318;
+}
+
+.qiwi-thread-raw-row.is-thread-active textarea[name="description"] {
+    min-height: 90px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.qiwi-thread-raw-row.is-thread-active {
+    display: none;
+}
+
+.qiwi-thread-post-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.qiwi-thread-post-picker span {
+    display: block;
+    margin-bottom: 4px;
+    color: #999;
+    font-size: 12px;
+}
+
+.qiwi-thread-post-picker strong {
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.qiwi-thread-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #eee;
+}
+
+.qiwi-thread-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+}
+
+.qiwi-thread-modal.is-open {
+    display: block;
+}
+
+.qiwi-thread-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.38);
+}
+
+.qiwi-thread-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(720px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    margin: 32px auto;
+    padding: 18px;
+    overflow: auto;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+}
+
+.qiwi-thread-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.qiwi-thread-post-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.qiwi-thread-post-results {
+    display: grid;
+    gap: 8px;
+}
+
+.qiwi-thread-post-result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-thread-post-result:hover {
+    border-color: #d0d0d0;
+    background: #fafafa;
+}
+
+.qiwi-thread-post-result span {
+    min-width: 0;
+}
+
+.qiwi-thread-post-result strong,
+.qiwi-thread-post-result em {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-thread-post-result em {
+    margin-top: 4px;
+    color: #888;
+    font-size: 12px;
+    font-style: normal;
+}
+
+.qiwi-thread-post-result small {
+    color: #888;
+    font-family: Consolas, Monaco, monospace;
+}
+
+.qiwi-thread-load-more {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.qiwi-thread-modal textarea[data-thread-json-output] {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.qiwi-thread-modal-actions {
+    margin-top: 12px;
+    text-align: right;
+}
+
+@media (max-width: 768px) {
+    .qiwi-thread-category-panel {
+        padding: 16px;
+    }
+
+    .qiwi-thread-fields,
+    .qiwi-thread-block-editor,
+    .qiwi-thread-post-search,
+    .qiwi-thread-post-result {
+        grid-template-columns: 1fr;
+    }
+
+    .qiwi-thread-footer-actions,
+    .qiwi-thread-post-picker {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .qiwi-thread-modal-panel {
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 20px);
+        margin: 10px auto;
+    }
+}
+
 .qiwi-config-transfer {
     display: grid;
     gap: 10px;

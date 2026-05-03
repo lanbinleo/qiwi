@@ -461,7 +461,7 @@ function themeConfig($form)
         ),
         'sidebar',
         _t('侧边栏说说'),
-        _t('在首页侧边栏展示时光机页面的最新说说。需要已发布一个使用“时间机器”模板的独立页面。')
+        _t('在全站侧边栏展示时光机页面的最新说说。需要已发布一个使用“时间机器”模板的独立页面。')
     );
     $form->addInput($jikePosition);
 
@@ -482,7 +482,7 @@ function themeConfig($form)
         null,
         '4',
         _t('侧边栏说说 - 展示数量'),
-        _t('首页侧边栏展示的最新说说数量，建议 3-6 条。')
+        _t('侧边栏展示的最新说说数量，建议 3-6 条。')
     );
     $form->addInput($sidebarMomentCount);
 
@@ -964,6 +964,10 @@ if (!function_exists('qiwiRenderTermLinks')) {
         $links = [];
         $total = count($terms);
         foreach ($terms as $index => $term) {
+            if ($colorMode === 'category' && function_exists('qiwiIsThreadTerm') && qiwiIsThreadTerm($term)) {
+                continue;
+            }
+
             $name = trim((string) qiwiGetTermValue($term, 'name', ''));
             $url = trim((string) qiwiGetTermValue($term, 'permalink', '#'));
             if ($name === '') {
@@ -983,6 +987,349 @@ if (!function_exists('qiwiRenderTermLinks')) {
         }
 
         return implode('', $links);
+    }
+}
+
+if (!function_exists('qiwiIsThreadSlug')) {
+    function qiwiIsThreadSlug($slug)
+    {
+        return strpos((string) $slug, 'thread-') === 0;
+    }
+}
+
+if (!function_exists('qiwiIsThreadTerm')) {
+    function qiwiIsThreadTerm($term)
+    {
+        return qiwiIsThreadSlug(qiwiGetTermValue($term, 'slug', ''));
+    }
+}
+
+if (!function_exists('qiwiDefaultThreadData')) {
+    function qiwiDefaultThreadData($description = '')
+    {
+        $summary = function_exists('qiwiThreadCleanOptionalText')
+            ? qiwiThreadCleanOptionalText(strip_tags((string) $description))
+            : trim(strip_tags((string) $description));
+        return [
+            'schema' => 'qiwi-thread',
+            'version' => 1,
+            'subtitle' => '',
+            'summary' => $summary,
+            'status' => 'ongoing',
+            'startedAt' => '',
+            'field' => '',
+            'order' => 'asc',
+            'blocks' => [],
+        ];
+    }
+}
+
+if (!function_exists('qiwiNormalizeThreadStatus')) {
+    function qiwiNormalizeThreadStatus($status)
+    {
+        $status = strtolower(trim((string) $status));
+        return in_array($status, ['ongoing', 'completed', 'paused'], true) ? $status : 'ongoing';
+    }
+}
+
+if (!function_exists('qiwiThreadStatusLabel')) {
+    function qiwiThreadStatusLabel($status)
+    {
+        $labels = [
+            'ongoing' => '连载中',
+            'completed' => '已完成',
+            'paused' => '暂缓',
+        ];
+        $status = qiwiNormalizeThreadStatus($status);
+        return isset($labels[$status]) ? $labels[$status] : $labels['ongoing'];
+    }
+}
+
+if (!function_exists('qiwiThreadCleanOptionalText')) {
+    function qiwiThreadCleanOptionalText($value)
+    {
+        $text = trim((string) $value);
+        $legacyHint = 'slug 以 thread- 开头时启用。完整结构保存在 Qiwi Theme 伴生插件表，分类描述只保留短摘要。';
+        if ($text !== '' && trim(str_replace($legacyHint, '', $text)) === '') {
+            return '';
+        }
+
+        return $text === '0' ? '' : $text;
+    }
+}
+
+if (!function_exists('qiwiNormalizeThreadBlock')) {
+    function qiwiNormalizeThreadBlock($block)
+    {
+        if (!is_array($block)) {
+            return null;
+        }
+
+        $type = isset($block['type']) ? strtolower(trim((string) $block['type'])) : 'post';
+        if (!in_array($type, ['post', 'text', 'markdown'], true)) {
+            $type = 'post';
+        }
+
+        return [
+            'type' => $type,
+            'cid' => isset($block['cid']) ? (int) $block['cid'] : 0,
+            'slug' => isset($block['slug']) ? qiwiThreadCleanOptionalText($block['slug']) : '',
+            'title' => isset($block['title']) ? qiwiThreadCleanOptionalText($block['title']) : '',
+            'label' => isset($block['label']) ? qiwiThreadCleanOptionalText($block['label']) : '',
+            'role' => isset($block['role']) ? qiwiThreadCleanOptionalText($block['role']) : '',
+            'note' => isset($block['note']) ? qiwiThreadCleanOptionalText($block['note']) : '',
+            'content' => isset($block['content']) ? qiwiThreadCleanOptionalText($block['content']) : '',
+        ];
+    }
+}
+
+if (!function_exists('qiwiParseThreadData')) {
+    function qiwiParseThreadData($description)
+    {
+        $description = trim((string) $description);
+        $data = qiwiDefaultThreadData($description);
+
+        if ($description === '') {
+            return $data;
+        }
+
+        $decoded = json_decode(html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8'), true);
+        if (!is_array($decoded) || (isset($decoded['schema']) && $decoded['schema'] !== 'qiwi-thread')) {
+            return $data;
+        }
+
+        foreach (['subtitle', 'summary', 'startedAt', 'field', 'order'] as $key) {
+            if (isset($decoded[$key]) && !is_array($decoded[$key]) && !is_object($decoded[$key])) {
+                $data[$key] = qiwiThreadCleanOptionalText($decoded[$key]);
+            }
+        }
+
+        $data['schema'] = 'qiwi-thread';
+        $data['version'] = isset($decoded['version']) ? max(1, (int) $decoded['version']) : 1;
+        $data['status'] = qiwiNormalizeThreadStatus(isset($decoded['status']) ? $decoded['status'] : '');
+        $data['order'] = in_array($data['order'], ['asc', 'desc'], true) ? $data['order'] : 'asc';
+
+        if (isset($decoded['blocks']) && is_array($decoded['blocks'])) {
+            $data['blocks'] = array_values(array_filter(array_map('qiwiNormalizeThreadBlock', $decoded['blocks'])));
+        }
+
+        return $data;
+    }
+}
+
+if (!function_exists('qiwiGetStoredThreadData')) {
+    function qiwiGetStoredThreadData($mid)
+    {
+        $mid = (int) $mid;
+        if ($mid <= 0) {
+            return '';
+        }
+
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getThreadData')) {
+            return QiwiTheme_Plugin::getThreadData($mid);
+        }
+
+        if (class_exists('QiwiThreadTools_Plugin') && method_exists('QiwiThreadTools_Plugin', 'getThreadData')) {
+            return QiwiThreadTools_Plugin::getThreadData($mid);
+        }
+
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $table = $db->getPrefix() . 'qiwi_threads';
+            $row = $db->fetchRow($db->select('data')->from($table)->where('mid = ?', $mid)->limit(1));
+            return !empty($row['data']) ? (string) $row['data'] : '';
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+}
+
+if (!function_exists('qiwiGetThreadData')) {
+    function qiwiGetThreadData($mid, $description = '')
+    {
+        $stored = qiwiGetStoredThreadData($mid);
+        return qiwiParseThreadData($stored !== '' ? $stored : $description);
+    }
+}
+
+if (!function_exists('qiwiThreadConfiguredPostCount')) {
+    function qiwiThreadConfiguredPostCount($threadData, $fallbackCount = 0)
+    {
+        if (!is_array($threadData) || empty($threadData['blocks']) || !is_array($threadData['blocks'])) {
+            return max(0, (int) $fallbackCount);
+        }
+
+        $count = 0;
+        foreach ($threadData['blocks'] as $block) {
+            if (!is_array($block) || (isset($block['type']) && $block['type'] !== 'post')) {
+                continue;
+            }
+
+            $cid = isset($block['cid']) ? (int) $block['cid'] : 0;
+            $slug = isset($block['slug']) ? qiwiThreadCleanOptionalText($block['slug']) : '';
+            if ($cid > 0 || $slug !== '') {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+}
+
+if (!function_exists('qiwiThreadDisplayCount')) {
+    function qiwiThreadDisplayCount($mid, $description = '', $fallbackCount = 0)
+    {
+        $data = qiwiGetThreadData($mid, $description);
+        return qiwiThreadConfiguredPostCount($data, $fallbackCount);
+    }
+}
+
+if (!function_exists('qiwiRenderThreadMarkdown')) {
+    function qiwiRenderThreadMarkdown($text)
+    {
+        $text = trim((string) $text);
+        if ($text === '') {
+            return '';
+        }
+
+        if (class_exists('\Utils\Markdown')) {
+            return qiwiRenderShortcodes(\Utils\Markdown::convert($text));
+        }
+
+        $escaped = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+        return '<p>' . preg_replace('/\n{2,}/', '</p><p>', nl2br($escaped, false)) . '</p>';
+    }
+}
+
+if (!function_exists('qiwiThreadPostPermalink')) {
+    function qiwiThreadPostPermalink($row)
+    {
+        try {
+            if (!is_array($row) || Typecho_Router::get('post') === null) {
+                return '';
+            }
+
+            if (isset($row['slug'])) {
+                $row['slug'] = rawurlencode($row['slug']);
+            }
+
+            $date = new Typecho_Date(isset($row['created']) ? (int) $row['created'] : 0);
+            $row['date'] = $date;
+            $row['year'] = $date->year;
+            $row['month'] = $date->month;
+            $row['day'] = $date->day;
+
+            Typecho_Widget::widget('Widget_Options')->to($options);
+            return Typecho_Common::url(Typecho_Router::url('post', $row), $options->index);
+        } catch (Exception $e) {
+            return '';
+        }
+    }
+}
+
+if (!function_exists('qiwiThreadPostFromRow')) {
+    function qiwiThreadPostFromRow($row, $permalink = '')
+    {
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $content = isset($row['text']) ? (string) $row['text'] : (isset($row['content']) ? (string) $row['content'] : '');
+        $plain = function_exists('qiwiExtractPlainText') ? qiwiExtractPlainText($content) : trim(strip_tags($content));
+        $wordCount = function_exists('mb_strlen') ? mb_strlen($plain, 'UTF-8') : strlen($plain);
+        $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
+        $readingTime = max(1, (int) round($wordCount / $speed));
+        $excerpt = qiwiThreadCleanOptionalText(function_exists('qiwiExcerptText') ? qiwiExcerptText($content, 128) : '');
+
+        return [
+            'cid' => isset($row['cid']) ? (int) $row['cid'] : 0,
+            'slug' => isset($row['slug']) ? (string) $row['slug'] : '',
+            'title' => isset($row['title']) ? (string) $row['title'] : '',
+            'permalink' => $permalink !== '' ? $permalink : qiwiThreadPostPermalink($row),
+            'created' => isset($row['created']) ? (int) $row['created'] : 0,
+            'modified' => !empty($row['modified']) ? (int) $row['modified'] : (isset($row['created']) ? (int) $row['created'] : 0),
+            'excerpt' => $excerpt,
+            'readingTime' => $readingTime,
+            'wordCount' => $wordCount,
+        ];
+    }
+}
+
+if (!function_exists('qiwiThreadFetchPost')) {
+    function qiwiThreadFetchPost($cid = 0, $slug = '')
+    {
+        $cid = (int) $cid;
+        $slug = trim((string) $slug);
+        if ($cid <= 0 && $slug === '') {
+            return null;
+        }
+
+        try {
+            Typecho_Widget::widget('Widget_Options')->to($options);
+            $db = Typecho_Db::get();
+            $select = $db->select('cid', 'title', 'slug', 'created', 'modified', 'text')
+                ->from('table.contents')
+                ->where('type = ?', 'post')
+                ->where('status = ?', 'publish')
+                ->where('(password IS NULL OR password = ?)', '')
+                ->where('created < ?', $options->gmtTime)
+                ->limit(1);
+
+            if ($cid > 0) {
+                $select->where('cid = ?', $cid);
+            } else {
+                $select->where('slug = ?', $slug);
+            }
+
+            $row = $db->fetchRow($select);
+            return $row ? qiwiThreadPostFromRow($row) : null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('qiwiGetThreadCategories')) {
+    function qiwiGetThreadCategories()
+    {
+        $items = [];
+        try {
+            \Widget\Metas\Category\Rows::alloc()->to($categories);
+            while ($categories->next()) {
+                if (!qiwiIsThreadSlug($categories->slug)) {
+                    continue;
+                }
+
+                ob_start();
+                $categories->permalink();
+                $permalink = trim(ob_get_clean());
+
+                $description = (string) $categories->description;
+                $threadData = qiwiGetThreadData((int) $categories->mid, $description);
+                $count = qiwiThreadConfiguredPostCount($threadData, (int) $categories->count);
+                if ($count <= 0 && trim((string) $threadData['summary']) === '' && trim((string) $threadData['subtitle']) === '') {
+                    continue;
+                }
+
+                $items[] = [
+                    'mid' => (int) $categories->mid,
+                    'name' => (string) $categories->name,
+                    'slug' => (string) $categories->slug,
+                    'permalink' => $permalink,
+                    'count' => $count,
+                    'description' => $description,
+                    'threadData' => $threadData,
+                ];
+            }
+        } catch (Exception $e) {
+            return [];
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        return $items;
     }
 }
 

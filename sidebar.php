@@ -17,17 +17,31 @@ if ($tagsPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
     $tagsPageUrl = qiwiGetPageUrlBySlug($this, ['tags', 'tag']);
 }
 
-$isHomeIndex = method_exists($this, 'is') && $this->is('index');
 $homeJikeData = isset($this->homeJikeData) ? $this->homeJikeData : null;
 $homeJikeTimeMode = isset($this->homeJikeTimeMode) ? $this->homeJikeTimeMode : 'absolute';
-$homeJikePosition = isset($this->homeJikePosition) ? $this->homeJikePosition : '';
-$showSidebarJike = $isHomeIndex
-    && $homeJikePosition === 'sidebar'
+$homeJikePosition = isset($this->homeJikePosition)
+    ? $this->homeJikePosition
+    : (isset($this->options->jikePosition) ? $this->options->jikePosition : 'sidebar');
+if ((string) $homeJikePosition === '1') {
+    $homeJikePosition = 'sidebar';
+} elseif ((string) $homeJikePosition === '0') {
+    $homeJikePosition = 'off';
+}
+if (in_array($homeJikePosition, ['top', 'inline'], true)) {
+    $homeJikePosition = 'sidebar';
+}
+$homeJikeTimeMode = in_array($homeJikeTimeMode, ['absolute', 'relative'], true) ? $homeJikeTimeMode : 'absolute';
+if ($homeJikePosition === 'sidebar' && empty($homeJikeData) && function_exists('qiwiGetHomepageJikeData')) {
+    $sidebarMomentCount = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'sidebarMomentCount', 4, 1, 8) : 4;
+    $homeJikeData = qiwiGetHomepageJikeData($sidebarMomentCount);
+}
+$showSidebarJike = $homeJikePosition === 'sidebar'
     && !empty($homeJikeData['items'])
     && !empty($homeJikeData['permalink']);
 $sidebarBlocks = isset($this->options->sidebarBlock)
     ? (array) $this->options->sidebarBlock
     : ['ShowRecentPosts', 'ShowCategory', 'ShowArchive', 'ShowTags'];
+$sidebarThreadItems = function_exists('qiwiGetThreadCategories') ? qiwiGetThreadCategories() : [];
 $sidebarSocialLinks = function_exists('qiwiGetSidebarSocialLinks') ? qiwiGetSidebarSocialLinks($this) : [];
 $sidebarProfileAvatar = function_exists('qiwiGetSidebarProfileAvatar') ? qiwiGetSidebarProfileAvatar($this) : 'https://gravatar.loli.net/avatar/default?s=160&d=mp';
 $sidebarProfileText = function_exists('qiwiGetSidebarProfileText') ? qiwiGetSidebarProfileText($this) : '';
@@ -94,6 +108,7 @@ $sidebarIconSvg = function($kind) {
         <?php \Widget\Metas\Category\Rows::alloc()->to($category); ?>
         <?php while ($category->next()): ?>
             <?php if ((int) $category->count <= 0) continue; ?>
+            <?php if (function_exists('qiwiIsThreadSlug') && qiwiIsThreadSlug($category->slug)) continue; ?>
             <li>
                 <a href="<?php $category->permalink(); ?>" class="cat cat-plain">
                     <span class="cat-name"><?php $category->name(); ?></span>
@@ -101,6 +116,22 @@ $sidebarIconSvg = function($kind) {
                 </a>
             </li>
         <?php endwhile; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
+<?php if (!empty($sidebarThreadItems)): ?>
+<div class="sidebar-section">
+    <h3 class="sidebar-title">专题</h3>
+    <ul class="sidebar-list sidebar-thread-list">
+        <?php foreach ($sidebarThreadItems as $thread): ?>
+            <li>
+                <a href="<?php echo htmlspecialchars($thread['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="cat cat-plain sidebar-thread-link">
+                    <span class="cat-name"><?php echo htmlspecialchars($thread['name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="count"><?php echo (int) $thread['count']; ?></span>
+                </a>
+            </li>
+        <?php endforeach; ?>
     </ul>
 </div>
 <?php endif; ?>
