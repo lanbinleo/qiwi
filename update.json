@@ -1,13 +1,13 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "releaseDate": "2026-05-03",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "新增 QiwiSitemap 伴生插件源码，提供标准 sitemap、robots.txt 与 RSS/Atom 发现链接",
-    "Sitemap 使用真实发布时间与修改时间生成 lastmod，并过滤未发布、加密和未来内容",
-    "支持文章、独立页面、分类、标签拆分 sitemap，以及按 CID 排除特定内容",
-    "Sitemap 浏览器可视化页面支持读取 Qiwi 主题头像配置，并展示 RSS 订阅入口",
-    "移除旧版 Sitemaplanbin 插件包，改为随主题维护的 MIT 插件实现"
+    "新增 canonical、Open Graph、Twitter Card 与文章页 BlogPosting JSON-LD",
+    "规范 HTML lang 输出为 zh-CN 形式，并补齐 favicon、32x32 图标和 Apple Touch Icon",
+    "优化移动端导航抽屉位置与隐藏状态，避免隐藏链接进入键盘焦点流",
+    "提升辅助文字颜色对比度，并为文章缩略图与头图补充性能提示属性",
+    "update.sh 新增伴生插件同步步骤，主题更新后会同步 plugins 目录到 Typecho 插件目录"
   ]
 }

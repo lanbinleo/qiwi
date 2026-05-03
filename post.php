@@ -57,7 +57,7 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
             $thumbnail = $this->fields->thumbnail;
             if (($showThumbnail == 2 || $showThumbnail == 3) && !empty($thumbnail)):
             ?>
-            <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title(); ?>" class="article-hero" loading="lazy">
+            <img src="<?php echo htmlspecialchars($thumbnail, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->title(); ?>" class="article-hero" loading="eager" fetchpriority="high" decoding="async" width="1200" height="675">
             <?php endif; ?>
 
             <!-- 文章内容 -->

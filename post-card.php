@@ -62,7 +62,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
 
         <?php if ($shouldShowThumbnail): ?>
         <div class="article-thumbnail-wrapper">
-            <img src="<?php echo $thumbnail; ?>" alt="<?php $this->title(); ?>" class="article-thumbnail" loading="lazy">
+            <img src="<?php echo htmlspecialchars($thumbnail, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->title(); ?>" class="article-thumbnail" loading="lazy" decoding="async" width="420" height="236" sizes="(max-width: 768px) 100vw, 30vw">
         </div>
         <?php endif; ?>
     </div>

@@ -1,5 +1,15 @@
 # Qiwi Theme Changelog
 
+## [1.4.2] - 2026-05-03
+- 新增首页、归档与文章页 canonical 输出，统一搜索引擎可索引 URL 信号。
+- 规范 HTML `lang` 输出，将 `zh_CN` 等写法转换为 `zh-CN`。
+- 为页面补充 Open Graph、Twitter Card 元信息，并为文章页输出 BlogPosting JSON-LD。
+- 使用站点头像生成主题 favicon、32x32 PNG 与 Apple Touch Icon，修复 favicon 404。
+- 优化移动端导航抽屉位置与隐藏状态，避免菜单展开后停在页面顶部，并防止隐藏链接进入键盘焦点流。
+- 提升辅助文字颜色对比度，改善移动端 Lighthouse Accessibility 结果。
+- 为文章列表缩略图与文章头图补充尺寸、异步解码与加载优先级提示。
+- `update.sh` 新增伴生插件同步步骤，更新主题后会把 `plugins/*` 同步到 Typecho 的 `usr/plugins/` 目录。
+
 ## [1.4.1] - 2026-05-03
 - 新增 `QiwiSitemap` 伴生插件源码，提供标准 sitemap、robots.txt 与 RSS/Atom 发现链接。
 - Sitemap 使用真实发布时间与修改时间生成 `lastmod`，并过滤未发布、加密和未来发布时间的内容。

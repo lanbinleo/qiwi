@@ -102,6 +102,7 @@ function initMobileNavigation() {
     const navToggle = document.querySelector('.nav-toggle');
     const navMenu = document.getElementById('site-navigation-menu');
     const submenuToggles = document.querySelectorAll('.nav-submenu-toggle');
+    const mobileNavMedia = window.matchMedia ? window.matchMedia('(max-width: 768px)') : null;
 
     if (!navToggle || !navMenu) {
         return;
@@ -109,34 +110,97 @@ function initMobileNavigation() {
 
     document.body.classList.add('nav-js-enabled');
 
+    const isMobileNav = function() {
+        return !mobileNavMedia || mobileNavMedia.matches;
+    };
+
+    const setFocusableTree = function(root, isFocusable) {
+        if (!root) return;
+
+        root.querySelectorAll('a, button').forEach(function(control) {
+            if (isFocusable) {
+                if (control.dataset.qiwiPreviousTabindex) {
+                    control.setAttribute('tabindex', control.dataset.qiwiPreviousTabindex);
+                    delete control.dataset.qiwiPreviousTabindex;
+                } else if (control.dataset.qiwiManagedTabindex === '1') {
+                    control.removeAttribute('tabindex');
+                    delete control.dataset.qiwiManagedTabindex;
+                }
+                return;
+            }
+
+            if (!control.dataset.qiwiManagedTabindex) {
+                if (control.hasAttribute('tabindex')) {
+                    control.dataset.qiwiPreviousTabindex = control.getAttribute('tabindex');
+                }
+                control.dataset.qiwiManagedTabindex = '1';
+            }
+            control.setAttribute('tabindex', '-1');
+        });
+    };
+
+    const setTreeHidden = function(root, isHidden) {
+        if (!root) return;
+
+        if (isHidden) {
+            root.setAttribute('aria-hidden', 'true');
+            if ('inert' in root) {
+                root.inert = true;
+            }
+            return;
+        }
+
+        root.removeAttribute('aria-hidden');
+        if ('inert' in root) {
+            root.inert = false;
+        }
+    };
+
+    const updateMenuAccessibility = function(isOpen) {
+        if (!isMobileNav()) {
+            setTreeHidden(navMenu, false);
+            setFocusableTree(navMenu, true);
+            return;
+        }
+
+        setTreeHidden(navMenu, !isOpen);
+        setFocusableTree(navMenu, isOpen);
+    };
+
     const setSubmenuState = function(toggle, isOpen) {
         const navItem = toggle.closest('.nav-item-has-children');
         if (!navItem) return;
 
+        const submenu = navItem.querySelector('.nav-submenu');
         navItem.classList.toggle('is-submenu-open', isOpen);
         toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+        if (!isMobileNav()) {
+            setTreeHidden(submenu, false);
+            setFocusableTree(submenu, true);
+            return;
+        }
+
+        setTreeHidden(submenu, !isOpen);
+        setFocusableTree(submenu, isOpen);
     };
 
     const setMenuState = function(isOpen) {
         navMenu.classList.toggle('is-open', isOpen);
         document.body.classList.toggle('nav-open', isOpen);
         navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        updateMenuAccessibility(isOpen);
 
         submenuToggles.forEach(function(toggle) {
             const navItem = toggle.closest('.nav-item-has-children');
             const hasCurrentChild = navItem && navItem.querySelector('.nav-submenu a.current');
 
-            if (isOpen && hasCurrentChild) {
-                setSubmenuState(toggle, true);
-                return;
-            }
-
-            if (!isOpen) {
-                setSubmenuState(toggle, false);
-            }
+            setSubmenuState(toggle, Boolean(isOpen && hasCurrentChild));
         });
 
     };
+
+    setMenuState(false);
 
     navToggle.addEventListener('click', function() {
         setMenuState(!navMenu.classList.contains('is-open'));
@@ -178,6 +242,8 @@ function initMobileNavigation() {
     window.addEventListener('resize', function() {
         if (window.innerWidth > 768) {
             setMenuState(false);
+        } else {
+            updateMenuAccessibility(navMenu.classList.contains('is-open'));
         }
     });
 }
