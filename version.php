@@ -1,8 +1,15 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.4.0";
+$version = "1.4.1";
 $releaseNotes = [
+    "1.4.1" => <<<EOT
+- 新增 QiwiSitemap 伴生插件源码，提供标准 sitemap、robots.txt 与 RSS/Atom 发现链接
+- Sitemap 使用真实发布时间与修改时间生成 lastmod，并过滤未发布、加密和未来内容
+- 支持文章、独立页面、分类、标签拆分 sitemap，以及按 CID 排除特定内容
+- Sitemap 浏览器可视化页面支持读取 Qiwi 主题头像配置，订阅入口展示 RSS 链接
+- 移除旧版 Sitemaplanbin 插件包，改为随主题维护的 MIT 插件实现
+EOT,
     "1.4.0" => <<<EOT
 - 合并新版 Qiwi 设计系统 token，统一纸面、焦糖墨、批注色、字阶、间距、圆角与动效变量
 - 优化文章页标题间距、正文标题节奏、文章底部标签/版权附注与上一篇/下一篇导航
@@ -173,6 +180,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.4.1" => "2026-05-03",
   "1.4.0" => "2026-05-02",
   "1.3.5" => "2026-05-01",
   "1.3.4" => "2026-05-01",
