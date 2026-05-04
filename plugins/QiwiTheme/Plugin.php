@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  MaxQiwi
- * @version 1.4.3
+ * @version 1.4.4
  * @link    https://www.maxqi.top/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -18,16 +18,20 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
     public static function activate()
     {
         self::installTable();
+        self::installExternalLinkTable();
         Helper::removeAction('qiwi-thread-tools');
+        Helper::removeRoute('qiwi_theme_goto_route');
         Helper::addAction('qiwi-theme', 'QiwiTheme_Action');
+        Helper::addRoute('qiwi_theme_goto_route', '/goto', 'QiwiTheme_Action', 'goto');
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表与后台增强接口已准备好。');
+        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口与 /goto 外链跳转统计已准备好。');
     }
 
     public static function deactivate()
     {
         Helper::removeAction('qiwi-theme');
+        Helper::removeRoute('qiwi_theme_goto_route');
     }
 
     public static function config(Typecho_Widget_Helper_Form $form)
@@ -35,7 +39,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储与文章选择接口。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口与 /goto 外链跳转统计。'));
         $form->addInput($info);
     }
 
@@ -139,6 +143,166 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         $db->query($sql);
+    }
+
+    public static function externalLinkTableName()
+    {
+        $db = Typecho_Db::get();
+        return $db->getPrefix() . 'qiwi_external_links';
+    }
+
+    public static function installExternalLinkTable()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $table = self::externalLinkTableName();
+            $adapter = strtolower(get_class($db->getAdapter()));
+
+            if (strpos($adapter, 'sqlite') !== false) {
+                $sql = 'CREATE TABLE IF NOT EXISTS "' . $table . '" (
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "url_hash" varchar(40) NOT NULL,
+                    "url" TEXT NOT NULL,
+                    "host" varchar(255) NOT NULL DEFAULT "",
+                    "source" TEXT,
+                    "referer" TEXT,
+                    "ip" varchar(64) NOT NULL DEFAULT "",
+                    "user_agent" TEXT,
+                    "clicked" INTEGER NOT NULL DEFAULT 0,
+                    "created" INTEGER NOT NULL DEFAULT 0
+                )';
+            } else {
+                $sql = 'CREATE TABLE IF NOT EXISTS `' . $table . '` (
+                    `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+                    `url_hash` varchar(40) NOT NULL,
+                    `url` text NOT NULL,
+                    `host` varchar(255) NOT NULL DEFAULT "",
+                    `source` text,
+                    `referer` text,
+                    `ip` varchar(64) NOT NULL DEFAULT "",
+                    `user_agent` text,
+                    `clicked` int(10) unsigned NOT NULL DEFAULT 0,
+                    `created` int(10) unsigned NOT NULL DEFAULT 0,
+                    PRIMARY KEY (`id`),
+                    KEY `url_hash` (`url_hash`),
+                    KEY `host` (`host`),
+                    KEY `clicked` (`clicked`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+            }
+
+            $db->query($sql);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function isExternalHttpUrl($url)
+    {
+        $url = trim((string) $url);
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            return false;
+        }
+
+        $targetHost = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($targetHost === '') {
+            return false;
+        }
+
+        Typecho_Widget::widget('Widget_Options')->to($options);
+        $siteHost = strtolower((string) parse_url((string) $options->siteUrl, PHP_URL_HOST));
+        if ($siteHost === '') {
+            return true;
+        }
+
+        return preg_replace('/^www\./i', '', $targetHost) !== preg_replace('/^www\./i', '', $siteHost);
+    }
+
+    public static function decodeGotoUrl($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        $decoded = base64_decode(strtr(rawurldecode($value), '-_', '+/'), true);
+        if ($decoded === false) {
+            return '';
+        }
+
+        $decoded = trim($decoded);
+        if (preg_match('/[\r\n]/', $decoded)) {
+            return '';
+        }
+
+        return self::isExternalHttpUrl($decoded) ? $decoded : '';
+    }
+
+    public static function recordExternalLinkClick($url)
+    {
+        $url = trim((string) $url);
+        if (!self::isExternalHttpUrl($url) || !self::installExternalLinkTable()) {
+            return false;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $table = self::externalLinkTableName();
+            $now = time();
+
+            $db->query($db->insert($table)->rows(array(
+                'url_hash' => sha1($url),
+                'url' => $url,
+                'host' => strtolower((string) parse_url($url, PHP_URL_HOST)),
+                'source' => isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '',
+                'referer' => isset($_SERVER['HTTP_REFERER']) ? (string) $_SERVER['HTTP_REFERER'] : '',
+                'ip' => isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '',
+                'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? substr((string) $_SERVER['HTTP_USER_AGENT'], 0, 500) : '',
+                'clicked' => $now,
+                'created' => $now,
+            )));
+
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function getExternalLinkStats($limit = 30)
+    {
+        $limit = max(1, min(100, (int) $limit));
+        if (!self::installExternalLinkTable()) {
+            return array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('url', 'host', 'COUNT(id) AS clicks', 'MAX(clicked) AS last_clicked')
+                ->from(self::externalLinkTableName())
+                ->group('url_hash, url, host')
+                ->order('last_clicked', Typecho_Db::SORT_DESC)
+                ->limit($limit));
+
+            $items = array();
+            foreach ($rows as $row) {
+                $items[] = array(
+                    'url' => isset($row['url']) ? (string) $row['url'] : '',
+                    'host' => isset($row['host']) ? (string) $row['host'] : '',
+                    'clicks' => isset($row['clicks']) ? (int) $row['clicks'] : 0,
+                    'lastClicked' => !empty($row['last_clicked']) ? date('Y-m-d H:i', (int) $row['last_clicked']) : '',
+                );
+            }
+
+            return $items;
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
     }
 
     public static function getThreadData($mid)

@@ -84,9 +84,62 @@ function renderMarkdown($text) {
     $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
     $text = preg_replace('/`([^`]+?)`/', '<code>$1</code>', $text);
     $text = preg_replace('/\[([^\]]*)\]\(([^\)]+)\)/', '<a href="$2" target="_blank" rel="noopener">$1</a>', $text);
+    $text = renderMomentAutolinks($text);
+    if (function_exists('qiwiRenderShortcodes')) {
+        $text = qiwiRenderShortcodes($text);
+    }
 
     // 最后统一处理换行（包括引用块内部）
     return nl2br($text);
+}
+
+function renderMomentAutolinks($html) {
+    $parts = preg_split('/(<a\b[\s\S]*?<\/a>|<code\b[\s\S]*?<\/code>|<img\b[^>]*>)/iu', (string) $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+    foreach ($parts as $index => $part) {
+        if (preg_match('/^<(a|code|img)\b/iu', $part)) {
+            continue;
+        }
+
+        $parts[$index] = preg_replace_callback('/((?:https?:\/\/|www\.)[a-z0-9][a-z0-9.-]*(?::\d+)?(?:\/[^\s<>"\'`，。！？；：、（）【】《》「」『』\x{3000}]*)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"\'`，。！？；：、（）【】《》「」『』\x{3000}]*)?)/iu', function ($matches) {
+            $raw = $matches[0];
+            $trailing = '';
+            while (preg_match('/[.,!?;:，。！？；：、）)\]]$/u', $raw)) {
+                $trailing = mb_substr($raw, -1, 1, 'UTF-8') . $trailing;
+                $raw = mb_substr($raw, 0, mb_strlen($raw, 'UTF-8') - 1, 'UTF-8');
+            }
+
+            if ($raw === '') {
+                return $matches[0];
+            }
+
+            $url = preg_match('/^https?:\/\//i', $raw) ? $raw : 'https://' . $raw;
+            $decodedUrl = html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $host = parse_url($decodedUrl, PHP_URL_HOST);
+            if (!$host) {
+                return $matches[0];
+            }
+
+            $label = renderMomentLinkDomain($host);
+            $safeUrl = htmlspecialchars($decodedUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $safeLabel = htmlspecialchars($label, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return '<a href="' . $safeUrl . '" target="_blank" rel="noopener">' . $safeLabel . '</a>' . $trailing;
+        }, $part);
+    }
+
+    return implode('', $parts);
+}
+
+function renderMomentLinkDomain($host) {
+    $host = preg_replace('/^www\./i', '', strtolower((string) $host));
+    $parts = array_values(array_filter(explode('.', $host)));
+    $count = count($parts);
+    if ($count >= 3 && strlen($parts[$count - 1]) === 2 && strlen($parts[$count - 2]) <= 3) {
+        return implode('.', array_slice($parts, -3));
+    }
+    if ($count >= 2) {
+        return implode('.', array_slice($parts, -2));
+    }
+    return $host;
 }
 ?>
 
@@ -168,7 +221,17 @@ function renderMarkdown($text) {
             </div>
             <?php if ($this->allow('comment')): ?>
             <form method="post" action="<?php $this->commentUrl(); ?>" class="publisher-form" id="moment-form">
-                <textarea name="text" id="moment-textarea" placeholder="想说些什么？支持 Markdown 语法和图片上传（粘贴图片自动上传）..." rows="4" required></textarea>
+                <div class="moment-editor" data-moment-editor>
+                    <div class="moment-editor-toolbar" role="toolbar" aria-label="Markdown 工具栏">
+                        <button type="button" class="moment-editor-tool" data-md-action="bold" title="粗体 Ctrl+B" aria-label="粗体"><i class="fa-solid fa-bold" aria-hidden="true"></i></button>
+                        <button type="button" class="moment-editor-tool" data-md-action="italic" title="斜体 Ctrl+I" aria-label="斜体"><i class="fa-solid fa-italic" aria-hidden="true"></i></button>
+                        <button type="button" class="moment-editor-tool" data-md-action="link" title="链接 Ctrl+K" aria-label="链接"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+                        <button type="button" class="moment-editor-tool" data-md-action="image" title="图片" aria-label="图片"><i class="fa-regular fa-image" aria-hidden="true"></i></button>
+                        <button type="button" class="moment-editor-tool" data-md-action="quote" title="引用" aria-label="引用"><i class="fa-solid fa-quote-left" aria-hidden="true"></i></button>
+                        <button type="button" class="moment-editor-tool" data-md-action="code" title="行内代码 Ctrl+E" aria-label="行内代码"><i class="fa-solid fa-code" aria-hidden="true"></i></button>
+                    </div>
+                    <textarea name="text" id="moment-textarea" placeholder="想说些什么？支持 Markdown 语法和图片上传（粘贴图片自动上传）..." rows="6" required></textarea>
+                </div>
 
                 <!-- 上传进度条 -->
                 <div class="upload-progress" id="upload-progress" style="display: none;">
@@ -249,6 +312,7 @@ class TimemachineUploader {
     constructor() {
         this.loadStoredSettings();
         this.initEventListeners();
+        this.initMarkdownEditor();
     }
 
     // 加载本地存储的设置
@@ -281,6 +345,105 @@ class TimemachineUploader {
         if (textarea) {
             textarea.addEventListener('paste', this.handlePaste.bind(this));
         }
+    }
+
+    initMarkdownEditor() {
+        const editor = document.querySelector('[data-moment-editor]');
+        const textarea = document.getElementById('moment-textarea');
+        if (!editor || !textarea) {
+            return;
+        }
+
+        const wrapSelection = (before, after, placeholder) => {
+            const start = textarea.selectionStart || 0;
+            const end = textarea.selectionEnd || start;
+            const selected = textarea.value.slice(start, end) || placeholder || '';
+            const snippet = before + selected + after;
+            textarea.focus();
+            if (typeof textarea.setRangeText === 'function') {
+                textarea.setRangeText(snippet, start, end, 'select');
+            } else {
+                textarea.value = textarea.value.slice(0, start) + snippet + textarea.value.slice(end);
+                textarea.selectionStart = start;
+                textarea.selectionEnd = start + snippet.length;
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        const prefixLines = (prefix) => {
+            const start = textarea.selectionStart || 0;
+            const end = textarea.selectionEnd || start;
+            const value = textarea.value;
+            const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+            const lineEnd = end < value.length ? value.indexOf('\n', end) : value.length;
+            const safeLineEnd = lineEnd === -1 ? value.length : lineEnd;
+            const block = value.slice(lineStart, safeLineEnd);
+            const next = block.split('\n').map((line) => line.indexOf(prefix) === 0 ? line.slice(prefix.length) : prefix + line).join('\n');
+            textarea.focus();
+            if (typeof textarea.setRangeText === 'function') {
+                textarea.setRangeText(next, lineStart, safeLineEnd, 'select');
+            } else {
+                textarea.value = value.slice(0, lineStart) + next + value.slice(safeLineEnd);
+                textarea.selectionStart = lineStart;
+                textarea.selectionEnd = lineStart + next.length;
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        const insertLink = () => {
+            const selected = textarea.value.slice(textarea.selectionStart || 0, textarea.selectionEnd || textarea.selectionStart || 0);
+            const href = window.prompt('链接 URL', selected && /^https?:\/\//i.test(selected) ? selected : 'https://');
+            if (!href) return;
+            wrapSelection('[', '](' + href + ')', selected && !/^https?:\/\//i.test(selected) ? selected : '链接文字');
+        };
+
+        const insertImage = () => {
+            const src = window.prompt('图片 URL', 'https://');
+            if (!src) return;
+            wrapSelection('![', '](' + src + ')', '图片描述');
+        };
+
+        const runAction = (action) => {
+            if (action === 'bold') wrapSelection('**', '**', '文字');
+            if (action === 'italic') wrapSelection('*', '*', '文字');
+            if (action === 'code') wrapSelection('`', '`', 'code');
+            if (action === 'quote') prefixLines('> ');
+            if (action === 'link') insertLink();
+            if (action === 'image') insertImage();
+        };
+
+        editor.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-md-action]');
+            if (!button) return;
+            runAction(button.getAttribute('data-md-action'));
+        });
+
+        textarea.addEventListener('keydown', (event) => {
+            const key = String(event.key || '').toLowerCase();
+            const modifier = event.ctrlKey || event.metaKey;
+            if (!modifier) return;
+            if (key === 'b') {
+                event.preventDefault();
+                runAction('bold');
+            } else if (key === 'i') {
+                event.preventDefault();
+                runAction('italic');
+            } else if (key === 'k') {
+                event.preventDefault();
+                runAction('link');
+            } else if (key === 'e') {
+                event.preventDefault();
+                runAction('code');
+            } else if (key === 'enter') {
+                event.preventDefault();
+                const form = textarea.closest('form');
+                if (form && typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else if (form) {
+                    form.submit();
+                }
+            }
+        });
     }
 
     // 初始化设置Modal

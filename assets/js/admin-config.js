@@ -975,6 +975,46 @@
         return window.QIWI_ADMIN_CONFIG || {};
     }
 
+    function initExternalLinkStats(panel) {
+        var container = $('[data-qiwi-external-stats]', panel);
+        if (!container || container.dataset.qiwiStatsReady === '1') return;
+
+        container.dataset.qiwiStatsReady = '1';
+        var config = getAdminConfig();
+        var rows = Array.isArray(config.externalLinkStats) ? config.externalLinkStats : [];
+        var total = rows.reduce(function(sum, row) {
+            return sum + (parseInt(row.clicks || 0, 10) || 0);
+        }, 0);
+
+        if (!rows.length) {
+            container.innerHTML =
+                '<section class="qiwi-link-stats-empty">' +
+                    '<strong>还没有外链跳转记录</strong>' +
+                    '<p>前台内容外链被点击后，会先经过 /goto 记录，再跳转到真实地址。</p>' +
+                '</section>';
+            return;
+        }
+
+        container.innerHTML =
+            '<section class="qiwi-link-stats-summary">' +
+                '<div><span>已记录链接</span><strong>' + rows.length + '</strong></div>' +
+                '<div><span>累计点击</span><strong>' + total + '</strong></div>' +
+            '</section>' +
+            '<div class="qiwi-link-stats-table">' +
+                '<div class="qiwi-link-stats-row qiwi-link-stats-head">' +
+                    '<span>域名</span><span>点击</span><span>最后点击</span><span>真实 URL</span>' +
+                '</div>' +
+                rows.map(function(row) {
+                    return '<div class="qiwi-link-stats-row">' +
+                        '<span>' + escapeHtml(row.host || '-') + '</span>' +
+                        '<span>' + escapeHtml(row.clicks || 0) + '</span>' +
+                        '<span>' + escapeHtml(row.lastClicked || '-') + '</span>' +
+                        '<a href="' + escapeHtml(row.url || '#') + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(row.url || '') + '">' + escapeHtml(row.url || '-') + '</a>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+    }
+
     function compareVersions(a, b) {
         var left = String(a || '').replace(/^v/i, '').split(/[.-]/);
         var right = String(b || '').replace(/^v/i, '').split(/[.-]/);
@@ -1515,8 +1555,19 @@
                 items: [
                     { label: '徽章', before: '[badge color="cyan"]', after: '[/badge]', placeholder: '原创' },
                     { label: '提示块', before: '[callout type="info" title="提示"]\n', after: '\n[/callout]', placeholder: '说明文字' },
+                    { label: '文本链接', before: '[link href="{permalink}"]', after: '[/link]', placeholder: '原文链接' },
                     { label: '按钮', before: '[button href="https://example.com"]', after: '[/button]', placeholder: '相关链接' },
-                    { label: '按钮组', before: '[buttons]\n[button href="https://example.com"]', after: '[/button]\n[/buttons]', placeholder: '链接' }
+                    { label: '按钮组', before: '[buttons]\n[button href="{permalink}"]', after: '[/button]\n[/buttons]', placeholder: '原文链接' },
+                    { label: 'Not By AI', before: '[not-by-ai]', after: '', placeholder: '' }
+                ]
+            }, {
+                label: '占位符',
+                items: [
+                    { label: '文章链接', before: '{permalink}', after: '', placeholder: '' },
+                    { label: '文章标题', before: '{title}', after: '', placeholder: '' },
+                    { label: '作者', before: '{author}', after: '', placeholder: '' },
+                    { label: '站点名', before: '{site}', after: '', placeholder: '' },
+                    { label: '年份', before: '{year}', after: '', placeholder: '' }
                 ]
             }, {
                 label: '颜色',
@@ -2405,6 +2456,7 @@
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="about">关于页面</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="friends">友链</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="books">归档</button>' +
+                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links">外链统计</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security">后台与安全</button>' +
                 '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw">原始数据</button>' +
             '</div>' +
@@ -2448,6 +2500,7 @@
                 '</div>' +
                 '<div data-qiwi-book-list></div>' +
             '</div>' +
+            '<div class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></div>' +
             '<div class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></div>' +
             '<div class="qiwi-admin-pane" data-qiwi-pane="raw"></div>';
 
@@ -2476,6 +2529,7 @@
         });
 
         initTabs(panel);
+        initExternalLinkStats(panel);
         var editors = {
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),

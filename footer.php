@@ -1263,6 +1263,151 @@ function initQiwiFolds() {
     });
 }
 
+function initQiwiExternalLinks() {
+    var siteUrl = <?php echo json_encode(rtrim((string) $this->options->siteUrl, '/') . '/', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var configuredGotoBase = <?php echo json_encode(function_exists('qiwiGetExternalLinkGotoBase') ? qiwiGetExternalLinkGotoBase($this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var siteHost = '';
+    var gotoBase = String(configuredGotoBase || '');
+
+    try {
+        siteHost = normalizeHost(new URL(siteUrl, window.location.href).hostname);
+    } catch (error) {
+        siteHost = normalizeHost(window.location.hostname);
+    }
+
+    function normalizeHost(host) {
+        return String(host || '').toLowerCase().replace(/^www\./, '');
+    }
+
+    function isSkippableTextParent(element) {
+        return !element || Boolean(element.closest('a, code, pre, script, style, textarea, input, button, kbd, samp'));
+    }
+
+    function isExternalHttpUrl(url) {
+        try {
+            var parsed = new URL(url, window.location.href);
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+            return normalizeHost(parsed.hostname) !== siteHost;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function encodeBase64Utf8(value) {
+        value = String(value || '');
+        try {
+            return window.btoa(unescape(encodeURIComponent(value)));
+        } catch (error) {
+            return window.btoa(value);
+        }
+    }
+
+    function gotoUrl(url) {
+        if (!gotoBase) return url;
+        return gotoBase + (gotoBase.indexOf('?') === -1 ? '?' : '&') + 'url=' + encodeURIComponent(encodeBase64Utf8(url));
+    }
+
+    function displayDomain(url) {
+        try {
+            var host = normalizeHost(new URL(url, window.location.href).hostname);
+            var parts = host.split('.').filter(Boolean);
+            if (parts.length >= 3 && parts[parts.length - 1].length === 2 && parts[parts.length - 2].length <= 3) {
+                return parts.slice(-3).join('.');
+            }
+            if (parts.length >= 2) {
+                return parts.slice(-2).join('.');
+            }
+            return host;
+        } catch (error) {
+            return url.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+        }
+    }
+
+    function enhanceAnchor(anchor) {
+        if (!anchor || anchor.dataset.qiwiExternalEnhanced === '1') return;
+        var original = anchor.dataset.qiwiExternalUrl || anchor.getAttribute('href') || '';
+        try {
+            original = new URL(original, window.location.href).toString();
+        } catch (error) {
+            return;
+        }
+
+        if (!isExternalHttpUrl(original)) return;
+
+        anchor.dataset.qiwiExternalEnhanced = '1';
+        anchor.dataset.qiwiExternalUrl = original;
+        anchor.classList.add('qiwi-external-link');
+        if (gotoBase) {
+            anchor.setAttribute('href', gotoUrl(original));
+        }
+        anchor.setAttribute('title', original);
+        anchor.setAttribute('target', '_blank');
+        anchor.setAttribute('rel', 'noopener noreferrer');
+    }
+
+    function autolinkTextNode(node) {
+        if (!node || !node.nodeValue || isSkippableTextParent(node.parentElement)) return;
+        var text = node.nodeValue;
+        var pattern = /((?:https?:\/\/|www\.)[a-z0-9][a-z0-9.-]*(?::\d+)?(?:\/[^\s<>"'`，。！？；：、（）【】《》「」『』\u3000]*)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"'`，。！？；：、（）【】《》「」『』\u3000]*)?)/ig;
+        var fragment = document.createDocumentFragment();
+        var lastIndex = 0;
+        var match;
+        var changed = false;
+
+        while ((match = pattern.exec(text)) !== null) {
+            var raw = match[0];
+            var start = match.index;
+            var trailing = '';
+            while (/[.,!?;:，。！？；：、）)\]]$/.test(raw)) {
+                trailing = raw.slice(-1) + trailing;
+                raw = raw.slice(0, -1);
+            }
+
+            var url = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+            if (!raw || !isExternalHttpUrl(url)) continue;
+
+            if (start > lastIndex) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex, start)));
+            }
+
+            var anchor = document.createElement('a');
+            anchor.textContent = displayDomain(url);
+            anchor.href = url;
+            fragment.appendChild(anchor);
+            enhanceAnchor(anchor);
+            if (trailing) {
+                fragment.appendChild(document.createTextNode(trailing));
+            }
+
+            lastIndex = match.index + match[0].length;
+            changed = true;
+        }
+
+        if (!changed) return;
+        if (lastIndex < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+        }
+        node.parentNode.replaceChild(fragment, node);
+    }
+
+    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .comment-text, .post-copyright-body, .about-bio').forEach(function(scope) {
+        scope.querySelectorAll('a[href]').forEach(enhanceAnchor);
+
+        var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+            acceptNode: function(node) {
+                return isSkippableTextParent(node.parentElement)
+                    ? NodeFilter.FILTER_REJECT
+                    : NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        var nodes = [];
+        while (walker.nextNode()) {
+            nodes.push(walker.currentNode);
+        }
+        nodes.forEach(autolinkTextNode);
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
@@ -1272,6 +1417,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initCommentProfile();
     initArticleImages();
     initQiwiFolds();
+    initQiwiExternalLinks();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {
