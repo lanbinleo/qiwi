@@ -311,10 +311,84 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'themeRelativeDir' => qiwiGetThemeRelativeDirFromTypechoRoot(),
             'cacheTtl' => 21600000,
             'showUpdateLog' => (string) qiwiGetThemeOptionSetting('showUpdateLog', '1') === '0' ? '0' : '1',
+            'externalLinkStats' => function_exists('qiwiGetExternalLinkStats') ? qiwiGetExternalLinkStats(30) : [],
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
         return '<link rel="stylesheet" href="' . $fa . '" crossorigin="anonymous" referrerpolicy="no-referrer"><link rel="stylesheet" href="' . $css . '"><script>window.QIWI_ADMIN_CONFIG=' . $json . ';</script><script defer src="' . $js . '"></script>';
+    }
+}
+
+if (!function_exists('qiwiGetExternalLinkStats')) {
+    function qiwiGetExternalLinkStats($limit = 30)
+    {
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getExternalLinkStats')) {
+            return QiwiTheme_Plugin::getExternalLinkStats($limit);
+        }
+
+        try {
+            $limit = max(1, min(100, (int) $limit));
+            $db = Typecho_Db::get();
+            $table = $db->getPrefix() . 'qiwi_external_links';
+            $rows = $db->fetchAll($db->select('url', 'host', 'COUNT(id) AS clicks', 'MAX(clicked) AS last_clicked')
+                ->from($table)
+                ->group('url_hash, url, host')
+                ->order('last_clicked', Typecho_Db::SORT_DESC)
+                ->limit($limit));
+
+            $items = [];
+            foreach ($rows as $row) {
+                $items[] = [
+                    'url' => isset($row['url']) ? (string) $row['url'] : '',
+                    'host' => isset($row['host']) ? (string) $row['host'] : '',
+                    'clicks' => isset($row['clicks']) ? (int) $row['clicks'] : 0,
+                    'lastClicked' => !empty($row['last_clicked']) ? date('Y-m-d H:i', (int) $row['last_clicked']) : '',
+                ];
+            }
+
+            return $items;
+        } catch (Exception $e) {
+            return [];
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        return [];
+    }
+}
+
+if (!function_exists('qiwiGetExternalLinkGotoBase')) {
+    function qiwiGetExternalLinkGotoBase($options = null)
+    {
+        if (!class_exists('QiwiTheme_Plugin') || !method_exists('QiwiTheme_Plugin', 'decodeGotoUrl')) {
+            return '';
+        }
+
+        try {
+            if ($options === null) {
+                $options = Typecho_Widget::widget('Widget_Options');
+            }
+
+            if (Typecho_Router::get('qiwi_theme_goto_route') !== null) {
+                return Typecho_Router::url('qiwi_theme_goto_route', [], $options->index);
+            }
+
+            $actionTable = [];
+            if (isset($options->actionTable)) {
+                $actionTable = @unserialize($options->actionTable);
+                $actionTable = is_array($actionTable) ? $actionTable : [];
+            }
+
+            if (isset($actionTable['qiwi-theme']) && $actionTable['qiwi-theme'] === 'QiwiTheme_Action') {
+                return Typecho_Common::url('/action/qiwi-theme?do=goto', $options->index);
+            }
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+
+        return '';
     }
 }
 
@@ -591,7 +665,7 @@ function themeConfig($form)
         null,
         null,
         _t('默认版权说明'),
-        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]。留空则使用主题内置默认文案。")
+        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]、[link]、[not-by-ai]；支持占位符 {permalink}、{title}、{author}、{site}、{year}；普通外链会自动解析。留空则使用主题内置默认文案。")
     );
 
     $form->addInput($customCSS);
@@ -652,7 +726,7 @@ function themeFields($layout) {
         null,
         null,
         _t('文章 - 版权说明'),
-        _t("留空则使用默认版权说明。支持短代码，例如：[badge color=\"cyan\"]原创[/badge]、[callout type=\"info\" title=\"转载说明\"]请保留原文链接[/callout]、[button href=\"https://example.com\"]相关链接[/button]。")
+        _t("留空则使用默认版权说明。支持短代码，例如：[badge color=\"cyan\"]原创[/badge]、[callout type=\"info\" title=\"转载说明\"]请保留原文链接：{permalink}[/callout]、[link href=\"{permalink}\"]原文链接[/link]、[not-by-ai]。普通外链会自动解析。")
     );
 
     $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
@@ -1395,6 +1469,14 @@ if (!function_exists('qiwiSanitizeShortcodeVariant')) {
     }
 }
 
+if (!function_exists('qiwiSanitizeShortcodeTarget')) {
+    function qiwiSanitizeShortcodeTarget($target)
+    {
+        $target = strtolower(trim((string) $target));
+        return $target === '_blank' ? ' target="_blank" rel="noopener noreferrer"' : '';
+    }
+}
+
 if (!function_exists('qiwiShortcodeBoolAttr')) {
     function qiwiShortcodeBoolAttr($attrs, $name, $default = false)
     {
@@ -1524,9 +1606,24 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
             $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
             $color = qiwiSanitizeShortcodeColor(isset($attrs['color']) ? $attrs['color'] : 'cyan');
             $variant = qiwiSanitizeShortcodeVariant(isset($attrs['variant']) ? $attrs['variant'] : (isset($attrs['style']) ? $attrs['style'] : 'outline'));
-            $target = isset($attrs['target']) && strtolower($attrs['target']) === '_blank' ? ' target="_blank" rel="noopener noreferrer"' : '';
+            $target = qiwiSanitizeShortcodeTarget(isset($attrs['target']) ? $attrs['target'] : '');
             $label = trim($matches[2]) !== '' ? $matches[2] : htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
             return '<a class="qiwi-button qiwi-button-' . $color . ' qiwi-button-' . $variant . '" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[link\b([^\]]*)\]([\s\S]*?)\[\/link\]/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
+            $target = qiwiSanitizeShortcodeTarget(isset($attrs['target']) ? $attrs['target'] : '');
+            $label = trim($matches[2]) !== '' ? $matches[2] : htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
+            return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[(?:not-by-ai|notbyai)([^\]]*)\](?:\s*\[\/(?:not-by-ai|notbyai)\])?/iu', function ($matches) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : 'https://notbyai.fyi/'));
+            $label = isset($attrs['label']) && trim($attrs['label']) !== '' ? trim($attrs['label']) : 'Not By AI';
+            return '<a class="qiwi-not-by-ai" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer"><span>NOT</span><strong>' . htmlspecialchars(strip_tags($label), ENT_QUOTES, 'UTF-8') . '</strong></a>';
         }, $html);
 
         for ($i = 0; $i < 4; $i++) {
@@ -1583,10 +1680,161 @@ if (!function_exists('qiwiRenderShortcodes')) {
     }
 }
 
-if (!function_exists('qiwiRenderFieldRichText')) {
-    function qiwiRenderFieldRichText($text)
+if (!function_exists('qiwiNormalizeRichTextValue')) {
+    function qiwiNormalizeRichTextValue($value)
     {
-        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $text));
+        $value = trim(str_replace(["\r\n", "\r"], "\n", (string) $value));
+        return $value === '0' ? '' : $value;
+    }
+}
+
+if (!function_exists('qiwiPostRichTextContext')) {
+    function qiwiPostRichTextContext($widget)
+    {
+        $capture = function ($method) use ($widget) {
+            if (empty($widget)) {
+                return '';
+            }
+
+            try {
+                ob_start();
+                $result = $widget->{$method}();
+                $output = trim(ob_get_clean());
+                if ($output !== '') {
+                    return $output;
+                }
+
+                return is_scalar($result) ? trim((string) $result) : '';
+            } catch (Exception $e) {
+                if (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+            } catch (Throwable $e) {
+                if (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+            }
+
+            return '';
+        };
+
+        $title = '';
+        if (!empty($widget) && isset($widget->title)) {
+            $title = (string) $widget->title;
+        }
+
+        $siteTitle = trim((string) qiwiGetOptionValue($widget, 'title', ''));
+        $siteUrl = trim((string) qiwiGetOptionValue($widget, 'siteUrl', ''));
+
+        $permalink = $capture('permalink');
+        if ($permalink === '' && !empty($widget) && isset($widget->permalink)) {
+            $permalink = trim((string) $widget->permalink);
+        }
+
+        return [
+            'permalink' => $permalink,
+            'url' => $permalink,
+            'post_url' => $permalink,
+            'title' => $title,
+            'post_title' => $title,
+            'author' => $capture('author'),
+            'site' => $siteTitle,
+            'site_title' => $siteTitle,
+            'site_url' => $siteUrl,
+            'year' => date('Y'),
+        ];
+    }
+}
+
+if (!function_exists('qiwiApplyRichTextPlaceholders')) {
+    function qiwiApplyRichTextPlaceholders($text, array $context = [])
+    {
+        if (empty($context)) {
+            return (string) $text;
+        }
+
+        $replacements = [];
+        foreach ($context as $key => $value) {
+            $value = (string) $value;
+            $replacements['{' . $key . '}'] = $value;
+            $replacements['{{' . $key . '}}'] = $value;
+        }
+
+        return strtr((string) $text, $replacements);
+    }
+}
+
+if (!function_exists('qiwiAutolinkDisplayDomain')) {
+    function qiwiAutolinkDisplayDomain($url)
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = preg_replace('/^www\./i', '', $host);
+        $parts = array_values(array_filter(explode('.', $host)));
+        $count = count($parts);
+        if ($count >= 3 && strlen($parts[$count - 1]) === 2 && strlen($parts[$count - 2]) <= 3) {
+            return implode('.', array_slice($parts, -3));
+        }
+        if ($count >= 2) {
+            return implode('.', array_slice($parts, -2));
+        }
+
+        return $host !== '' ? $host : preg_replace('/^https?:\/\//i', '', (string) $url);
+    }
+}
+
+if (!function_exists('qiwiAutolinkPlainUrls')) {
+    function qiwiAutolinkPlainUrls($html, array $context = [])
+    {
+        $siteHost = '';
+        if (!empty($context['site_url'])) {
+            $siteHost = strtolower((string) parse_url((string) $context['site_url'], PHP_URL_HOST));
+        }
+        if ($siteHost === '' && !empty($context['permalink'])) {
+            $siteHost = strtolower((string) parse_url((string) $context['permalink'], PHP_URL_HOST));
+        }
+        $siteHost = preg_replace('/^www\./i', '', $siteHost);
+
+        $parts = preg_split('/(<a\b[\s\S]*?<\/a>|<code\b[\s\S]*?<\/code>|<pre\b[\s\S]*?<\/pre>|<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|&lt;[\s\S]*?&gt;)/iu', (string) $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach ($parts as $index => $part) {
+            if (preg_match('/^(?:<(a|code|pre|script|style)\b|&lt;)/iu', $part)) {
+                continue;
+            }
+
+            $parts[$index] = preg_replace_callback('/((?:https?:\/\/|www\.)[a-z0-9][a-z0-9.-]*(?::\d+)?(?:\/[^\s<>"\'`，。！？；：、（）【】《》「」『』\x{3000}]*)?|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"\'`，。！？；：、（）【】《》「」『』\x{3000}]*)?)/iu', function ($matches) use ($siteHost) {
+                $raw = $matches[0];
+                $trailing = '';
+                while (preg_match('/[.,!?;:，。！？；：、）)\]]$/u', $raw)) {
+                    $trailing = function_exists('mb_substr') ? mb_substr($raw, -1, 1, 'UTF-8') . $trailing : substr($raw, -1) . $trailing;
+                    $raw = function_exists('mb_substr') ? mb_substr($raw, 0, mb_strlen($raw, 'UTF-8') - 1, 'UTF-8') : substr($raw, 0, -1);
+                }
+
+                if ($raw === '') {
+                    return $matches[0];
+                }
+
+                $url = preg_match('/^https?:\/\//i', $raw) ? $raw : 'https://' . $raw;
+                $decodedUrl = html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if (!preg_match('/^https?:\/\//i', $decodedUrl) || !parse_url($decodedUrl, PHP_URL_HOST)) {
+                    return $matches[0];
+                }
+
+                $targetHost = preg_replace('/^www\./i', '', strtolower((string) parse_url($decodedUrl, PHP_URL_HOST)));
+                $isInternal = $siteHost !== '' && $targetHost === $siteHost;
+                $safeUrl = htmlspecialchars($decodedUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $safeLabel = htmlspecialchars($isInternal ? $raw : qiwiAutolinkDisplayDomain($decodedUrl), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $target = $isInternal ? '' : ' target="_blank" rel="noopener noreferrer"';
+                return '<a href="' . $safeUrl . '"' . $target . '>' . $safeLabel . '</a>' . $trailing;
+            }, $part);
+        }
+
+        return implode('', $parts);
+    }
+}
+
+if (!function_exists('qiwiRenderFieldRichText')) {
+    function qiwiRenderFieldRichText($text, array $context = [])
+    {
+        $text = qiwiNormalizeRichTextValue(qiwiApplyRichTextPlaceholders($text, $context));
         if ($text === '') {
             return '';
         }
@@ -1608,35 +1856,27 @@ if (!function_exists('qiwiRenderFieldRichText')) {
             }
         }
 
-        return qiwiRenderShortcodes($html);
+        return qiwiAutolinkPlainUrls(qiwiRenderShortcodes($html), $context);
     }
 }
 
 if (!function_exists('qiwiGetPostCopyrightHtml')) {
     function qiwiGetPostCopyrightHtml($widget)
     {
-        $custom = trim((string) qiwiGetFieldValue($widget, 'copyrightInfo', ''));
+        $context = qiwiPostRichTextContext($widget);
+        $custom = qiwiNormalizeRichTextValue(qiwiGetFieldValue($widget, 'copyrightInfo', ''));
         if ($custom !== '') {
-            return qiwiRenderFieldRichText($custom);
+            return qiwiRenderFieldRichText($custom, $context);
         }
 
-        $themeDefault = trim((string) qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
+        $themeDefault = qiwiNormalizeRichTextValue(qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
         if ($themeDefault !== '') {
-            return qiwiRenderFieldRichText($themeDefault);
+            return qiwiRenderFieldRichText($themeDefault, $context);
         }
 
-        ob_start();
-        $widget->permalink();
-        $permalink = trim(ob_get_clean());
-
-        ob_start();
-        $widget->author();
-        $author = trim(ob_get_clean());
-
-        $siteTitle = trim((string) qiwiGetOptionValue($widget, 'title', ''));
-
-        $author = $author !== '' ? $author : '作者';
-        $siteTitle = $siteTitle !== '' ? $siteTitle : '本站';
+        $permalink = isset($context['permalink']) ? (string) $context['permalink'] : '';
+        $author = isset($context['author']) && $context['author'] !== '' ? (string) $context['author'] : '作者';
+        $siteTitle = isset($context['site_title']) && $context['site_title'] !== '' ? (string) $context['site_title'] : '本站';
         $permalinkEscaped = htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8');
 
         return '<p><span class="qiwi-badge qiwi-badge-cyan qiwi-badge-soft">原创</span> 本文由 ' . htmlspecialchars($author, ENT_QUOTES, 'UTF-8') . ' 发布于 <a href="' . $permalinkEscaped . '">' . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . '</a>。</p>'

@@ -1,14 +1,12 @@
 {
-  "version": "1.4.3",
-  "releaseDate": "2026-05-03",
+  "version": "1.4.4",
+  "releaseDate": "2026-05-04",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "修复新增 thread-* 文集首次保存时完整 Thread 结构可能丢失的问题",
-    "修复列表分页页侧边栏“闲言碎语”不显示的问题",
-    "修复移动端滚动后展开导航抽屉位置错误与背景仍可滚动的问题",
-    "新增 thread-* 分类的 Thread 专题文集页面，使用无侧边栏阅读路线布局",
-    "新增 QiwiTheme 主题伴生插件，将 Thread JSON 存入独立数据表",
-    "后台分类编辑页支持 Thread 块编辑、文章选择、排序、保存和 JSON 查看"
+    "新增内容外链识别、外链图标、真实 URL tooltip 与 /goto 跳转统计记录",
+    "后台主题设置新增外链统计临时面板，展示外链点击汇总",
+    "时光机说说支持裸链接自动解析，并新增 Markdown 工具栏与常用快捷键",
+    "修复 RSS 中主题颜色短代码可能原样露出的问题，转换为阅读器更友好的 HTML 或纯文本"
   ]
 }

@@ -7,16 +7,39 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
+        if ($this->isGotoRequest()) {
+            return;
+        }
+
         Typecho_Widget::widget('Widget_User')->pass('editor');
     }
 
     public function action()
     {
+        if ($this->request->is('do=goto')) {
+            $this->goto();
+        }
+
         Typecho_Widget::widget('Widget_Security')->protect();
         $this->on($this->request->is('do=read-thread'))->readThread();
         $this->on($this->request->is('do=save-thread'))->saveThread();
         $this->on($this->request->is('do=posts'))->posts();
         $this->json(array('success' => false, 'message' => 'Unknown action'), 404);
+    }
+
+    public function goto()
+    {
+        $url = QiwiTheme_Plugin::decodeGotoUrl($this->request->get('url', ''));
+        if ($url === '') {
+            $this->response->setStatus(400);
+            $this->response->setContentType('text/plain');
+            echo "Invalid external link\n";
+            exit;
+        }
+
+        QiwiTheme_Plugin::recordExternalLinkClick($url);
+        header('Location: ' . $url, true, 302);
+        exit;
     }
 
     public function readThread()
@@ -137,6 +160,24 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
 
         return substr($text, 0, 180);
+    }
+
+    private function isGotoRequest()
+    {
+        if ($this->request && $this->request->is('do=goto')) {
+            return true;
+        }
+
+        if ($this->request && method_exists($this->request, 'getPathInfo')) {
+            $pathInfo = rtrim((string) $this->request->getPathInfo(), '/');
+            if ($pathInfo === '/goto' || $pathInfo === '/index.php/goto') {
+                return true;
+            }
+        }
+
+        $path = isset($_SERVER['REQUEST_URI']) ? parse_url((string) $_SERVER['REQUEST_URI'], PHP_URL_PATH) : '';
+        $path = '/' . ltrim(rtrim((string) $path, '/'), '/');
+        return preg_match('#(?:^|/)(?:index\.php/)?goto$#i', $path) === 1;
     }
 
     private function json($payload, $status = 200)

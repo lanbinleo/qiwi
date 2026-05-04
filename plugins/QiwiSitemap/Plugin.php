@@ -426,8 +426,14 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     private static function filterFeedShortcodes($xml)
     {
-        return preg_replace_callback('/<!\[CDATA\[([\s\S]*?)\]\]>/u', function ($matches) {
+        $xml = preg_replace_callback('/<!\[CDATA\[([\s\S]*?)\]\]>/u', function ($matches) {
             return '<![CDATA[' . str_replace(']]>', ']]]]><![CDATA[>', self::renderFeedHtml($matches[1])) . ']]>';
+        }, $xml);
+
+        return preg_replace_callback('/(<(title|description|summary)\b[^>]*>)(?!<!\[CDATA\[)([\s\S]*?)(<\/\2>)/iu', function ($matches) {
+            $text = html_entity_decode($matches[3], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $text = trim(strip_tags(self::renderFeedHtml($text)));
+            return $matches[1] . self::xml($text) . $matches[4];
         }, $xml);
     }
 
