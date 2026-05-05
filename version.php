@@ -8,6 +8,7 @@ $releaseNotes = [
 - 规范 RSS / Atom 头像 URL，并回退到主题 Apple Touch Icon，提升阅读器头像识别稳定性
 - 为说说 RSS 补充频道头像和条目缩略图
 - 说说 RSS 标题优先取第一条非空正文行，并清理短代码、Markdown 与末尾标点
+- 修正 Typecho 默认文章 RSS 的后处理挂载条件，并在条目输出阶段兜底清理正文短代码
 EOT,
     "1.4.4" => <<<EOT
 - 新增内容外链识别、外链图标、真实 URL tooltip 与 /goto 跳转统计记录

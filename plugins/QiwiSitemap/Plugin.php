@@ -254,8 +254,8 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     public static function handleInit($archive, $select)
     {
         $settings = self::settings();
-        $parameter = $archive->parameter;
-        if (empty($parameter) || $parameter->type !== 'feed') {
+        $feedType = self::archiveFeedType($archive);
+        if ($feedType === '') {
             return;
         }
 
@@ -272,7 +272,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             'avatarUrl' => $avatarUrl,
             'title' => self::optionValue($options, 'title'),
             'homeUrl' => rtrim(self::optionValue($options, 'siteUrl'), '/') . '/',
-            'feedType' => (string) $archive->feedType,
+            'feedType' => $feedType,
             'enableAvatar' => $enableAvatar && $avatarUrl !== '',
             'enableShortcodes' => $enableShortcodes,
         );
@@ -282,12 +282,55 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     public static function feedItem($feedType, $archive)
     {
+        self::filterFeedItemContent($archive);
         return self::feedAvatarSuffix($feedType);
     }
 
     public static function commentFeedItem($feedType, $comments)
     {
+        self::filterFeedItemContent($comments);
         return self::feedAvatarSuffix($feedType);
+    }
+
+    private static function archiveFeedType($archive)
+    {
+        if (is_object($archive) && method_exists($archive, 'getFeedType')) {
+            $feedType = (string) $archive->getFeedType();
+            if ($feedType !== '') {
+                return $feedType;
+            }
+        }
+
+        if (is_object($archive) && isset($archive->feedType)) {
+            return (string) $archive->feedType;
+        }
+
+        return '';
+    }
+
+    private static function filterFeedItemContent($item)
+    {
+        $settings = self::settings();
+        if (self::setting($settings, 'enableFeedShortcodeCompat', '1') !== '1' || !is_object($item)) {
+            return;
+        }
+
+        foreach (array('content', 'excerpt') as $name) {
+            $value = null;
+            try {
+                $value = $item->{$name};
+            } catch (Exception $e) {
+                $value = null;
+            } catch (Throwable $e) {
+                $value = null;
+            }
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $item->{$name} = self::renderFeedHtml((string) $value);
+        }
     }
 
     public static function filterFeedXml($xml)
