@@ -32,14 +32,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $url = QiwiTheme_Plugin::decodeGotoUrl($this->request->get('url', ''));
         if ($url === '') {
             $this->response->setStatus(400);
-            $this->response->setContentType('text/plain');
-            echo "Invalid external link\n";
-            exit;
+            $this->response->throwContent("Invalid external link\n", 'text/plain');
         }
 
         QiwiTheme_Plugin::recordExternalLinkClick($url);
-        header('Location: ' . $url, true, 302);
-        exit;
+        $this->response->redirect($url);
     }
 
     public function readThread()
