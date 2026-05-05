@@ -208,9 +208,10 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $author = $this->authorInfo(isset($page['authorId']) ? (int) $page['authorId'] : 0);
         $items = $this->momentComments($page);
         $lastBuild = !empty($items) ? (int) $items[0]['created'] : $this->contentLastmod($page);
+        $avatarUrl = $this->boolOption('enableFeedAvatar', true) ? $this->avatarUrl() : '';
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">' . "\n";
+        $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">' . "\n";
         $xml .= '<channel>' . "\n";
         $xml .= '<title>' . $this->xml($siteTitle . ' - ' . _t('说说')) . '</title>' . "\n";
         $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
@@ -218,6 +219,15 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $xml .= '<description>' . $this->xml(sprintf(_t('来自「%s」的时光机动态'), $pageTitle)) . '</description>' . "\n";
         $xml .= '<language>zh-CN</language>' . "\n";
         $xml .= '<lastBuildDate>' . $this->dateForRss($lastBuild) . '</lastBuildDate>' . "\n";
+        if ($avatarUrl !== '') {
+            $xml .= '<image>' . "\n";
+            $xml .= '<url>' . $this->xml($avatarUrl) . '</url>' . "\n";
+            $xml .= '<title>' . $this->xml($siteTitle . ' - ' . _t('说说')) . '</title>' . "\n";
+            $xml .= '<link>' . $this->xml($pageUrl) . '</link>' . "\n";
+            $xml .= '<width>144</width>' . "\n";
+            $xml .= '<height>144</height>' . "\n";
+            $xml .= '</image>' . "\n";
+        }
 
         foreach ($items as $item) {
             $itemLink = $pageUrl . '#comment-' . (int) $item['coid'];
@@ -231,6 +241,9 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             $xml .= '<guid isPermaLink="false">' . $this->xml($feedUrl . '#coid-' . (int) $item['coid']) . '</guid>' . "\n";
             $xml .= '<pubDate>' . $this->dateForRss(isset($item['created']) ? (int) $item['created'] : 0) . '</pubDate>' . "\n";
             $xml .= '<dc:creator>' . $this->xml($author['screenName']) . '</dc:creator>' . "\n";
+            if ($avatarUrl !== '') {
+                $xml .= '<media:thumbnail url="' . $this->xml($avatarUrl) . '" />' . "\n";
+            }
             if ($excerpt !== '') {
                 $xml .= '<description><![CDATA[' . $this->cdata(strip_tags($excerpt)) . ']]></description>' . "\n";
             }
@@ -460,17 +473,58 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
 
     private function momentTitle(array $item, $content = null)
     {
-        $text = $content !== null ? trim(strip_tags((string) $content)) : (isset($item['text']) ? trim(strip_tags((string) $item['text'])) : '');
+        $raw = isset($item['text']) ? (string) $item['text'] : '';
+        $text = $this->firstReadableMomentLine($raw);
+        if ($text === '' && $content !== null) {
+            $text = $this->cleanMomentTitleText((string) $content);
+        }
+
         $text = preg_replace('/\s+/u', ' ', $text);
+        $text = $this->trimTitlePunctuation($text);
         if ($text === '') {
             return _t('一条说说');
         }
 
-        if (function_exists('mb_substr')) {
-            return mb_substr($text, 0, 42, 'UTF-8') . (mb_strlen($text, 'UTF-8') > 42 ? '...' : '');
+        return $text;
+    }
+
+    private function firstReadableMomentLine($text)
+    {
+        $text = str_replace(array("\r\n", "\r"), "\n", (string) $text);
+        foreach (explode("\n", $text) as $line) {
+            $line = $this->cleanMomentTitleText($line);
+            if ($line !== '') {
+                return $line;
+            }
         }
 
-        return strlen($text) > 84 ? substr($text, 0, 84) . '...' : $text;
+        return '';
+    }
+
+    private function cleanMomentTitleText($text)
+    {
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/!\[([^\]]*)\]\(([^)]+)\)/u', '$1', $text);
+        $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/u', '$1', $text);
+        $text = preg_replace('/(```|~~~)[\s\S]*?\1/u', ' ', $text);
+        $text = preg_replace('/^\s{0,3}>\s?/mu', '', $text);
+        $text = preg_replace('/^\s{0,3}#{1,6}\s+/mu', '', $text);
+        $text = preg_replace('/^\s{0,3}(?:[-+*]|\d+\.)\s+(?:\[[ xX]\]\s*)?/mu', '', $text);
+        $text = preg_replace('/~~(.*?)~~/u', '$1', $text);
+        $text = preg_replace('/(\*\*|__)(.*?)\1/u', '$2', $text);
+        $text = preg_replace('/(\*|_)(.*?)\1/u', '$2', $text);
+        $text = preg_replace('/`([^`]+)`/u', '$1', $text);
+        $text = QiwiSitemap_Plugin::renderFeedHtml($text);
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text);
+
+        return trim($text);
+    }
+
+    private function trimTitlePunctuation($text)
+    {
+        return trim(preg_replace('/[\s\.,!?;:，。！？；：、…]+$/u', '', (string) $text));
     }
 
     private function contentUrl(array $row)
@@ -630,20 +684,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
 
     private function avatarUrl()
     {
-        $settingsAvatar = trim($this->option('avatarUrl', ''));
-        if ($settingsAvatar !== '') {
-            return $settingsAvatar;
-        }
-
-        $options = $this->siteOptions();
-        foreach (array('sidebarProfileAvatar', 'aboutAvatar', 'logoUrl') as $name) {
-            $value = $this->optionValue($options, $name);
-            if ($value !== '') {
-                return $value;
-            }
-        }
-
-        return 'https://gravatar.loli.net/avatar/default?s=160&d=mp';
+        return QiwiSitemap_Plugin::feedAvatarUrl($this->pluginOptions(), $this->siteOptions());
     }
 
     private function feedUrl()

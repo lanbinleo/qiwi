@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  MaxQiwi
- * @version 1.4.4
+ * @version 1.4.5
  * @link    https://www.maxqi.top/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
@@ -262,7 +262,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         $options = Helper::options();
         $enableAvatar = self::setting($settings, 'enableFeedAvatar', '1') === '1';
         $enableShortcodes = self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1';
-        $avatarUrl = $enableAvatar ? self::avatarUrl($settings, $options) : '';
+        $avatarUrl = $enableAvatar ? self::feedAvatarUrl($settings, $options) : '';
 
         if (!$enableShortcodes && ($avatarUrl === '')) {
             return;
@@ -397,7 +397,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return null;
         }
 
-        $avatarUrl = self::avatarUrl($settings, Helper::options());
+        $avatarUrl = self::feedAvatarUrl($settings, Helper::options());
         if ($avatarUrl === '') {
             return null;
         }
@@ -439,12 +439,17 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     private static function renderFeedHtmlSegment($html)
     {
-        $colors = 'red|orange|yellow|green|cyan|blue|purple';
+        $colors = 'caramel|red|orange|yellow|green|cyan|blue|purple';
+        $html = self::decodeShortcodeBrackets($html);
 
         $html = preg_replace_callback('/<details\b[^>]*class=(["\'])[^"\']*\bqiwi-fold\b[^"\']*\1[^>]*>\s*<summary>([\s\S]*?)<\/summary>\s*<div\b[^>]*class=(["\'])[^"\']*\bqiwi-fold-body\b[^"\']*\3[^>]*>([\s\S]*?)<\/div>\s*<\/details>/iu', function ($matches) {
             $title = trim(strip_tags($matches[2]));
             $body = isset($matches[4]) ? $matches[4] : '';
             return self::feedBlock($title, $body);
+        }, $html);
+
+        $html = preg_replace_callback('/<aside\b[^>]*class=(["\'])[^"\']*\bqiwi-callout\b[^"\']*\1[^>]*>([\s\S]*?)<\/aside>/iu', function ($matches) {
+            return '<blockquote>' . $matches[2] . '</blockquote>';
         }, $html);
 
         for ($i = 0; $i < 4; $i++) {
@@ -483,6 +488,20 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return '<a href="' . self::escapeHtml($href) . '">' . $label . '</a>';
         }, $html);
 
+        $html = preg_replace_callback('/\[link\b([^\]]*)\]([\s\S]*?)\[\/link\]/iu', function ($matches) {
+            $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = self::safeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : '#'));
+            $label = trim($matches[2]) !== '' ? $matches[2] : self::escapeHtml($href);
+            return '<a href="' . self::escapeHtml($href) . '">' . $label . '</a>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[(?:not-by-ai|notbyai)([^\]]*)\](?:\s*\[\/(?:not-by-ai|notbyai)\])?/iu', function ($matches) {
+            $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            $href = self::safeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : 'https://notbyai.fyi/'));
+            $label = isset($attrs['label']) && trim($attrs['label']) !== '' ? trim($attrs['label']) : 'Not By AI';
+            return '<a href="' . self::escapeHtml($href) . '">' . self::escapeHtml(strip_tags($label)) . '</a>';
+        }, $html);
+
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '<div>$1</div>', $html);
             if ($next === $html) {
@@ -510,9 +529,23 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return '<span style="background-color:' . self::shortcodeColor($matches[3], true) . ';">';
         }, $html);
 
-        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
+        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|link|not-by-ai|notbyai|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
 
         return $html;
+    }
+
+    private static function decodeShortcodeBrackets($html)
+    {
+        return strtr((string) $html, array(
+            '&#91;' => '[',
+            '&#x5b;' => '[',
+            '&#x5B;' => '[',
+            '&lbrack;' => '[',
+            '&#93;' => ']',
+            '&#x5d;' => ']',
+            '&#x5D;' => ']',
+            '&rbrack;' => ']',
+        ));
     }
 
     private static function feedBlock($title, $body)
@@ -560,6 +593,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     private static function shortcodeColor($color, $isBackground)
     {
         $map = array(
+            'caramel' => $isBackground ? '#f0e4d3' : '#8b7355',
             'red' => $isBackground ? '#fde2e2' : '#d64545',
             'orange' => $isBackground ? '#fdebd7' : '#d97a20',
             'yellow' => $isBackground ? '#fff2bf' : '#a87900',
@@ -573,21 +607,69 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         return isset($map[$color]) ? $map[$color] : ($isBackground ? $map['yellow'] : $map['blue']);
     }
 
-    private static function avatarUrl($settings, $options)
+    public static function feedAvatarUrl($settings, $options)
     {
         $settingsAvatar = self::setting($settings, 'avatarUrl', '');
         if ($settingsAvatar !== '') {
-            return $settingsAvatar;
+            return self::normalizeImageUrl($settingsAvatar, $options);
         }
 
         foreach (array('sidebarProfileAvatar', 'aboutAvatar', 'logoUrl') as $name) {
             $value = self::optionValue($options, $name);
             if ($value !== '') {
-                return $value;
+                $url = self::normalizeImageUrl($value, $options);
+                if ($url !== '') {
+                    return $url;
+                }
             }
         }
 
-        return 'https://gravatar.loli.net/avatar/default?s=160&d=mp';
+        return self::themeAssetUrl('apple-touch-icon.png', $options);
+    }
+
+    private static function normalizeImageUrl($url, $options)
+    {
+        $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '') {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $url)) {
+            return $url;
+        }
+
+        if (strpos($url, '//') === 0) {
+            $scheme = parse_url(self::siteBaseUrl($options), PHP_URL_SCHEME);
+            return ($scheme !== '' ? $scheme : 'https') . ':' . $url;
+        }
+
+        if (preg_match('/^(data:|javascript:|mailto:|tel:)/i', $url)) {
+            return '';
+        }
+
+        $base = self::siteBaseUrl($options);
+        if ($base === '') {
+            return '';
+        }
+
+        return rtrim($base, '/') . '/' . ltrim($url, '/');
+    }
+
+    private static function themeAssetUrl($path, $options)
+    {
+        $themeUrl = self::optionValue($options, 'themeUrl');
+        if ($themeUrl !== '') {
+            return rtrim($themeUrl, '/') . '/' . ltrim($path, '/');
+        }
+
+        $base = self::siteBaseUrl($options);
+        return $base !== '' ? rtrim($base, '/') . '/usr/themes/qiwi/' . ltrim($path, '/') : '';
+    }
+
+    private static function siteBaseUrl($options)
+    {
+        $siteUrl = self::optionValue($options, 'siteUrl');
+        return $siteUrl !== '' ? rtrim($siteUrl, '/') : '';
     }
 
     private static function linksDescription()
