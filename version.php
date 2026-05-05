@@ -1,8 +1,14 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.4.4";
+$version = "1.4.5";
 $releaseNotes = [
+    "1.4.5" => <<<EOT
+- 增强 QiwiSitemap 的 RSS 短代码兼容，补齐 caramel、link、not-by-ai 等主题短代码
+- 规范 RSS / Atom 头像 URL，并回退到主题 Apple Touch Icon，提升阅读器头像识别稳定性
+- 为说说 RSS 补充频道头像和条目缩略图
+- 说说 RSS 标题优先取第一条非空正文行，并清理短代码、Markdown 与末尾标点
+EOT,
     "1.4.4" => <<<EOT
 - 新增内容外链识别、外链图标、真实 URL tooltip 与 /goto 跳转统计记录
 - 后台主题设置新增“外链统计”临时面板，展示外链点击汇总
