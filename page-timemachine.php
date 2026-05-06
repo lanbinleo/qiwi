@@ -39,8 +39,13 @@ foreach ($comments as $comment) {
 
 $momentLikeCounts = class_exists('QiwiTheme_Plugin') ? QiwiTheme_Plugin::momentLikeCounts($momentCoids) : [];
 $momentLikedHash = '';
-if ($this->user->hasLogin()) {
-    $momentLikedHash = sha1('user:' . (int) $this->user->uid);
+if ($this->user->hasLogin() && class_exists('QiwiTheme_Plugin')) {
+    $userMailHash = QiwiTheme_Plugin::momentMailHash(isset($this->user->mail) ? $this->user->mail : '');
+    $momentLikedHash = $userMailHash !== ''
+        ? sha1('mail:' . $userMailHash)
+        : sha1('user:' . (int) $this->user->uid);
+} elseif (isset($_COOKIE['qiwi_moment_like_mail_hash']) && preg_match('/^[a-f0-9]{40}$/i', (string) $_COOKIE['qiwi_moment_like_mail_hash'])) {
+    $momentLikedHash = sha1('mail:' . strtolower((string) $_COOKIE['qiwi_moment_like_mail_hash']));
 } elseif (isset($_COOKIE['qiwi_moment_like_id']) && preg_match('/^[a-zA-Z0-9]{20,}$/', (string) $_COOKIE['qiwi_moment_like_id'])) {
     $momentLikedHash = sha1('visitor:' . (string) $_COOKIE['qiwi_moment_like_id']);
 }
@@ -763,6 +768,13 @@ function initMomentInteractions() {
                 form.append('coid', coid);
                 if (config.likeToken) {
                     form.append('_', config.likeToken);
+                }
+                const profile = readProfile();
+                if (profile && profile.author) {
+                    form.append('author', profile.author);
+                }
+                if (profile && profile.mail) {
+                    form.append('mail', profile.mail);
                 }
                 const response = await fetch(config.likeEndpoint, {
                     method: 'POST',

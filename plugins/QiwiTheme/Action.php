@@ -137,7 +137,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             $this->json(array('success' => false, 'message' => 'Moment not found'), 404);
         }
 
-        $result = QiwiTheme_Plugin::toggleMomentLike($coid, $this->momentLikeIdentityHash());
+        $result = QiwiTheme_Plugin::toggleMomentLike($coid, $this->momentLikeIdentity());
         $this->json(array(
             'success' => true,
             'coid' => $coid,
@@ -210,12 +210,45 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
     }
 
-    private function momentLikeIdentityHash()
+    private function momentLikeIdentity()
     {
+        $author = trim((string) $this->request->get('author', ''));
+        $mailHash = QiwiTheme_Plugin::momentMailHash($this->request->get('mail', ''));
+        if ($mailHash !== '') {
+            $this->setMomentLikeCookie('qiwi_moment_like_mail_hash', $mailHash);
+            return array(
+                'identity_hash' => sha1('mail:' . $mailHash),
+                'previous_identity_hash' => $this->momentLikeCookieIdentityHash(),
+                'identity_type' => 'mail',
+                'user_id' => 0,
+                'author' => $author,
+                'mail_hash' => $mailHash,
+            );
+        }
+
         try {
             Typecho_Widget::widget('Widget_User')->to($user);
             if ($user && $user->hasLogin()) {
-                return sha1('user:' . (int) $user->uid);
+                $userMailHash = QiwiTheme_Plugin::momentMailHash(isset($user->mail) ? $user->mail : '');
+                if ($userMailHash !== '') {
+                    $this->setMomentLikeCookie('qiwi_moment_like_mail_hash', $userMailHash);
+                    return array(
+                        'identity_hash' => sha1('mail:' . $userMailHash),
+                        'previous_identity_hash' => $this->momentLikeCookieIdentityHash(),
+                        'identity_type' => 'mail',
+                        'user_id' => (int) $user->uid,
+                        'author' => isset($user->screenName) ? (string) $user->screenName : '',
+                        'mail_hash' => $userMailHash,
+                    );
+                }
+
+                return array(
+                    'identity_hash' => sha1('user:' . (int) $user->uid),
+                    'identity_type' => 'user',
+                    'user_id' => (int) $user->uid,
+                    'author' => isset($user->screenName) ? (string) $user->screenName : '',
+                    'mail_hash' => '',
+                );
             }
         } catch (Exception $e) {
         } catch (Throwable $e) {
@@ -225,11 +258,29 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $value = isset($_COOKIE[$cookieName]) ? preg_replace('/[^a-zA-Z0-9]/', '', (string) $_COOKIE[$cookieName]) : '';
         if ($value === '' || strlen($value) < 20) {
             $value = $this->randomLikeIdentity();
-            setcookie($cookieName, $value, time() + 31536000, '/');
+            $this->setMomentLikeCookie($cookieName, $value);
             $_COOKIE[$cookieName] = $value;
         }
 
-        return sha1('visitor:' . $value);
+        return array(
+            'identity_hash' => sha1('visitor:' . $value),
+            'identity_type' => 'cookie',
+            'user_id' => 0,
+            'author' => '',
+            'mail_hash' => '',
+        );
+    }
+
+    private function momentLikeCookieIdentityHash()
+    {
+        $value = isset($_COOKIE['qiwi_moment_like_id']) ? preg_replace('/[^a-zA-Z0-9]/', '', (string) $_COOKIE['qiwi_moment_like_id']) : '';
+        return $value !== '' && strlen($value) >= 20 ? sha1('visitor:' . $value) : '';
+    }
+
+    private function setMomentLikeCookie($name, $value)
+    {
+        setcookie($name, $value, time() + 31536000, '/');
+        $_COOKIE[$name] = $value;
     }
 
     private function randomLikeIdentity()
