@@ -12,6 +12,8 @@ $pageContent = qiwiGetContent($this);
 // 获取数据
 $pageId = $this->cid;
 $authorUid = $this->author->uid;
+$isMomentManager = $this->user->hasLogin()
+    && ((int) $this->user->uid === (int) $authorUid || (isset($this->user->group) && $this->user->group === 'administrator'));
 $pageSize = 10;
 $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
@@ -400,7 +402,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     <label for="moment-reply-text">内容 *</label>
                     <textarea name="text" id="moment-reply-text" rows="3" placeholder="写一条评论…" required><?php $this->remember('text'); ?></textarea>
                 </div>
-                <?php if ($this->options->enabledCaptcha): ?>
+                <?php if ($this->options->enabledCaptcha && !$isMomentManager): ?>
                 <div class="captcha-script">
                     <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
                     <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
@@ -447,7 +449,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         <?php endif; ?>
 
         <!-- 发布表单 -->
-        <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
+        <?php if ($isMomentManager): ?>
         <div class="moment-publisher">
             <div class="publisher-header">
                 <h3 class="publisher-title">发布新的记录</h3>
@@ -488,14 +490,6 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     $this->widget('Widget_Security')->getToken($this->permalink);
                 echo '<input type="hidden" name="_" value="' . $token . '">';
                 ?>
-
-                <?php if ($this->options->enabledCaptcha): ?>
-                <div class="captcha-script">
-                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
-                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
-                </div>
-                <?php endif; ?>
-                <br>
 
                 <button type="submit" class="submit-button" id="sub_btn">发布</button>
             </form>
