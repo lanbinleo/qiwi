@@ -1,14 +1,20 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "1.4.5";
+$version = "1.4.6";
 $releaseNotes = [
+    "1.4.6" => <<<EOT
+- 修正 Typecho 默认文章 RSS 的后处理挂载条件，并在条目输出阶段兜底清理正文短代码
+- 修复 RSS / Atom 头像只应作为频道头像输出的问题，避免阅读器把头像误当文章或说说头图
+- RSS / Atom 文章条目会读取文章头图字段，并输出 enclosure 与 Media RSS 缩略图
+- Time Machine RSS 仅在动态正文含图片时输出条目媒体图，不再用头像填充每条动态
+- 增强 feed 后处理启动与文章自定义字段读取兜底，提升 Typecho 原生订阅输出稳定性
+EOT,
     "1.4.5" => <<<EOT
 - 增强 QiwiSitemap 的 RSS 短代码兼容，补齐 caramel、link、not-by-ai 等主题短代码
 - 规范 RSS / Atom 头像 URL，并回退到主题 Apple Touch Icon，提升阅读器头像识别稳定性
 - 为说说 RSS 补充频道头像和条目缩略图
 - 说说 RSS 标题优先取第一条非空正文行，并清理短代码、Markdown 与末尾标点
-- 修正 Typecho 默认文章 RSS 的后处理挂载条件，并在条目输出阶段兜底清理正文短代码
 EOT,
     "1.4.4" => <<<EOT
 - 新增内容外链识别、外链图标、真实 URL tooltip 与 /goto 跳转统计记录
@@ -210,6 +216,8 @@ EOT,
 ];
 
 $releaseDate = [
+  "1.4.6" => "2026-05-06",
+  "1.4.5" => "2026-05-05",
   "1.4.4" => "2026-05-04",
   "1.4.3" => "2026-05-03",
   "1.4.2" => "2026-05-03",
