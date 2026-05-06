@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  MaxQiwi
- * @version 1.4.6
+ * @version 1.4.7
  * @link    https://www.maxqi.top/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
@@ -283,9 +283,10 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         $options = Helper::options();
         $enableAvatar = self::setting($settings, 'enableFeedAvatar', '1') === '1';
         $enableShortcodes = self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1';
+        $enablePrivacy = true;
         $avatarUrl = $enableAvatar ? self::feedAvatarUrl($settings, $options) : '';
 
-        if (!$enableShortcodes && ($avatarUrl === '')) {
+        if (!$enableShortcodes && !$enablePrivacy && ($avatarUrl === '')) {
             return;
         }
 
@@ -296,6 +297,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             'feedType' => $feedType,
             'enableAvatar' => $enableAvatar && $avatarUrl !== '',
             'enableShortcodes' => $enableShortcodes,
+            'enablePrivacy' => $enablePrivacy,
         );
         self::$feedBufferStarted = true;
 
@@ -321,10 +323,11 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     private static function filterFeedItemContent($item)
     {
         $settings = self::settings();
-        if (self::setting($settings, 'enableFeedShortcodeCompat', '1') !== '1' || !is_object($item)) {
+        if (!is_object($item)) {
             return;
         }
 
+        $isProtected = self::isFeedItemProtected($item);
         foreach (array('content', 'excerpt') as $name) {
             $value = null;
             try {
@@ -339,7 +342,16 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
                 continue;
             }
 
-            $item->{$name} = self::renderFeedHtml((string) $value);
+            if ($isProtected) {
+                $item->{$name} = self::feedProtectedMessage();
+                continue;
+            }
+
+            $value = self::sanitizeFeedPrivateContent((string) $value);
+            if (self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1') {
+                $value = self::renderFeedHtml($value);
+            }
+            $item->{$name} = $value;
         }
     }
 
@@ -347,6 +359,10 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     {
         if (self::$feedContext === null || trim($xml) === '') {
             return $xml;
+        }
+
+        if (!empty(self::$feedContext['enablePrivacy'])) {
+            $xml = self::filterFeedPrivateContent($xml);
         }
 
         if (!empty(self::$feedContext['enableShortcodes'])) {
@@ -449,6 +465,10 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return null;
         }
 
+        if (self::isFeedItemProtected($archive)) {
+            return null;
+        }
+
         $thumbnail = self::feedItemThumbnailUrl($archive, Helper::options());
         if ($thumbnail === '') {
             return null;
@@ -513,6 +533,74 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         } catch (Throwable $e) {
             return 0;
         }
+    }
+
+    private static function objectStringValue($object, $name)
+    {
+        if (!is_object($object) || $name === '') {
+            return '';
+        }
+
+        try {
+            return isset($object->{$name}) ? (string) $object->{$name} : '';
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    private static function isFeedItemProtected($item)
+    {
+        if (!is_object($item)) {
+            return false;
+        }
+
+        $password = self::objectStringValue($item, 'password');
+        if (trim($password) !== '') {
+            return true;
+        }
+
+        $hidden = strtolower(trim(self::objectStringValue($item, 'hidden')));
+        return $hidden === '1' || $hidden === 'true' || $hidden === 'yes';
+    }
+
+    private static function feedProtectedMessage()
+    {
+        return '<p>这篇内容受密码保护，请到原文输入密码后查看。</p>';
+    }
+
+    private static function feedHiddenMessage()
+    {
+        return '<p>隐藏内容请前往原文查看。</p>';
+    }
+
+    private static function sanitizeFeedPrivateContent($html)
+    {
+        $html = (string) $html;
+        if ($html === '') {
+            return '';
+        }
+
+        $hiddenMessage = self::feedHiddenMessage();
+        $html = preg_replace('/<!--\s*(?:more|readmore)(?:\s+[^>]*)?-->([\s\S]*)$/iu', $hiddenMessage, $html);
+        $html = preg_replace('/<!--\s*(?:hide|hidden|secret|private)\s*-->[\s\S]*?<!--\s*\/(?:hide|hidden|secret|private)\s*-->/iu', $hiddenMessage, $html);
+        $html = preg_replace('/\[(?:hide|hidden|secret|private|password|protected)(?:\s+[^\]]*)?\][\s\S]*?\[\/(?:hide|hidden|secret|private|password|protected)\]/iu', $hiddenMessage, $html);
+        $html = preg_replace('/<(div|section|aside|span)\b[^>]*class=(["\'])[^"\']*\b(?:protected|hidden-content|qiwi-hidden|secret|private)\b[^"\']*\2[^>]*>[\s\S]*?<\/\1>/iu', $hiddenMessage, $html);
+
+        return $html;
+    }
+
+    private static function filterFeedPrivateContent($xml)
+    {
+        $xml = preg_replace_callback('/<!\[CDATA\[([\s\S]*?)\]\]>/u', function ($matches) {
+            return '<![CDATA[' . str_replace(']]>', ']]]]><![CDATA[>', self::sanitizeFeedPrivateContent($matches[1])) . ']]>';
+        }, $xml);
+
+        return preg_replace_callback('/(<(description|summary|content:encoded|content)\b[^>]*>)(?!<!\[CDATA\[)([\s\S]*?)(<\/\2>)/iu', function ($matches) {
+            $text = html_entity_decode($matches[3], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return $matches[1] . self::xml(strip_tags(self::sanitizeFeedPrivateContent($text))) . $matches[4];
+        }, $xml);
     }
 
     public static function feedImageMediaSuffix($feedType, $imageUrl)

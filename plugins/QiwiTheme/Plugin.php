@@ -8,30 +8,36 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  MaxQiwi
- * @version 1.4.6
+ * @version 1.4.7
  * @link    https://www.maxqi.top/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 {
     const TABLE = 'qiwi_threads';
+    const MOMENT_LIKE_TABLE = 'qiwi_moment_likes';
+    const SETTINGS_PANEL = 'QiwiTheme/page/settings.php';
 
     public static function activate()
     {
         self::installTable();
         self::installExternalLinkTable();
+        self::installMomentLikeTable();
         Helper::removeAction('qiwi-thread-tools');
         Helper::removeRoute('qiwi_theme_goto_route');
+        Helper::removePanel(1, self::SETTINGS_PANEL);
         Helper::addAction('qiwi-theme', 'QiwiTheme_Action');
         Helper::addRoute('qiwi_theme_goto_route', '/goto', 'QiwiTheme_Action', 'goto');
+        Helper::addPanel(1, self::SETTINGS_PANEL, 'Qiwi 设置', '快速进入 Qiwi 主题设置', 'administrator');
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口与 /goto 外链跳转统计已准备好。');
+        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、主题设置面板入口、说说点赞与 /goto 外链跳转统计已准备好。');
     }
 
     public static function deactivate()
     {
         Helper::removeAction('qiwi-theme');
         Helper::removeRoute('qiwi_theme_goto_route');
+        Helper::removePanel(1, self::SETTINGS_PANEL);
     }
 
     public static function config(Typecho_Widget_Helper_Form $form)
@@ -39,7 +45,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口与 /goto 外链跳转统计。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、说说点赞与 /goto 外链跳转统计。'));
         $form->addInput($info);
     }
 
@@ -50,6 +56,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
     public static function adminHeader($header)
     {
         $script = isset($_SERVER['SCRIPT_NAME']) ? strtolower(basename($_SERVER['SCRIPT_NAME'])) : '';
+        self::ensureSettingsPanel();
         if ($script !== 'category.php') {
             return $header;
         }
@@ -75,6 +82,21 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             . '<link rel="stylesheet" href="' . $css . '">'
             . '<script>window.QIWI_THEME_TOOLS=' . $json . ';window.QIWI_THREAD_TOOLS=window.QIWI_THEME_TOOLS;</script>'
             . '<script defer src="' . $js . '"></script>';
+    }
+
+    private static function ensureSettingsPanel()
+    {
+        try {
+            $panelTable = unserialize(Helper::options()->panelTable);
+            $files = isset($panelTable['file']) && is_array($panelTable['file']) ? $panelTable['file'] : array();
+            if (in_array(urlencode(self::SETTINGS_PANEL), $files, true)) {
+                return;
+            }
+
+            Helper::addPanel(1, self::SETTINGS_PANEL, 'Qiwi 设置', '快速进入 Qiwi 主题设置', 'administrator');
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
     }
 
     public static function metaFilter($value, $widget)
@@ -151,6 +173,12 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         return $db->getPrefix() . 'qiwi_external_links';
     }
 
+    public static function momentLikeTableName()
+    {
+        $db = Typecho_Db::get();
+        return $db->getPrefix() . self::MOMENT_LIKE_TABLE;
+    }
+
     public static function installExternalLinkTable()
     {
         try {
@@ -187,6 +215,42 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                     KEY `url_hash` (`url_hash`),
                     KEY `host` (`host`),
                     KEY `clicked` (`clicked`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+            }
+
+            $db->query($sql);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function installMomentLikeTable()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $table = self::momentLikeTableName();
+            $adapter = strtolower(get_class($db->getAdapter()));
+
+            if (strpos($adapter, 'sqlite') !== false) {
+                $sql = 'CREATE TABLE IF NOT EXISTS "' . $table . '" (
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "coid" INTEGER NOT NULL,
+                    "identity_hash" varchar(64) NOT NULL,
+                    "created" INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE ("coid", "identity_hash")
+                )';
+            } else {
+                $sql = 'CREATE TABLE IF NOT EXISTS `' . $table . '` (
+                    `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+                    `coid` int(10) unsigned NOT NULL,
+                    `identity_hash` varchar(64) NOT NULL,
+                    `created` int(10) unsigned NOT NULL DEFAULT 0,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `coid_identity` (`coid`, `identity_hash`),
+                    KEY `coid` (`coid`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
             }
 
@@ -302,6 +366,102 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return array();
         } catch (Throwable $e) {
             return array();
+        }
+    }
+
+    public static function momentLikeCounts(array $coids)
+    {
+        $ids = array();
+        foreach ($coids as $coid) {
+            $coid = (int) $coid;
+            if ($coid > 0) {
+                $ids[$coid] = 0;
+            }
+        }
+
+        if (empty($ids) || !self::installMomentLikeTable()) {
+            return $ids;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('coid', 'COUNT(id) AS likes')
+                ->from(self::momentLikeTableName())
+                ->where('coid IN (' . implode(',', array_keys($ids)) . ')')
+                ->group('coid'));
+
+            foreach ($rows as $row) {
+                $coid = isset($row['coid']) ? (int) $row['coid'] : 0;
+                if ($coid > 0 && isset($ids[$coid])) {
+                    $ids[$coid] = isset($row['likes']) ? (int) $row['likes'] : 0;
+                }
+            }
+        } catch (Exception $e) {
+            return $ids;
+        } catch (Throwable $e) {
+            return $ids;
+        }
+
+        return $ids;
+    }
+
+    public static function hasMomentLiked($coid, $identityHash = '')
+    {
+        $coid = (int) $coid;
+        $identityHash = trim((string) $identityHash);
+        if ($coid <= 0 || $identityHash === '' || !self::installMomentLikeTable()) {
+            return false;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('id')
+                ->from(self::momentLikeTableName())
+                ->where('coid = ?', $coid)
+                ->where('identity_hash = ?', $identityHash)
+                ->limit(1));
+
+            return !empty($row);
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function toggleMomentLike($coid, $identityHash)
+    {
+        $coid = (int) $coid;
+        $identityHash = trim((string) $identityHash);
+        if ($coid <= 0 || $identityHash === '' || !self::installMomentLikeTable()) {
+            return array('liked' => false, 'count' => 0);
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $table = self::momentLikeTableName();
+            if (self::hasMomentLiked($coid, $identityHash)) {
+                $db->query($db->delete($table)
+                    ->where('coid = ?', $coid)
+                    ->where('identity_hash = ?', $identityHash));
+                $liked = false;
+            } else {
+                $db->query($db->insert($table)->rows(array(
+                    'coid' => $coid,
+                    'identity_hash' => $identityHash,
+                    'created' => time(),
+                )));
+                $liked = true;
+            }
+
+            $counts = self::momentLikeCounts(array($coid));
+            return array('liked' => $liked, 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
+        } catch (Exception $e) {
+            $counts = self::momentLikeCounts(array($coid));
+            return array('liked' => self::hasMomentLiked($coid, $identityHash), 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
+        } catch (Throwable $e) {
+            $counts = self::momentLikeCounts(array($coid));
+            return array('liked' => self::hasMomentLiked($coid, $identityHash), 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
         }
     }
 

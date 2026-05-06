@@ -665,7 +665,7 @@ function themeConfig($form)
         null,
         null,
         _t('默认版权说明'),
-        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]、[link]、[not-by-ai]；支持占位符 {permalink}、{title}、{author}、{site}、{year}；普通外链会自动解析。留空则使用主题内置默认文案。")
+        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]、[link]、[not-by-ai]；支持版权魔法标签：[default]、[thread]、[no-repost]、[ai-generated]；支持占位符 {permalink}、{title}、{author}、{site}、{year}、{thread_title}。普通外链会自动解析。留空则使用主题内置默认文案。")
     );
 
     $form->addInput($customCSS);
@@ -726,7 +726,7 @@ function themeFields($layout) {
         null,
         null,
         _t('文章 - 版权说明'),
-        _t("留空则使用默认版权说明。支持短代码，例如：[badge color=\"cyan\"]原创[/badge]、[callout type=\"info\" title=\"转载说明\"]请保留原文链接：{permalink}[/callout]、[link href=\"{permalink}\"]原文链接[/link]、[not-by-ai]。普通外链会自动解析。")
+        _t("留空则使用默认版权说明。支持短代码和版权魔法标签，例如：[default]、[thread]、[not-by-ai]、[no-repost]、[ai-generated]。也可继续使用 [badge]、[callout]、[link href=\"{permalink}\"]原文链接[/link] 等写法。")
     );
 
     $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
@@ -1514,12 +1514,14 @@ if (!function_exists('qiwiSanitizeShortcodeUrl')) {
 }
 
 if (!function_exists('qiwiRenderShortcodeSegment')) {
-    function qiwiRenderShortcodeSegment($html)
+    function qiwiRenderShortcodeSegment($html, array $context = [])
     {
         $colors = 'red|orange|yellow|green|cyan|blue|purple';
         $foldOpening = '\[fold(?:\s+[^\]]*)?\]';
         $calloutOpening = '\[callout(?:\s+[^\]]*)?\]';
         $buttonsOpening = '\[buttons(?:\s+[^\]]*)?\]';
+        $isCopyrightContext = !empty($context['copyright_context']);
+        $copyrightOpening = '\[(?:default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\]';
 
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<\/p>/iu', '$1', $html);
@@ -1533,6 +1535,11 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/buttons\])\s*<\/p>/iu', '<span>$1</span>$2', $html);
         $html = preg_replace('/<p>\s*(\[\/buttons\])\s*<\/p>/iu', '$1', $html);
+        if ($isCopyrightContext) {
+            $html = preg_replace('/<p>\s*(' . $copyrightOpening . ')\s*(?:<br\s*\/?>)?\s*<\/p>/iu', '$1', $html);
+            $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/(?:default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
+            $html = preg_replace('/<p>\s*(\[\/(?:default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)\])\s*<\/p>/iu', '$1', $html);
+        }
 
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace_callback('/\[fold([^\]]*)\]([\s\S]*?)\[\/fold\]/iu', function ($matches) {
@@ -1619,10 +1626,14 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
             return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
         }, $html);
 
+        if ($isCopyrightContext) {
+            $html = qiwiRenderCopyrightMagicShortcodes($html, $context);
+        }
+
         $html = preg_replace_callback('/\[(?:not-by-ai|notbyai)([^\]]*)\](?:\s*\[\/(?:not-by-ai|notbyai)\])?/iu', function ($matches) {
             $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
             $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : 'https://notbyai.fyi/'));
-            $label = isset($attrs['label']) && trim($attrs['label']) !== '' ? trim($attrs['label']) : 'Not By AI';
+            $label = isset($attrs['label']) && trim($attrs['label']) !== '' ? trim($attrs['label']) : '本文非 AI 生成';
             return '<a class="qiwi-not-by-ai" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer"><span>NOT</span><strong>' . htmlspecialchars(strip_tags($label), ENT_QUOTES, 'UTF-8') . '</strong></a>';
         }, $html);
 
@@ -1660,7 +1671,7 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
 }
 
 if (!function_exists('qiwiRenderShortcodes')) {
-    function qiwiRenderShortcodes($html)
+    function qiwiRenderShortcodes($html, array $context = [])
     {
         $html = (string) $html;
         if ($html === '') {
@@ -1673,7 +1684,7 @@ if (!function_exists('qiwiRenderShortcodes')) {
                 continue;
             }
 
-            $parts[$index] = qiwiRenderShortcodeSegment($part);
+            $parts[$index] = qiwiRenderShortcodeSegment($part, $context);
         }
 
         return implode('', $parts);
@@ -1849,31 +1860,103 @@ if (!function_exists('qiwiRenderFieldRichText')) {
 
             $escaped = htmlspecialchars($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $escaped = nl2br($escaped, false);
-            if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)) {
+            if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)
+                || (!empty($context['copyright_context']) && preg_match('/^\[(?:default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\]/iu', $block))) {
                 $html .= $escaped;
             } else {
                 $html .= '<p>' . $escaped . '</p>';
             }
         }
 
-        return qiwiAutolinkPlainUrls(qiwiRenderShortcodes($html), $context);
+        return qiwiAutolinkPlainUrls(qiwiRenderShortcodes($html, $context), $context);
     }
 }
 
-if (!function_exists('qiwiGetPostCopyrightHtml')) {
-    function qiwiGetPostCopyrightHtml($widget)
+if (!function_exists('qiwiGetPostThreadCollection')) {
+    function qiwiGetPostThreadCollection($widget)
     {
-        $context = qiwiPostRichTextContext($widget);
-        $custom = qiwiNormalizeRichTextValue(qiwiGetFieldValue($widget, 'copyrightInfo', ''));
-        if ($custom !== '') {
-            return qiwiRenderFieldRichText($custom, $context);
+        if (empty($widget) || !isset($widget->cid)) {
+            return null;
         }
 
-        $themeDefault = qiwiNormalizeRichTextValue(qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
-        if ($themeDefault !== '') {
-            return qiwiRenderFieldRichText($themeDefault, $context);
+        $cid = (int) $widget->cid;
+        if ($cid <= 0) {
+            return null;
         }
 
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $rows = $db->fetchAll($db->select('table.metas.mid', 'table.metas.name', 'table.metas.slug', 'table.metas.description', 'table.metas.count')
+                ->from('table.metas')
+                ->join('table.relationships', 'table.metas.mid = table.relationships.mid')
+                ->where('table.relationships.cid = ?', $cid)
+                ->where('table.metas.type = ?', 'category')
+                ->where('table.metas.slug LIKE ?', 'thread-%')
+                ->order('table.metas.order', class_exists('Typecho_Db') ? Typecho_Db::SORT_ASC : \Typecho\Db::SORT_ASC)
+                ->order('table.metas.mid', class_exists('Typecho_Db') ? Typecho_Db::SORT_ASC : \Typecho\Db::SORT_ASC)
+                ->limit(1));
+
+            if (empty($rows)) {
+                return null;
+            }
+
+            $row = $rows[0];
+            $permalink = qiwiGetCategoryPermalink($row, $widget);
+            if ($permalink === '') {
+                return null;
+            }
+
+            return [
+                'mid' => isset($row['mid']) ? (int) $row['mid'] : 0,
+                'name' => isset($row['name']) ? (string) $row['name'] : '',
+                'slug' => isset($row['slug']) ? (string) $row['slug'] : '',
+                'permalink' => $permalink,
+                'description' => isset($row['description']) ? (string) $row['description'] : '',
+            ];
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('qiwiGetCategoryPermalink')) {
+    function qiwiGetCategoryPermalink($row, $widget = null)
+    {
+        if (!is_array($row) || empty($row['slug'])) {
+            return '';
+        }
+
+        try {
+            $options = null;
+            if (!empty($widget) && isset($widget->options)) {
+                $options = $widget->options;
+            } elseif (class_exists('\Widget\Options')) {
+                \Widget\Options::alloc()->to($options);
+            } elseif (class_exists('Widget_Options')) {
+                Widget_Options::alloc()->to($options);
+            }
+
+            if (class_exists('Typecho_Router') && Typecho_Router::get('category') !== null && !empty($options)) {
+                $data = $row;
+                $data['slug'] = rawurlencode((string) $data['slug']);
+                return Typecho_Common::url(Typecho_Router::url('category', $data), $options->index);
+            }
+
+            $siteUrl = !empty($options) && isset($options->siteUrl) ? rtrim((string) $options->siteUrl, '/') : '';
+            return $siteUrl !== '' ? $siteUrl . '/category/' . rawurlencode((string) $row['slug']) . '/' : '';
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+}
+
+if (!function_exists('qiwiCopyrightDefaultTemplateHtml')) {
+    function qiwiCopyrightDefaultTemplateHtml(array $context)
+    {
         $permalink = isset($context['permalink']) ? (string) $context['permalink'] : '';
         $author = isset($context['author']) && $context['author'] !== '' ? (string) $context['author'] : '作者';
         $siteTitle = isset($context['site_title']) && $context['site_title'] !== '' ? (string) $context['site_title'] : '本站';
@@ -1881,6 +1964,163 @@ if (!function_exists('qiwiGetPostCopyrightHtml')) {
 
         return '<p><span class="qiwi-badge qiwi-badge-cyan qiwi-badge-soft">原创</span> 本文由 ' . htmlspecialchars($author, ENT_QUOTES, 'UTF-8') . ' 发布于 <a href="' . $permalinkEscaped . '">' . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . '</a>。</p>'
             . '<p>转载或引用时，请保留作者与原文链接：<a href="' . $permalinkEscaped . '">' . $permalinkEscaped . '</a></p>';
+    }
+}
+
+if (!function_exists('qiwiCopyrightHasMagicTags')) {
+    function qiwiCopyrightHasMagicTags($text)
+    {
+        return preg_match('/\[(?:default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\]|\[(?:禁止转载|不能转载|不可转载)\]/iu', (string) $text) === 1;
+    }
+}
+
+if (!function_exists('qiwiNormalizeCopyrightMagicWords')) {
+    function qiwiNormalizeCopyrightMagicWords($text)
+    {
+        $lines = preg_split('/\r\n|\r|\n/u', (string) $text);
+        foreach ($lines as $index => $line) {
+            $trimmed = trim($line);
+            if (in_array($trimmed, ['不能转载', '禁止转载', '不可转载'], true)) {
+                $lines[$index] = '[no-repost]';
+            } elseif (in_array($trimmed, ['非 AI 生成', '本文非 AI 生成', 'Not By AI'], true)) {
+                $lines[$index] = '[not-by-ai]';
+            } elseif (in_array($trimmed, ['AI 生成', '本文由 AI 生成'], true)) {
+                $lines[$index] = '[ai-generated]';
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+}
+
+if (!function_exists('qiwiCopyrightVisibleTextWithoutMagic')) {
+    function qiwiCopyrightVisibleTextWithoutMagic($text)
+    {
+        $text = preg_replace('/\[(default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\](?:\s*\[\/\1\])?/iu', '', (string) $text);
+        $text = preg_replace('/\[(default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\][\s\S]*?\[\/\1\]/iu', '', $text);
+        return trim(strip_tags($text));
+    }
+}
+
+if (!function_exists('qiwiRenderCopyrightText')) {
+    function qiwiRenderCopyrightText($text, array $context)
+    {
+        $context['copyright_context'] = true;
+        $text = qiwiNormalizeCopyrightMagicWords($text);
+        if (qiwiCopyrightHasMagicTags($text)
+            && !preg_match('/\[default(?:\s+[^\]]*)?\]/iu', $text)
+            && qiwiCopyrightVisibleTextWithoutMagic($text) === '') {
+            $text = "[default]\n" . $text;
+        }
+
+        return qiwiRenderFieldRichText($text, $context);
+    }
+}
+
+if (!function_exists('qiwiRenderCopyrightMagicShortcodes')) {
+    function qiwiRenderCopyrightMagicShortcodes($html, array $context = [])
+    {
+        $html = preg_replace_callback('/\[default([^\]]*)\]([\s\S]*?)\[\/default\]/iu', function ($matches) use ($context) {
+            $body = trim((string) (isset($matches[2]) ? $matches[2] : ''));
+            if ($body === '') {
+                return '<div class="post-copyright-default">' . qiwiCopyrightDefaultTemplateHtml($context) . '</div>';
+            }
+
+            return '<div class="post-copyright-default">' . $body . '</div>';
+        }, $html);
+
+        $html = preg_replace('/\[default([^\]]*)\](?:\s*\[\/default\])?/iu', '<div class="post-copyright-default">' . qiwiCopyrightDefaultTemplateHtml($context) . '</div>', $html);
+
+        $html = preg_replace_callback('/\[(?:thread|collection)([^\]]*)\]([\s\S]*?)\[\/(?:thread|collection)\]/iu', function ($matches) use ($context) {
+            return qiwiCopyrightThreadComponent($context, isset($matches[2]) ? $matches[2] : '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+        $html = preg_replace_callback('/\[(?:thread|collection)([^\]]*)\](?:\s*\[\/(?:thread|collection)\])?/iu', function ($matches) use ($context) {
+            return qiwiCopyrightThreadComponent($context, '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+
+        $html = preg_replace_callback('/\[(?:no-repost|no-reprint|no-redistribute|禁止转载|不能转载|不可转载)([^\]]*)\]([\s\S]*?)\[\/(?:no-repost|no-reprint|no-redistribute|禁止转载|不能转载|不可转载)\]/iu', function ($matches) {
+            return qiwiCopyrightNoticeComponent('no-repost', isset($matches[2]) ? $matches[2] : '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+        $html = preg_replace_callback('/\[(?:no-repost|no-reprint|no-redistribute|禁止转载|不能转载|不可转载)([^\]]*)\](?:\s*\[\/(?:no-repost|no-reprint|no-redistribute|禁止转载|不能转载|不可转载)\])?/iu', function ($matches) {
+            return qiwiCopyrightNoticeComponent('no-repost', '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+
+        $html = preg_replace_callback('/\[(?:ai-generated|ai-assisted)([^\]]*)\]([\s\S]*?)\[\/(?:ai-generated|ai-assisted)\]/iu', function ($matches) {
+            return qiwiCopyrightNoticeComponent('ai-generated', isset($matches[2]) ? $matches[2] : '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+        $html = preg_replace_callback('/\[(?:ai-generated|ai-assisted)([^\]]*)\](?:\s*\[\/(?:ai-generated|ai-assisted)\])?/iu', function ($matches) {
+            return qiwiCopyrightNoticeComponent('ai-generated', '', isset($matches[1]) ? $matches[1] : '');
+        }, $html);
+
+        return $html;
+    }
+}
+
+if (!function_exists('qiwiCopyrightThreadComponent')) {
+    function qiwiCopyrightThreadComponent(array $context, $body = '', $attrsText = '')
+    {
+        $title = isset($context['thread_title']) ? trim((string) $context['thread_title']) : '';
+        $url = isset($context['thread_url']) ? trim((string) $context['thread_url']) : '';
+        if ($title === '' || $url === '') {
+            return '';
+        }
+
+        $attrs = qiwiParseShortcodeAttrs($attrsText);
+        $label = trim((string) $body);
+        if ($label === '' && isset($attrs['label']) && trim((string) $attrs['label']) !== '') {
+            $label = trim((string) $attrs['label']);
+        }
+        if ($label === '') {
+            $label = '本文收录于文集';
+        }
+
+        return '<div class="post-copyright-component post-copyright-thread"><span>' . htmlspecialchars(strip_tags($label), ENT_QUOTES, 'UTF-8') . '</span><a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</a></div>';
+    }
+}
+
+if (!function_exists('qiwiCopyrightNoticeComponent')) {
+    function qiwiCopyrightNoticeComponent($type, $body = '', $attrsText = '')
+    {
+        $attrs = qiwiParseShortcodeAttrs($attrsText);
+        $label = trim((string) $body);
+        if ($label === '' && isset($attrs['label']) && trim((string) $attrs['label']) !== '') {
+            $label = trim((string) $attrs['label']);
+        }
+
+        if ($type === 'ai-generated') {
+            $label = $label !== '' ? $label : '本文包含 AI 生成或辅助生成内容';
+            return '<div class="post-copyright-component post-copyright-ai"><span>AI</span><strong>' . htmlspecialchars(strip_tags($label), ENT_QUOTES, 'UTF-8') . '</strong></div>';
+        }
+
+        $label = $label !== '' ? $label : '本文不开放转载；如需引用，请保留作者与原文链接。';
+        return '<div class="post-copyright-component post-copyright-no-repost"><span>转载说明</span><strong>' . htmlspecialchars(strip_tags($label), ENT_QUOTES, 'UTF-8') . '</strong></div>';
+    }
+}
+
+if (!function_exists('qiwiGetPostCopyrightHtml')) {
+    function qiwiGetPostCopyrightHtml($widget)
+    {
+        $context = qiwiPostRichTextContext($widget);
+        $context['copyright_context'] = true;
+        $thread = qiwiGetPostThreadCollection($widget);
+        if (!empty($thread)) {
+            $context['thread_title'] = $thread['name'];
+            $context['thread_name'] = $thread['name'];
+            $context['thread_url'] = $thread['permalink'];
+            $context['thread_permalink'] = $thread['permalink'];
+        }
+
+        $custom = qiwiNormalizeRichTextValue(qiwiGetFieldValue($widget, 'copyrightInfo', ''));
+        if ($custom !== '') {
+            return qiwiRenderCopyrightText($custom, $context);
+        }
+
+        $themeDefault = qiwiNormalizeRichTextValue(qiwiGetOptionValue($widget, 'defaultCopyrightInfo', ''));
+        if ($themeDefault !== '') {
+            return qiwiRenderCopyrightText($themeDefault, $context);
+        }
+
+        return qiwiCopyrightDefaultTemplateHtml($context);
     }
 }
 
