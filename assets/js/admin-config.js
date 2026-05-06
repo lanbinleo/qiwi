@@ -1015,6 +1015,69 @@
             '</div>';
     }
 
+    function initMomentLikeRecords(panel) {
+        var container = $('[data-qiwi-moment-like-records]', panel);
+        if (!container || container.dataset.qiwiStatsReady === '1') return;
+
+        container.dataset.qiwiStatsReady = '1';
+        var config = getAdminConfig();
+        var rows = Array.isArray(config.momentLikeRecords) ? config.momentLikeRecords : [];
+        var mailRows = rows.filter(function(row) {
+            return row && row.mailHash;
+        }).length;
+        var identityLabels = {
+            mail: '邮箱',
+            user: '登录用户',
+            cookie: 'Cookie'
+        };
+
+        if (!rows.length) {
+            container.innerHTML =
+                '<section class="qiwi-link-stats-empty">' +
+                    '<strong>还没有说说点赞记录</strong>' +
+                    '<p>点赞发生后会记录在伴生插件表中；带邮箱身份的点赞会显示邮箱 hash 和评论匹配结果。</p>' +
+                '</section>';
+            return;
+        }
+
+        function renderMatches(matches) {
+            if (!Array.isArray(matches) || !matches.length) {
+                return '<span class="qiwi-like-muted">暂未匹配评论</span>';
+            }
+
+            return '<span class="qiwi-like-muted">匹配评论者：' +
+                matches.slice(0, 3).map(function(match) {
+                    return escapeHtml(match && match.author ? match.author : '未命名');
+                }).join('、') +
+                '</span>';
+        }
+
+        container.innerHTML =
+            '<section class="qiwi-link-stats-summary">' +
+                '<div><span>最近记录</span><strong>' + rows.length + '</strong></div>' +
+                '<div><span>邮箱身份</span><strong>' + mailRows + '</strong></div>' +
+            '</section>' +
+            '<div class="qiwi-link-stats-table qiwi-like-records-table">' +
+                '<div class="qiwi-link-stats-row qiwi-like-records-row qiwi-link-stats-head">' +
+                    '<span>时间</span><span>身份</span><span>邮箱关联</span><span>对应说说</span><span>来源</span>' +
+                '</div>' +
+                rows.map(function(row) {
+                    var identityType = row && row.identityType ? row.identityType : 'cookie';
+                    var identityLabel = identityLabels[identityType] || identityType;
+                    var author = row && row.author ? row.author : identityLabel;
+                    var mailHash = row && row.mailHash ? row.mailHash : '';
+                    var moment = row && row.moment ? row.moment : {};
+                    return '<div class="qiwi-link-stats-row qiwi-like-records-row">' +
+                        '<span>' + escapeHtml(row && row.createdText ? row.createdText : '-') + '</span>' +
+                        '<span><strong>' + escapeHtml(author) + '</strong><em>' + escapeHtml(identityLabel + (row && row.userId ? ' · UID ' + row.userId : '')) + '</em></span>' +
+                        '<span>' + (mailHash ? '<code>' + escapeHtml(mailHash.slice(0, 12)) + '...</code>' + renderMatches(row.matches) : '<span class="qiwi-like-muted">无邮箱</span>') + '</span>' +
+                        '<span><strong>#' + escapeHtml(row && row.coid ? row.coid : '-') + '</strong><em>' + escapeHtml(moment.excerpt || '') + '</em></span>' +
+                        '<span>' + escapeHtml(moment.title || '-') + '</span>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+    }
+
     function compareVersions(a, b) {
         var left = String(a || '').replace(/^v/i, '').split(/[.-]/);
         var right = String(b || '').replace(/^v/i, '').split(/[.-]/);
@@ -2508,6 +2571,7 @@
                         '<div class="qiwi-admin-nav-group">' +
                             '<span class="qiwi-admin-nav-label">运维</span>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links" data-qiwi-title="外链统计" data-qiwi-desc="伴生插件记录的外链跳转数据。"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>外链统计</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="likes" data-qiwi-title="点赞记录" data-qiwi-desc="说说点赞身份、邮箱 hash 与评论匹配。"><i class="fa-regular fa-heart" aria-hidden="true"></i><span>点赞记录</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security" data-qiwi-title="后台与安全" data-qiwi-desc="版本提示、验证码与后台开关。"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>后台与安全</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw" data-qiwi-title="原始数据" data-qiwi-desc="结构化编辑器背后的兼容数据。"><i class="fa-solid fa-code" aria-hidden="true"></i><span>原始数据</span></button>' +
                         '</div>' +
@@ -2559,6 +2623,7 @@
                         '<div data-qiwi-book-list></div>' +
                     '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="likes"><div class="qiwi-link-stats qiwi-like-records" data-qiwi-moment-like-records></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
                 '</main>' +
@@ -2590,6 +2655,7 @@
 
         initTabs(panel);
         initExternalLinkStats(panel);
+        initMomentLikeRecords(panel);
         var editors = {
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),

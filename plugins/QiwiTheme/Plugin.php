@@ -599,6 +599,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 'author' => isset($row['author']) ? (string) $row['author'] : '',
                 'mailHash' => $mailHash,
                 'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                'createdText' => !empty($row['created']) ? date('Y-m-d H:i', (int) $row['created']) : '',
                 'moment' => isset($moments[$coid]) ? $moments[$coid] : array(),
                 'matches' => isset($matches[$mailHash]) ? $matches[$mailHash] : array(),
             );

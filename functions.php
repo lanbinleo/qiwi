@@ -312,6 +312,7 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'cacheTtl' => 21600000,
             'showUpdateLog' => (string) qiwiGetThemeOptionSetting('showUpdateLog', '1') === '0' ? '0' : '1',
             'externalLinkStats' => function_exists('qiwiGetExternalLinkStats') ? qiwiGetExternalLinkStats(30) : [],
+            'momentLikeRecords' => function_exists('qiwiGetMomentLikeRecords') ? qiwiGetMomentLikeRecords(100) : [],
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
@@ -351,6 +352,17 @@ if (!function_exists('qiwiGetExternalLinkStats')) {
             return [];
         } catch (Throwable $e) {
             return [];
+        }
+
+        return [];
+    }
+}
+
+if (!function_exists('qiwiGetMomentLikeRecords')) {
+    function qiwiGetMomentLikeRecords($limit = 100)
+    {
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getMomentLikeRecords')) {
+            return QiwiTheme_Plugin::getMomentLikeRecords($limit);
         }
 
         return [];
