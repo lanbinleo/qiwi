@@ -2359,6 +2359,10 @@ body.qiwi-lightbox-open {
     color: var(--color-text-secondary);
 }
 
+.post-copyright-body > br {
+    display: none;
+}
+
 .post-copyright-body p {
     margin: 0 0 var(--s-3);
     font-size: var(--t-base);
@@ -2385,6 +2389,67 @@ body.qiwi-lightbox-open {
 .post-endnote .qiwi-callout {
     margin: var(--s-4) 0;
     background: var(--color-bg);
+}
+
+.post-copyright-default {
+    display: block;
+}
+
+.post-copyright-component {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-sm);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-size: var(--t-sm);
+    line-height: 1.6;
+}
+
+.post-copyright-component span {
+    color: var(--color-text-tertiary);
+    font-size: var(--t-xs);
+    font-weight: 600;
+}
+
+.post-copyright-component strong {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+.post-copyright-thread {
+    border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+    background: color-mix(in srgb, var(--color-accent-soft) 35%, var(--color-bg));
+}
+
+.post-copyright-thread a {
+    font-weight: 600;
+}
+
+.post-copyright-no-repost {
+    border-color: color-mix(in srgb, var(--qiwi-orange) 28%, var(--color-border));
+    background: color-mix(in srgb, var(--qiwi-orange-bg) 45%, var(--color-bg));
+}
+
+.post-copyright-ai {
+    border-color: color-mix(in srgb, var(--qiwi-purple) 24%, var(--color-border));
+    background: color-mix(in srgb, var(--qiwi-purple-bg) 40%, var(--color-bg));
+}
+
+.post-copyright-ai span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.2em;
+    min-height: 1.6em;
+    border-radius: calc(var(--r-sm) - 2px);
+    background: var(--color-text-primary);
+    color: var(--color-bg);
+    letter-spacing: 0;
 }
 
 .post-tags {
@@ -2613,12 +2678,9 @@ body.qiwi-lightbox-open {
     object-fit: cover;
 }
 
-.moment-avatar-placeholder {
-    visibility: hidden;
-}
-
 .moment-content {
     flex: 1;
+    min-width: 0;
 }
 
 .moment-header {
@@ -2632,6 +2694,56 @@ body.qiwi-lightbox-open {
     font-size: 15px;
     font-weight: 600;
     color: var(--color-text-primary);
+}
+
+.moment-owner-badge {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 42%;
+    background: var(--qiwi-blue);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1;
+    vertical-align: text-bottom;
+}
+
+.moment-owner-badge::before,
+.moment-owner-badge::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    z-index: -1;
+}
+
+.moment-owner-badge::before {
+    transform: rotate(30deg);
+}
+
+.moment-owner-badge::after {
+    transform: rotate(60deg);
+}
+
+.moment-owner-badge i {
+    position: relative;
+    z-index: 1;
+    font-size: 9px;
+    transform: translateY(0.5px);
+}
+
+.moment-owner-badge span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 
 .moment-time {
@@ -2648,6 +2760,10 @@ body.qiwi-lightbox-open {
 .moment-text.article-body {
     max-width: none;
     margin-bottom: 0;
+}
+
+.moment-text.article-body br + br {
+    display: none;
 }
 
 .moment-text strong {
@@ -2680,7 +2796,434 @@ body.qiwi-lightbox-open {
     max-width: 100%;
     height: auto;
     border-radius: var(--r-md);
-    margin-top: calc(var(--spacing-unit) * 2);
+    display: block;
+    margin: var(--s-2) 0;
+}
+
+.moment-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    margin-top: var(--s-3);
+}
+
+.moment-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.moment-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--s-2);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.moment-action:hover,
+.moment-action:focus-visible,
+.moment-action[aria-expanded="true"] {
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+    background: color-mix(in srgb, var(--color-accent-soft) 38%, transparent);
+    outline: none;
+}
+
+.moment-action:active {
+    background: color-mix(in srgb, var(--color-accent-soft) 58%, transparent);
+}
+
+.moment-like-button.is-active {
+    color: var(--qiwi-red);
+}
+
+.moment-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.moment-comments {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--color-surface) 68%, var(--color-bg));
+}
+
+.moment-comments:not(:has(.moment-comment)) {
+    display: none;
+}
+
+.moment-comments-list {
+    display: grid;
+    gap: var(--s-3);
+}
+
+.moment-comments-list .moment-comments-list {
+    margin-top: var(--s-3);
+    padding-left: var(--s-5);
+    border-left: 1px solid var(--color-border);
+}
+
+.moment-comment {
+    display: flex;
+    gap: var(--s-3);
+}
+
+.moment-comment-avatar {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.moment-comment-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.moment-comment-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px var(--s-2);
+    margin-bottom: 3px;
+}
+
+.moment-comment-author {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.moment-comment-time {
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+}
+
+.moment-comment-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.moment-comment-text code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 1px 5px;
+    border-radius: var(--r-sm);
+    background: var(--color-surface);
+}
+
+.moment-comment-reply {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 6px;
+    padding: 0;
+    border-bottom: 1px solid transparent;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+.moment-comment-reply:hover,
+.moment-comment-reply:focus-visible {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent-soft);
+    outline: none;
+}
+
+.moment-reply-composer {
+    margin-top: var(--s-4);
+    width: 100%;
+}
+
+.moment-reply-form {
+    display: grid;
+    gap: var(--s-3);
+    padding: calc(var(--spacing-unit) * 3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+}
+
+.moment-reply-profile-modal {
+    margin-bottom: 0;
+}
+
+.moment-reply-profile-backdrop {
+    display: none;
+}
+
+.moment-reply-profile-panel {
+    padding: calc(var(--spacing-unit) * 3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+}
+
+.moment-reply-profile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(var(--spacing-unit) * 3);
+    margin-bottom: calc(var(--spacing-unit) * 3);
+}
+
+.moment-reply-profile-header h4 {
+    margin-bottom: 2px;
+    color: var(--color-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.moment-reply-profile-header p {
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.moment-reply-profile-close {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+}
+
+.moment-reply-profile-close:hover,
+.moment-reply-profile-close:focus-visible {
+    color: var(--color-accent);
+    border-color: var(--color-accent-soft);
+    outline: none;
+}
+
+.moment-reply-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.moment-reply-field label,
+.moment-reply-text-field label {
+    display: block;
+    margin-bottom: calc(var(--spacing-unit));
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.moment-reply-field input,
+.moment-reply-text-field textarea {
+    width: 100%;
+    padding: calc(var(--spacing-unit) * 2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.moment-reply-field input {
+    min-height: 40px;
+}
+
+.moment-reply-text-field {
+    margin-bottom: 0;
+}
+
+.moment-reply-text-field textarea {
+    min-height: 96px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.moment-reply-field input:focus,
+.moment-reply-text-field textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.moment-reply-login {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.moment-reply-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--spacing-unit) * 2);
+    flex-wrap: wrap;
+}
+
+.moment-reply-profile-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing-unit) * 0.5);
+    max-width: min(100%, 320px);
+    min-height: 0;
+    margin-right: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    line-height: 1.6;
+    transition: color var(--transition);
+}
+
+.moment-reply-profile-toggle:hover {
+    color: var(--color-accent);
+}
+
+.moment-reply-profile-toggle:focus-visible {
+    outline: 2px solid var(--color-accent-soft);
+    outline-offset: 4px;
+}
+
+.moment-reply-identity-label {
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.moment-reply-identity-value {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.moment-reply-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-left: auto;
+}
+
+.moment-reply-cancel,
+.moment-reply-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 calc(var(--spacing-unit) * 4);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.moment-reply-cancel {
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+}
+
+.moment-reply-submit {
+    color: var(--color-bg);
+    background: var(--color-accent);
+}
+
+.moment-reply-cancel:hover,
+.moment-reply-cancel:focus-visible,
+.moment-reply-submit:hover,
+.moment-reply-submit:focus-visible {
+    outline: none;
+}
+
+.moment-reply-cancel:hover,
+.moment-reply-cancel:focus-visible {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: var(--color-surface);
+}
+
+.moment-reply-submit:hover,
+.moment-reply-submit:focus-visible {
+    background: var(--color-text-primary);
+}
+
+.moment-reply-profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: calc(var(--spacing-unit) * 3);
+}
+
+.moment-reply-profile-save {
+    min-width: 96px;
+}
+
+.moment-reply-form.is-enhanced .moment-reply-profile-modal {
+    display: none;
+}
+
+.moment-reply-form.is-enhanced.is-profile-open .moment-reply-profile-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    place-items: center;
+    padding: calc(var(--spacing-unit) * 3);
+}
+
+.moment-reply-form.is-enhanced.is-profile-open .moment-reply-profile-backdrop {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    background: rgba(0, 0, 0, 0.45);
+    cursor: default;
+}
+
+[data-theme="light"] .moment-reply-form.is-enhanced.is-profile-open .moment-reply-profile-backdrop {
+    background: rgba(250, 250, 249, 0.72);
+}
+
+.moment-reply-form.is-enhanced.is-profile-open .moment-reply-profile-panel {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 560px);
+    max-height: min(80vh, 640px);
+    overflow: auto;
+    background: var(--color-surface);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 .empty-moments {
@@ -5025,6 +5568,48 @@ body.qiwi-lightbox-open {
         flex-direction: row;
         flex-wrap: wrap;
         gap: 4px calc(var(--spacing-unit) * 1.5);
+    }
+
+    .moment-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .moment-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .moment-comments-list .moment-comments-list {
+        padding-left: var(--s-3);
+    }
+
+    .moment-reply-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .moment-reply-footer {
+        align-items: stretch;
+    }
+
+    .moment-reply-profile-toggle {
+        width: auto;
+        max-width: none;
+        justify-content: flex-end;
+    }
+
+    .moment-reply-profile-actions {
+        display: block;
+    }
+
+    .moment-reply-profile-save {
+        width: 100%;
+    }
+
+    .moment-reply-actions {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-end;
     }
 
     .publisher-header,

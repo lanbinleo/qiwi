@@ -1408,6 +1408,46 @@ function initQiwiExternalLinks() {
     });
 }
 
+function initQiwiLocalTimes() {
+    var formatter = null;
+    try {
+        formatter = new Intl.DateTimeFormat(navigator.language || 'zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        formatter = null;
+    }
+
+    var timeZone = '';
+    try {
+        timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch (error) {
+        timeZone = '';
+    }
+
+    document.querySelectorAll('[data-qiwi-local-time][data-timestamp]').forEach(function(node) {
+        var timestamp = parseInt(node.getAttribute('data-timestamp'), 10);
+        if (!timestamp) return;
+
+        var date = new Date(timestamp * 1000);
+        if (Number.isNaN(date.getTime())) return;
+
+        var label = formatter
+            ? formatter.format(date).replace(/\//g, '-')
+            : date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+        node.textContent = label;
+        node.setAttribute('datetime', date.toISOString());
+        if (timeZone) {
+            node.setAttribute('title', timeZone);
+        }
+    });
+}
+
 // 整卡点击跳转
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
@@ -1418,6 +1458,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initArticleImages();
     initQiwiFolds();
     initQiwiExternalLinks();
+    initQiwiLocalTimes();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
     document.querySelectorAll('.article-item').forEach(item => {

@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isGotoRequest()) {
+        if ($this->isGotoRequest() || $this->isMomentLikeRequest()) {
             return;
         }
 
@@ -24,6 +24,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->on($this->request->is('do=read-thread'))->readThread();
         $this->on($this->request->is('do=save-thread'))->saveThread();
         $this->on($this->request->is('do=posts'))->posts();
+        $this->on($this->request->is('do=moment-like'))->momentLike();
         $this->json(array('success' => false, 'message' => 'Unknown action'), 404);
     }
 
@@ -125,6 +126,26 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         ));
     }
 
+    public function momentLike()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        $coid = (int) $this->request->get('coid', 0);
+        if (!$this->isPublicMoment($coid)) {
+            $this->json(array('success' => false, 'message' => 'Moment not found'), 404);
+        }
+
+        $result = QiwiTheme_Plugin::toggleMomentLike($coid, $this->momentLikeIdentityHash());
+        $this->json(array(
+            'success' => true,
+            'coid' => $coid,
+            'liked' => !empty($result['liked']),
+            'count' => isset($result['count']) ? (int) $result['count'] : 0,
+        ));
+    }
+
     private function permalink(array $row)
     {
         try {
@@ -159,6 +180,70 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         return substr($text, 0, 180);
     }
 
+    private function isPublicMoment($coid)
+    {
+        $coid = (int) $coid;
+        if ($coid <= 0) {
+            return false;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('coid')
+                ->from('table.comments')
+                ->join('table.contents', 'table.comments.cid = table.contents.cid')
+                ->where('coid = ?', $coid)
+                ->where('table.comments.status = ?', 'approved')
+                ->where('table.comments.type = ?', 'comment')
+                ->where('table.comments.authorId = table.contents.authorId')
+                ->where('(table.comments.parent IS NULL OR table.comments.parent = ?)', 0)
+                ->where('table.contents.type = ?', 'page')
+                ->where('table.contents.status = ?', 'publish')
+                ->where('(table.contents.template = ? OR table.contents.template = ?)', 'page-timemachine.php', 'page-timemachine')
+                ->limit(1));
+
+            return !empty($row);
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function momentLikeIdentityHash()
+    {
+        try {
+            Typecho_Widget::widget('Widget_User')->to($user);
+            if ($user && $user->hasLogin()) {
+                return sha1('user:' . (int) $user->uid);
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        $cookieName = 'qiwi_moment_like_id';
+        $value = isset($_COOKIE[$cookieName]) ? preg_replace('/[^a-zA-Z0-9]/', '', (string) $_COOKIE[$cookieName]) : '';
+        if ($value === '' || strlen($value) < 20) {
+            $value = $this->randomLikeIdentity();
+            setcookie($cookieName, $value, time() + 31536000, '/');
+            $_COOKIE[$cookieName] = $value;
+        }
+
+        return sha1('visitor:' . $value);
+    }
+
+    private function randomLikeIdentity()
+    {
+        if (function_exists('random_bytes')) {
+            try {
+                return bin2hex(random_bytes(16));
+            } catch (Exception $e) {
+            }
+        }
+
+        return sha1(uniqid('', true) . mt_rand());
+    }
+
     private function isGotoRequest()
     {
         if ($this->request && $this->request->is('do=goto')) {
@@ -175,6 +260,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $path = isset($_SERVER['REQUEST_URI']) ? parse_url((string) $_SERVER['REQUEST_URI'], PHP_URL_PATH) : '';
         $path = '/' . ltrim(rtrim((string) $path, '/'), '/');
         return preg_match('#(?:^|/)(?:index\.php/)?goto$#i', $path) === 1;
+    }
+
+    private function isMomentLikeRequest()
+    {
+        return $this->request && $this->request->is('do=moment-like');
     }
 
     private function json($payload, $status = 200)

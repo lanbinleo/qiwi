@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 1.4.6
+ * @version 1.4.7
  * @link https://maxqi.top
  */
 

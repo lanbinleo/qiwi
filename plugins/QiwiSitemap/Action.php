@@ -368,6 +368,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             ->where('table.comments.status = ?', 'approved')
             ->where('table.comments.type = ?', 'comment')
             ->where('table.comments.authorId = ?', $page['authorId'])
+            ->where('(table.comments.parent IS NULL OR table.comments.parent = ?)', 0)
             ->order('table.comments.created', Typecho_Db::SORT_DESC)
             ->limit($limit));
     }
@@ -403,6 +404,8 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             return '';
         }
 
+        $text = preg_replace('/<!--\s*(?:more|readmore)(?:\s+[^>]*)?-->([\s\S]*)$/iu', '', $text);
+        $text = preg_replace('/\[(?:hide|hidden|secret|private|password|protected)(?:\s+[^\]]*)?\][\s\S]*?\[\/(?:hide|hidden|secret|private|password|protected)\]/iu', '隐藏内容请前往原文查看。', $text);
         $html = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $html = $this->renderMomentBlockquotes($html);
         $html = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/u', array($this, 'markdownImage'), $html);

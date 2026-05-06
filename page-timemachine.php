@@ -23,18 +23,81 @@ $prefix = $db->getPrefix();
 $select = $db->select()->from($prefix.'comments')
     ->where('cid = ?', $pageId)
     ->where('status = ?', 'approved')
+    ->where('type = ?', 'comment')
     ->where('authorId = ?', $authorUid)
+    ->where('(parent IS NULL OR parent = ?)', 0)
     ->order('created', $db::SORT_DESC)
     ->page($currentPage, $pageSize);
 
 $comments = $db->fetchAll($select);
+$momentCoids = [];
+foreach ($comments as $comment) {
+    if (isset($comment['coid'])) {
+        $momentCoids[] = (int) $comment['coid'];
+    }
+}
+
+$momentLikeCounts = class_exists('QiwiTheme_Plugin') ? QiwiTheme_Plugin::momentLikeCounts($momentCoids) : [];
+$momentLikedHash = '';
+if ($this->user->hasLogin()) {
+    $momentLikedHash = sha1('user:' . (int) $this->user->uid);
+} elseif (isset($_COOKIE['qiwi_moment_like_id']) && preg_match('/^[a-zA-Z0-9]{20,}$/', (string) $_COOKIE['qiwi_moment_like_id'])) {
+    $momentLikedHash = sha1('visitor:' . (string) $_COOKIE['qiwi_moment_like_id']);
+}
+
+$momentLiked = [];
+if ($momentLikedHash !== '' && class_exists('QiwiTheme_Plugin')) {
+    foreach ($momentCoids as $coid) {
+        $momentLiked[$coid] = QiwiTheme_Plugin::hasMomentLiked($coid, $momentLikedHash);
+    }
+}
+
+$momentRepliesByParent = [];
+$momentReplyCounts = [];
+if (!empty($momentCoids)) {
+    $replyRows = $db->fetchAll($db->select()->from($prefix.'comments')
+        ->where('cid = ?', $pageId)
+        ->where('status = ?', 'approved')
+        ->where('type = ?', 'comment')
+        ->where('parent > ?', 0)
+        ->order('created', $db::SORT_ASC));
+
+    foreach ($replyRows as $reply) {
+        $parent = isset($reply['parent']) ? (int) $reply['parent'] : 0;
+        if ($parent <= 0) {
+            continue;
+        }
+        if (!isset($momentRepliesByParent[$parent])) {
+            $momentRepliesByParent[$parent] = [];
+        }
+        $momentRepliesByParent[$parent][] = $reply;
+    }
+
+    $countMomentReplies = function ($parent) use (&$countMomentReplies, &$momentRepliesByParent) {
+        $count = 0;
+        if (empty($momentRepliesByParent[$parent])) {
+            return $count;
+        }
+        foreach ($momentRepliesByParent[$parent] as $reply) {
+            $count++;
+            $count += $countMomentReplies((int) $reply['coid']);
+        }
+        return $count;
+    };
+
+    foreach ($momentCoids as $coid) {
+        $momentReplyCounts[$coid] = $countMomentReplies($coid);
+    }
+}
 
 // 获取总数
 $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
     ->from($prefix.'comments')
     ->where('cid = ?', $pageId)
     ->where('status = ?', 'approved')
-    ->where('authorId = ?', $authorUid));
+    ->where('type = ?', 'comment')
+    ->where('authorId = ?', $authorUid)
+    ->where('(parent IS NULL OR parent = ?)', 0));
 
 $total = $totalResult ? $totalResult['total'] : 0;
 $totalPages = ceil($total / $pageSize);
@@ -79,7 +142,7 @@ function renderMarkdown($text) {
     $text = implode("\n", $result);
 
     // 处理其他 Markdown 语法
-    $text = preg_replace('/!\[([^\]]*)\]\(([^\)]+)\)/', '<img src="$2" alt="$1" class="moment-image" loading="lazy">', $text);
+    $text = preg_replace('/!\[([^\]]*)\]\(([^\)]+)\)/', '<img src="$2" alt="$1" class="moment-image qiwi-content-image" loading="lazy">', $text);
     $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
     $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
     $text = preg_replace('/`([^`]+?)`/', '<code>$1</code>', $text);
@@ -89,8 +152,10 @@ function renderMarkdown($text) {
         $text = qiwiRenderShortcodes($text);
     }
 
-    // 最后统一处理换行（包括引用块内部）
-    return nl2br($text);
+    // 最后统一处理换行（包括引用块内部），并压缩独立图片上下的空行。
+    $html = nl2br($text);
+    $html = preg_replace('/(?:<br\s*\/?>\s*){2,}(<img\b[^>]*\bmoment-image\b[^>]*>)(?:\s*<br\s*\/?>){2,}/iu', '<br>$1<br>', $html);
+    return $html;
 }
 
 function renderMomentAutolinks($html) {
@@ -141,6 +206,47 @@ function renderMomentLinkDomain($host) {
     }
     return $host;
 }
+
+function renderMomentAvatar($mail, $fallback, $size = 48) {
+    $mail = trim((string) $mail);
+    if ($mail !== '') {
+        return 'https://gravatar.loli.net/avatar/' . md5(strtolower($mail)) . '?s=' . (int) $size . '&d=mp';
+    }
+
+    return $fallback;
+}
+
+function renderMomentCommentText($text) {
+    $text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/`([^`]+?)`/', '<code>$1</code>', $text);
+    return nl2br($text);
+}
+
+function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvatar, $level = 0) {
+    if (empty($repliesByParent[$parent])) {
+        return;
+    }
+
+    echo '<div class="moment-comments-list" data-comment-level="' . (int) $level . '">';
+    foreach ($repliesByParent[$parent] as $reply) {
+        $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
+        $avatar = $isOwner ? $ownerAvatar : renderMomentAvatar(isset($reply['mail']) ? $reply['mail'] : '', $ownerAvatar, 40);
+        $coid = isset($reply['coid']) ? (int) $reply['coid'] : 0;
+        echo '<article class="moment-comment" id="comment-' . $coid . '">';
+        echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
+        echo '<div class="moment-comment-body">';
+        echo '<div class="moment-comment-meta"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
+        // if ($isOwner) {
+        //     echo '<span class="moment-owner-badge" title="UP 主亲自回复"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span>';
+        // }
+        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', isset($reply['created']) ? (int) $reply['created'] : 0), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . (isset($reply['created']) ? (int) $reply['created'] : 0) . '">' . htmlspecialchars(date('Y-m-d H:i', isset($reply['created']) ? (int) $reply['created'] : 0), ENT_QUOTES, 'UTF-8') . '</time></div>';
+        echo '<div class="moment-comment-text">' . renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '') . '</div>';
+        echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
+        renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);
+        echo '</div></article>';
+    }
+    echo '</div>';
+}
 ?>
 
 <div class="timemachine-page">
@@ -162,29 +268,155 @@ function renderMomentLinkDomain($host) {
 
         <!-- 说说列表 -->
         <?php if ($total > 0): ?>
+        <?php
+            $ownerAvatar = $this->options->aboutAvatar ?: 'https://gravatar.loli.net/avatar/default?s=96&d=mp';
+            $momentLikeEndpoint = '';
+            $momentLikeToken = '';
+            $momentCommentToken = '';
+            try {
+                Typecho_Widget::widget('Widget_Security')->to($security);
+                $momentLikeEndpoint = class_exists('QiwiTheme_Plugin') ? $security->getIndex('/action/qiwi-theme?do=moment-like') : '';
+                $momentLikeQuery = $momentLikeEndpoint !== '' ? parse_url($momentLikeEndpoint, PHP_URL_QUERY) : '';
+                if (is_string($momentLikeQuery) && $momentLikeQuery !== '') {
+                    parse_str($momentLikeQuery, $momentLikeParams);
+                    $momentLikeToken = isset($momentLikeParams['_']) ? (string) $momentLikeParams['_'] : '';
+                }
+                $momentCommentToken = $security->getToken($this->permalink);
+            } catch (Exception $e) {
+                $momentLikeEndpoint = '';
+                $momentLikeToken = '';
+                $momentCommentToken = '';
+            } catch (Throwable $e) {
+                $momentLikeEndpoint = '';
+                $momentLikeToken = '';
+                $momentCommentToken = '';
+            }
+        ?>
         <div class="moments-list">
-            <?php foreach ($comments as $index => $comment): ?>
-            <article class="moment-item<?php if ($index === 0): ?> has-avatar<?php endif; ?>">
-                <?php if ($index === 0): ?>
+            <?php foreach ($comments as $comment): ?>
+            <?php
+                $coid = isset($comment['coid']) ? (int) $comment['coid'] : 0;
+                $likeCount = isset($momentLikeCounts[$coid]) ? (int) $momentLikeCounts[$coid] : 0;
+                $replyCount = isset($momentReplyCounts[$coid]) ? (int) $momentReplyCounts[$coid] : 0;
+                $isLiked = !empty($momentLiked[$coid]);
+            ?>
+            <article class="moment-item" id="comment-<?php echo $coid; ?>" data-moment-id="<?php echo $coid; ?>">
                 <div class="moment-avatar">
-                    <img src="<?php echo $this->options->aboutAvatar ?: 'https://gravatar.loli.net/avatar/default?s=96&d=mp'; ?>"
+                    <img src="<?php echo htmlspecialchars($ownerAvatar, ENT_QUOTES, 'UTF-8'); ?>"
                          alt="avatar">
                 </div>
-                <?php else: ?>
-                <div class="moment-avatar moment-avatar-placeholder" aria-hidden="true"></div>
-                <?php endif; ?>
                 <div class="moment-content">
                     <div class="moment-header">
                         <span class="moment-author"><?php $this->author->screenName(); ?></span>
-                        <time class="moment-time"><?php echo date('Y-m-d H:i', $comment['created']); ?></time>
+                        <!-- <span class="moment-owner-badge" title="UP 主亲自发布"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span> -->
                     </div>
                     <div class="moment-text article-body">
                         <?php echo renderMarkdown($comment['text']); ?>
                     </div>
+                    <div class="moment-footer">
+                        <time class="moment-time"
+                              datetime="<?php echo htmlspecialchars(gmdate('c', (int) $comment['created']), ENT_QUOTES, 'UTF-8'); ?>"
+                              data-qiwi-local-time
+                              data-timestamp="<?php echo (int) $comment['created']; ?>"><?php echo date('Y-m-d H:i', (int) $comment['created']); ?></time>
+                        <div class="moment-actions">
+                            <button type="button"
+                                    class="moment-action moment-like-button<?php if ($isLiked): ?> is-active<?php endif; ?>"
+                                    data-moment-like="<?php echo $coid; ?>"
+                                    aria-pressed="<?php echo $isLiked ? 'true' : 'false'; ?>"
+                                    <?php if ($momentLikeEndpoint === ''): ?>disabled<?php endif; ?>>
+                                <i class="<?php echo $isLiked ? 'fa-solid' : 'fa-regular'; ?> fa-heart" aria-hidden="true"></i>
+                                <span data-moment-like-count><?php echo $likeCount; ?></span>
+                            </button>
+                            <button type="button"
+                                    class="moment-action moment-comment-button"
+                                    data-moment-comment-toggle="<?php echo $coid; ?>"
+                                    aria-expanded="false"
+                                    aria-controls="moment-comment-composer">
+                                <i class="fa-regular fa-comment" aria-hidden="true"></i>
+                                <span><?php echo $replyCount; ?></span>
+                            </button>
+                        </div>
+                    </div>
+                    <section class="moment-comments" aria-label="评论">
+                        <?php renderMomentReplyTree($coid, $momentRepliesByParent, $authorUid, $ownerAvatar); ?>
+                    </section>
                 </div>
             </article>
             <?php endforeach; ?>
         </div>
+
+        <?php if ($this->allow('comment')): ?>
+        <?php
+            $rememberAuthor = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'author') : trim((string) $this->remember('author', true));
+            $rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'mail') : trim((string) $this->remember('mail', true));
+            $rememberUrl = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'url') : trim((string) $this->remember('url', true));
+            $hasRememberedProfile = $rememberAuthor !== '' && $rememberMail !== '';
+        ?>
+        <div class="moment-reply-composer" id="moment-comment-composer" data-moment-comment-composer>
+            <form method="post" action="<?php $this->commentUrl(); ?>" class="moment-reply-form">
+                <input type="hidden" name="parent" value="" data-moment-reply-parent>
+                <?php if ($momentCommentToken !== ''): ?>
+                <input type="hidden" name="_" value="<?php echo htmlspecialchars($momentCommentToken, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php endif; ?>
+                <?php if ($this->user->hasLogin()): ?>
+                <p class="moment-reply-login">以 <?php echo htmlspecialchars($this->user->screenName, ENT_QUOTES, 'UTF-8'); ?> 的身份评论</p>
+                <?php else: ?>
+                <div class="moment-reply-profile-modal" id="moment-reply-profile-modal" data-moment-profile-modal role="dialog" aria-modal="true" aria-labelledby="moment-reply-profile-title">
+                    <button class="moment-reply-profile-backdrop" type="button" data-moment-profile-close tabindex="-1" aria-label="关闭身份设置"></button>
+                    <div class="moment-reply-profile-panel">
+                        <div class="moment-reply-profile-header">
+                            <div>
+                                <h4 id="moment-reply-profile-title">评论身份</h4>
+                                <p>保存后下次会自动带上，不用每次重新填写。</p>
+                            </div>
+                            <button class="moment-reply-profile-close" type="button" data-moment-profile-close aria-label="关闭">×</button>
+                        </div>
+                        <div class="moment-reply-fields">
+                            <div class="moment-reply-field">
+                                <label for="moment-reply-author">称呼 *</label>
+                                <input type="text" name="author" id="moment-reply-author" value="<?php echo htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="name" required>
+                            </div>
+                            <div class="moment-reply-field">
+                                <label for="moment-reply-mail">Email *</label>
+                                <input type="email" name="mail" id="moment-reply-mail" value="<?php echo htmlspecialchars($rememberMail, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="email" required>
+                            </div>
+                            <div class="moment-reply-field">
+                                <label for="moment-reply-url">网站</label>
+                                <input type="url" name="url" id="moment-reply-url" value="<?php echo htmlspecialchars($rememberUrl, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="url" placeholder="https://">
+                            </div>
+                        </div>
+                        <div class="moment-reply-profile-actions">
+                            <button type="button" class="moment-reply-submit moment-reply-profile-save" data-moment-profile-save>保存身份</button>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <div class="moment-reply-text-field">
+                    <label for="moment-reply-text">内容 *</label>
+                    <textarea name="text" id="moment-reply-text" rows="3" placeholder="写一条评论…" required><?php $this->remember('text'); ?></textarea>
+                </div>
+                <?php if ($this->options->enabledCaptcha): ?>
+                <div class="captcha-script">
+                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
+                </div>
+                <?php endif; ?>
+                <div class="moment-reply-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
+                    <?php if (!$this->user->hasLogin()): ?>
+                    <button type="button" class="moment-reply-profile-toggle" data-moment-profile-toggle aria-expanded="false" aria-controls="moment-reply-profile-modal">
+                        <span class="moment-reply-identity-label">以</span>
+                        <span class="moment-reply-identity-value" data-moment-identity-label><?php echo $hasRememberedProfile ? htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8') : '未设置'; ?></span>
+                        <span class="moment-reply-identity-label">的身份评论</span>
+                    </button>
+                    <?php endif; ?>
+                    <div class="moment-reply-actions">
+                        <button type="submit" class="moment-reply-submit">提交评论</button>
+                        <button type="button" class="moment-reply-cancel" data-moment-comment-cancel>取消</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <?php endif; ?>
 
         <!-- 分页 -->
         <?php if ($totalPages > 1): ?>
@@ -307,6 +539,258 @@ function renderMomentLinkDomain($host) {
 </div>
 
 <script>
+window.QIWI_MOMENTS = {
+    likeEndpoint: <?php echo json_encode(isset($momentLikeEndpoint) ? $momentLikeEndpoint : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
+    likeToken: <?php echo json_encode(isset($momentLikeToken) ? $momentLikeToken : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+};
+
+function initMomentInteractions() {
+    const config = window.QIWI_MOMENTS || {};
+    const composer = document.querySelector('[data-moment-comment-composer]');
+    const parentInput = composer ? composer.querySelector('[data-moment-reply-parent]') : null;
+    const cancelButton = composer ? composer.querySelector('[data-moment-comment-cancel]') : null;
+    const form = composer ? composer.querySelector('.moment-reply-form') : null;
+    const profileModal = form ? form.querySelector('[data-moment-profile-modal]') : null;
+    const profileToggle = form ? form.querySelector('[data-moment-profile-toggle]') : null;
+    const profileCloseButtons = form ? form.querySelectorAll('[data-moment-profile-close]') : [];
+    const profileSaveButton = form ? form.querySelector('[data-moment-profile-save]') : null;
+    const authorInput = form ? form.querySelector('#moment-reply-author') : null;
+    const mailInput = form ? form.querySelector('#moment-reply-mail') : null;
+    const urlInput = form ? form.querySelector('#moment-reply-url') : null;
+    const textInput = form ? form.querySelector('#moment-reply-text') : null;
+    const identityLabel = form ? form.querySelector('[data-moment-identity-label]') : null;
+    const profileStorageKey = 'qiwi-comment-profile';
+
+    if (composer) {
+        composer.hidden = true;
+    }
+
+    const readProfile = function() {
+        try {
+            return JSON.parse(localStorage.getItem(profileStorageKey) || '{}');
+        } catch (error) {
+            return {};
+        }
+    };
+
+    const saveProfile = function() {
+        try {
+            localStorage.setItem(profileStorageKey, JSON.stringify({
+                author: authorInput ? authorInput.value.trim() : '',
+                mail: mailInput ? mailInput.value.trim() : '',
+                url: urlInput ? urlInput.value.trim() : ''
+            }));
+        } catch (error) {}
+    };
+
+    const hasProfile = function() {
+        return !!(authorInput && authorInput.value.trim() && mailInput && mailInput.value.trim());
+    };
+
+    const updateIdentityLabel = function() {
+        if (!identityLabel) return;
+        identityLabel.textContent = hasProfile() ? authorInput.value.trim() : '未设置';
+    };
+
+    const getInvalidControl = function(controls) {
+        for (let i = 0; i < controls.length; i++) {
+            if (controls[i] && !controls[i].checkValidity()) {
+                return controls[i];
+            }
+        }
+
+        return null;
+    };
+
+    const reportInvalid = function(control) {
+        if (!control) return;
+        window.setTimeout(function() {
+            control.focus();
+            control.reportValidity();
+        }, 0);
+    };
+
+    const openProfile = function() {
+        if (!form || !profileToggle) return;
+        form.classList.add('is-profile-open');
+        document.documentElement.classList.add('comment-profile-open');
+        document.body.classList.add('comment-profile-open');
+        profileToggle.setAttribute('aria-expanded', 'true');
+        window.setTimeout(function() {
+            if (authorInput && !authorInput.value.trim()) {
+                authorInput.focus();
+            } else if (mailInput && !mailInput.value.trim()) {
+                mailInput.focus();
+            }
+        }, 0);
+    };
+
+    const closeProfile = function(restoreFocus = true) {
+        if (!form || !profileToggle) return;
+        form.classList.remove('is-profile-open');
+        document.documentElement.classList.remove('comment-profile-open');
+        document.body.classList.remove('comment-profile-open');
+        profileToggle.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) {
+            profileToggle.focus();
+        }
+    };
+
+    if (form && profileModal && profileToggle) {
+        const storedProfile = readProfile();
+        if (authorInput && !authorInput.value && storedProfile.author) authorInput.value = storedProfile.author;
+        if (mailInput && !mailInput.value && storedProfile.mail) mailInput.value = storedProfile.mail;
+        if (urlInput && !urlInput.value && storedProfile.url) urlInput.value = storedProfile.url;
+
+        form.noValidate = true;
+        form.classList.add('is-enhanced');
+        profileToggle.setAttribute('aria-expanded', 'false');
+        updateIdentityLabel();
+
+        profileToggle.addEventListener('click', openProfile);
+
+        profileCloseButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                closeProfile();
+            });
+        });
+
+        if (profileSaveButton) {
+            profileSaveButton.addEventListener('click', function() {
+                const invalidProfileControl = getInvalidControl([authorInput, mailInput, urlInput]);
+                if (invalidProfileControl) {
+                    reportInvalid(invalidProfileControl);
+                    return;
+                }
+                saveProfile();
+                updateIdentityLabel();
+                closeProfile();
+            });
+        }
+
+        form.addEventListener('submit', function(event) {
+            if (!hasProfile()) {
+                event.preventDefault();
+                openProfile();
+                reportInvalid(getInvalidControl([authorInput, mailInput]));
+                return;
+            }
+
+            const invalidProfileControl = getInvalidControl([authorInput, mailInput, urlInput]);
+            if (invalidProfileControl) {
+                event.preventDefault();
+                openProfile();
+                reportInvalid(invalidProfileControl);
+                return;
+            }
+
+            const invalidTextControl = getInvalidControl([textInput]);
+            if (invalidTextControl) {
+                event.preventDefault();
+                reportInvalid(invalidTextControl);
+                return;
+            }
+
+            saveProfile();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && form.classList.contains('is-profile-open')) {
+                closeProfile();
+            }
+        });
+    }
+
+    const placeComposer = function(parentId, target) {
+        if (!composer || !parentInput || !target) return;
+        const body = target.closest('.moment-content, .moment-comment-body');
+        if (!body) return;
+
+        parentInput.value = parentId;
+        composer.hidden = false;
+        body.appendChild(composer);
+
+        const textarea = textInput || composer.querySelector('textarea');
+        if (textarea) textarea.focus();
+    };
+
+    document.querySelectorAll('[data-moment-comment-toggle]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const parentId = button.getAttribute('data-moment-comment-toggle');
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            document.querySelectorAll('[data-moment-comment-toggle]').forEach(function(other) {
+                other.setAttribute('aria-expanded', 'false');
+            });
+
+            if (expanded) {
+                closeProfile(false);
+                if (composer) composer.hidden = true;
+                return;
+            }
+
+            button.setAttribute('aria-expanded', 'true');
+            placeComposer(parentId, button);
+        });
+    });
+
+    document.querySelectorAll('[data-moment-reply]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            placeComposer(button.getAttribute('data-moment-reply'), button);
+        });
+    });
+
+    if (cancelButton && composer) {
+        cancelButton.addEventListener('click', function() {
+            closeProfile(false);
+            composer.hidden = true;
+            document.querySelectorAll('[data-moment-comment-toggle]').forEach(function(button) {
+                button.setAttribute('aria-expanded', 'false');
+            });
+        });
+    }
+
+    document.querySelectorAll('[data-moment-like]').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            const coid = button.getAttribute('data-moment-like');
+            if (!config.likeEndpoint || !coid || button.disabled) return;
+
+            const count = button.querySelector('[data-moment-like-count]');
+            const icon = button.querySelector('i');
+            button.disabled = true;
+
+            try {
+                const form = new FormData();
+                form.append('coid', coid);
+                if (config.likeToken) {
+                    form.append('_', config.likeToken);
+                }
+                const response = await fetch(config.likeEndpoint, {
+                    method: 'POST',
+                    body: form,
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await response.json();
+                if (!data || !data.success) {
+                    throw new Error(data && data.message ? data.message : '点赞失败');
+                }
+
+                button.classList.toggle('is-active', !!data.liked);
+                button.setAttribute('aria-pressed', data.liked ? 'true' : 'false');
+                if (count) count.textContent = data.count || 0;
+                if (icon) {
+                    icon.classList.toggle('fa-solid', !!data.liked);
+                    icon.classList.toggle('fa-regular', !data.liked);
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+}
+
 // 时光机图片上传功能
 class TimemachineUploader {
     constructor() {
@@ -646,6 +1130,7 @@ class TimemachineUploader {
 
 // 初始化上传器
 document.addEventListener('DOMContentLoaded', function() {
+    initMomentInteractions();
     if (document.getElementById('moment-textarea') || document.getElementById('open-settings')) {
         const uploader = new TimemachineUploader();
     }

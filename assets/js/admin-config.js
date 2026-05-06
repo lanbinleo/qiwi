@@ -1435,17 +1435,53 @@
     function initTabs(panel) {
         var tabs = $all('.qiwi-admin-tab', panel);
         var panes = $all('.qiwi-admin-pane', panel);
+        var currentTitle = $('[data-qiwi-current-title]', panel);
+        var currentDesc = $('[data-qiwi-current-desc]', panel);
+        var storageKey = 'qiwi_admin_active_pane';
+
+        function activate(tab, persist) {
+            if (!tab) return;
+            var target = tab.getAttribute('data-qiwi-tab');
+            tabs.forEach(function(item) {
+                var active = item === tab;
+                item.classList.toggle('is-active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+                item.setAttribute('tabindex', active ? '0' : '-1');
+            });
+            panes.forEach(function(pane) {
+                pane.classList.toggle('is-active', pane.getAttribute('data-qiwi-pane') === target);
+            });
+            if (currentTitle) currentTitle.textContent = tab.getAttribute('data-qiwi-title') || tab.textContent;
+            if (currentDesc) currentDesc.textContent = tab.getAttribute('data-qiwi-desc') || '';
+            if (persist !== false) {
+                try {
+                    localStorage.setItem(storageKey, target);
+                } catch (error) {}
+            }
+        }
+
         tabs.forEach(function(tab) {
+            tab.setAttribute('role', 'tab');
             tab.addEventListener('click', function() {
-                var target = tab.getAttribute('data-qiwi-tab');
-                tabs.forEach(function(item) {
-                    item.classList.toggle('is-active', item === tab);
-                });
-                panes.forEach(function(pane) {
-                    pane.classList.toggle('is-active', pane.getAttribute('data-qiwi-pane') === target);
-                });
+                activate(tab);
+            });
+            tab.addEventListener('keydown', function(event) {
+                if (!/^(ArrowDown|ArrowUp|ArrowLeft|ArrowRight)$/.test(event.key)) return;
+                event.preventDefault();
+                var index = tabs.indexOf(tab);
+                var offset = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 1;
+                var next = tabs[(index + offset + tabs.length) % tabs.length];
+                activate(next);
+                next.focus();
             });
         });
+
+        var initialTarget = '';
+        try {
+            initialTarget = localStorage.getItem(storageKey) || '';
+        } catch (error) {}
+        var initialTab = initialTarget ? $('[data-qiwi-tab="' + initialTarget + '"]', panel) : null;
+        activate(initialTab || $('.qiwi-admin-tab.is-active', panel) || tabs[0], false);
     }
 
     function insertAtCursor(input, before, after, placeholder) {
@@ -2443,66 +2479,90 @@
         var navRow = fieldRow(navTextarea);
         if (!navRow) return;
 
+        document.body.classList.add('qiwi-admin-config-page');
         initUpdatePanel(navRow);
 
         var panel = document.createElement('div');
         panel.className = 'qiwi-admin-panel';
         panel.innerHTML =
-            '<div class="qiwi-admin-tabs">' +
-                '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="home">首页</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="nav">导航栏</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar">侧边栏</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="site">网站信息</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="about">关于页面</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="friends">友链</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="books">归档</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links">外链统计</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security">后台与安全</button>' +
-                '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw">原始数据</button>' +
-            '</div>' +
-            '<div class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="nav">' +
-                '<div class="qiwi-admin-fields" data-qiwi-nav-fields></div>' +
-                '<div class="qiwi-admin-toolbar">' +
-                    '<button type="button" class="qiwi-admin-button" data-nav-add="parent">添加主导航</button>' +
-                    '<button type="button" class="qiwi-admin-button" data-nav-add="child">添加子菜单</button>' +
-                '</div>' +
-                '<div data-qiwi-nav-list></div>' +
-            '</div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="sidebar">' +
-                '<div class="qiwi-admin-fields" data-qiwi-sidebar-fields></div>' +
-                '<section class="qiwi-social-editor" data-qiwi-sidebar-social-editor>' +
-                    '<div class="qiwi-social-editor-head">' +
-                        '<strong>侧边栏社交链接</strong>' +
-                        '<span>可自定义数量、图标、悬浮名称和链接。保存时会同步到原始数据。</span>' +
+            '<div class="qiwi-admin-shell">' +
+                '<aside class="qiwi-admin-sidebar" aria-label="Qiwi 设置导航">' +
+                    '<div class="qiwi-admin-brand">' +
+                        '<span class="qiwi-admin-brand-mark"><i class="fa-solid fa-seedling" aria-hidden="true"></i></span>' +
+                        '<span><strong>Qiwi 设置</strong><em>1.4.7 工作台</em></span>' +
                     '</div>' +
-                    '<div class="qiwi-admin-toolbar qiwi-social-presets">' +
-                        '<button type="button" class="qiwi-admin-button" data-social-preset="github"><i class="fa-brands fa-github" aria-hidden="true"></i> GitHub</button>' +
-                        '<button type="button" class="qiwi-admin-button" data-social-preset="bilibili"><i class="fa-brands fa-bilibili" aria-hidden="true"></i> Bilibili</button>' +
-                        '<button type="button" class="qiwi-admin-button" data-social-preset="email"><i class="fa-regular fa-envelope" aria-hidden="true"></i> Email</button>' +
-                        '<button type="button" class="qiwi-admin-button" data-social-preset="rss"><i class="fa-solid fa-rss" aria-hidden="true"></i> RSS</button>' +
-                        '<button type="button" class="qiwi-admin-button is-primary" data-social-action="add">添加自定义链接</button>' +
-                    '</div>' +
-                    '<div data-qiwi-sidebar-social-list></div>' +
-                '</section>' +
-            '</div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="about"><div class="qiwi-admin-fields" data-qiwi-about-fields></div></div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="friends">' +
-                '<div class="qiwi-admin-toolbar">' +
-                    '<button type="button" class="qiwi-admin-button" data-friend-action="add-category">添加分类</button>' +
-                '</div>' +
-                '<div data-qiwi-friends-list></div>' +
-            '</div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="books">' +
-                '<div class="qiwi-admin-toolbar">' +
-                    '<button type="button" class="qiwi-admin-button" data-book-action="add">添加书籍</button>' +
-                '</div>' +
-                '<div data-qiwi-book-list></div>' +
-            '</div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></div>' +
-            '<div class="qiwi-admin-pane" data-qiwi-pane="raw"></div>';
+                    '<nav class="qiwi-admin-tabs" role="tablist">' +
+                        '<div class="qiwi-admin-nav-group">' +
+                            '<span class="qiwi-admin-nav-label">内容呈现</span>' +
+                            '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="home" data-qiwi-title="首页" data-qiwi-desc="Hero、一言与首页动态展示。"><i class="fa-solid fa-house" aria-hidden="true"></i><span>首页</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="nav" data-qiwi-title="导航栏" data-qiwi-desc="顶部导航、外链与二级菜单。"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>导航栏</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar" data-qiwi-title="侧边栏" data-qiwi-desc="个人信息、社交链接与侧边栏模块。"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>侧边栏</span></button>' +
+                        '</div>' +
+                        '<div class="qiwi-admin-nav-group">' +
+                            '<span class="qiwi-admin-nav-label">页面数据</span>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="site" data-qiwi-title="网站信息" data-qiwi-desc="站点脚本、页脚与默认版权信息。"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span>网站信息</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="about" data-qiwi-title="关于页面" data-qiwi-desc="关于页头像与个人简介。"><i class="fa-regular fa-address-card" aria-hidden="true"></i><span>关于页面</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="friends" data-qiwi-title="友链" data-qiwi-desc="友链分类、站点资料与排序。"><i class="fa-solid fa-link" aria-hidden="true"></i><span>友链</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="books" data-qiwi-title="归档" data-qiwi-desc="归档页书籍统计与字数数据。"><i class="fa-solid fa-box-archive" aria-hidden="true"></i><span>归档</span></button>' +
+                        '</div>' +
+                        '<div class="qiwi-admin-nav-group">' +
+                            '<span class="qiwi-admin-nav-label">运维</span>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links" data-qiwi-title="外链统计" data-qiwi-desc="伴生插件记录的外链跳转数据。"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>外链统计</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security" data-qiwi-title="后台与安全" data-qiwi-desc="版本提示、验证码与后台开关。"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>后台与安全</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw" data-qiwi-title="原始数据" data-qiwi-desc="结构化编辑器背后的兼容数据。"><i class="fa-solid fa-code" aria-hidden="true"></i><span>原始数据</span></button>' +
+                        '</div>' +
+                    '</nav>' +
+                '</aside>' +
+                '<main class="qiwi-admin-main">' +
+                    '<header class="qiwi-admin-main-head">' +
+                        '<div><strong data-qiwi-current-title>首页</strong><span data-qiwi-current-desc></span></div>' +
+                        '<span class="qiwi-admin-save-hint"><i class="fa-regular fa-circle-check" aria-hidden="true"></i> 使用页面底部按钮保存</span>' +
+                    '</header>' +
+                    '<section class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="nav">' +
+                        '<div class="qiwi-admin-fields" data-qiwi-nav-fields></div>' +
+                        '<div class="qiwi-admin-toolbar">' +
+                            '<button type="button" class="qiwi-admin-button" data-nav-add="parent"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加主导航</button>' +
+                            '<button type="button" class="qiwi-admin-button" data-nav-add="child"><i class="fa-solid fa-turn-down" aria-hidden="true"></i>添加子菜单</button>' +
+                        '</div>' +
+                        '<div data-qiwi-nav-list></div>' +
+                    '</section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="sidebar">' +
+                        '<div class="qiwi-admin-fields" data-qiwi-sidebar-fields></div>' +
+                        '<section class="qiwi-social-editor" data-qiwi-sidebar-social-editor>' +
+                            '<div class="qiwi-social-editor-head">' +
+                                '<strong>侧边栏社交链接</strong>' +
+                                '<span>可自定义数量、图标、悬浮名称和链接。保存时会同步到原始数据。</span>' +
+                            '</div>' +
+                            '<div class="qiwi-admin-toolbar qiwi-social-presets">' +
+                                '<button type="button" class="qiwi-admin-button" data-social-preset="github"><i class="fa-brands fa-github" aria-hidden="true"></i>GitHub</button>' +
+                                '<button type="button" class="qiwi-admin-button" data-social-preset="bilibili"><i class="fa-brands fa-bilibili" aria-hidden="true"></i>Bilibili</button>' +
+                                '<button type="button" class="qiwi-admin-button" data-social-preset="email"><i class="fa-regular fa-envelope" aria-hidden="true"></i>Email</button>' +
+                                '<button type="button" class="qiwi-admin-button" data-social-preset="rss"><i class="fa-solid fa-rss" aria-hidden="true"></i>RSS</button>' +
+                                '<button type="button" class="qiwi-admin-button is-primary" data-social-action="add"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加自定义链接</button>' +
+                            '</div>' +
+                            '<div data-qiwi-sidebar-social-list></div>' +
+                        '</section>' +
+                    '</section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="about"><div class="qiwi-admin-fields" data-qiwi-about-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="friends">' +
+                        '<div class="qiwi-admin-toolbar">' +
+                            '<button type="button" class="qiwi-admin-button" data-friend-action="add-category"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i>添加分类</button>' +
+                        '</div>' +
+                        '<div data-qiwi-friends-list></div>' +
+                    '</section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="books">' +
+                        '<div class="qiwi-admin-toolbar">' +
+                            '<button type="button" class="qiwi-admin-button" data-book-action="add"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加书籍</button>' +
+                        '</div>' +
+                        '<div data-qiwi-book-list></div>' +
+                    '</section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
+                '</main>' +
+            '</div>';
 
         navRow.parentNode.insertBefore(panel, navRow);
 
