@@ -8,12 +8,13 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  MaxQiwi
- * @version 1.4.5
+ * @version 1.4.6
  * @link    https://www.maxqi.top/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 {
     private static $feedContext = null;
+    private static $feedBufferStarted = false;
 
     private static $routes = array(
         array('name' => 'index', 'url' => '/sitemap.xml', 'action' => 'action'),
@@ -190,7 +191,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             array('1' => _t('启用'), '0' => _t('关闭')),
             '1',
             _t('RSS / Atom 头像增强'),
-            _t('为 RSS 频道补充 image，为 Atom 补充 icon/logo，并给订阅条目追加头像缩略图，帮助阅读器识别博主头像。')
+            _t('为 RSS 频道补充 image，为 Atom 补充 icon/logo，帮助阅读器识别博客头像。文章条目封面会优先使用文章头图字段。')
         );
         $form->addInput($enableFeedAvatar);
 
@@ -253,12 +254,32 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     public static function handleInit($archive, $select)
     {
-        $settings = self::settings();
         $feedType = self::archiveFeedType($archive);
-        if ($feedType === '') {
+        self::startFeedBuffer($feedType);
+    }
+
+    public static function feedItem($feedType, $archive)
+    {
+        self::startFeedBuffer($feedType);
+        self::filterFeedItemContent($archive);
+        return self::feedItemMediaSuffix($feedType, $archive);
+    }
+
+    public static function commentFeedItem($feedType, $comments)
+    {
+        self::startFeedBuffer($feedType);
+        self::filterFeedItemContent($comments);
+        return null;
+    }
+
+    private static function startFeedBuffer($feedType)
+    {
+        $feedType = (string) $feedType;
+        if ($feedType === '' || self::$feedBufferStarted) {
             return;
         }
 
+        $settings = self::settings();
         $options = Helper::options();
         $enableAvatar = self::setting($settings, 'enableFeedAvatar', '1') === '1';
         $enableShortcodes = self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1';
@@ -276,20 +297,9 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             'enableAvatar' => $enableAvatar && $avatarUrl !== '',
             'enableShortcodes' => $enableShortcodes,
         );
+        self::$feedBufferStarted = true;
 
         ob_start(array(__CLASS__, 'filterFeedXml'));
-    }
-
-    public static function feedItem($feedType, $archive)
-    {
-        self::filterFeedItemContent($archive);
-        return self::feedAvatarSuffix($feedType);
-    }
-
-    public static function commentFeedItem($feedType, $comments)
-    {
-        self::filterFeedItemContent($comments);
-        return self::feedAvatarSuffix($feedType);
     }
 
     private static function archiveFeedType($archive)
@@ -433,19 +443,107 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         return Typecho_Common::url($path, $options->index);
     }
 
-    private static function feedAvatarSuffix($feedType)
+    private static function feedItemMediaSuffix($feedType, $archive)
     {
-        $settings = self::settings();
-        if (self::setting($settings, 'enableFeedAvatar', '1') !== '1') {
+        if (!is_object($archive)) {
             return null;
         }
 
-        $avatarUrl = self::feedAvatarUrl($settings, Helper::options());
-        if ($avatarUrl === '') {
+        $thumbnail = self::feedItemThumbnailUrl($archive, Helper::options());
+        if ($thumbnail === '') {
             return null;
         }
 
-        return '<media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="' . self::xml($avatarUrl) . '" />' . "\n";
+        return self::feedImageMediaSuffix($feedType, $thumbnail);
+    }
+
+    private static function feedItemThumbnailUrl($archive, $options)
+    {
+        $thumbnail = '';
+        try {
+            if (isset($archive->fields) && isset($archive->fields->thumbnail)) {
+                $thumbnail = (string) $archive->fields->thumbnail;
+            }
+        } catch (Exception $e) {
+            $thumbnail = '';
+        } catch (Throwable $e) {
+            $thumbnail = '';
+        }
+
+        if (trim($thumbnail) === '') {
+            $thumbnail = self::fieldValueByCid(self::objectIntValue($archive, 'cid'), 'thumbnail');
+        }
+
+        return self::normalizeImageUrl($thumbnail, $options);
+    }
+
+    private static function fieldValueByCid($cid, $name)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0 || $name === '') {
+            return '';
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('str_value')
+                ->from('table.fields')
+                ->where('cid = ?', $cid)
+                ->where('name = ?', $name)
+                ->limit(1));
+
+            return $row && isset($row['str_value']) ? (string) $row['str_value'] : '';
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    private static function objectIntValue($object, $name)
+    {
+        if (!is_object($object) || $name === '') {
+            return 0;
+        }
+
+        try {
+            return isset($object->{$name}) ? (int) $object->{$name} : 0;
+        } catch (Exception $e) {
+            return 0;
+        } catch (Throwable $e) {
+            return 0;
+        }
+    }
+
+    public static function feedImageMediaSuffix($feedType, $imageUrl)
+    {
+        $imageUrl = trim((string) $imageUrl);
+        if ($imageUrl === '') {
+            return null;
+        }
+
+        $mimeType = self::imageMimeType($imageUrl);
+        $url = self::xml($imageUrl);
+        $typeAttr = $mimeType !== '' ? ' type="' . self::xml($mimeType) . '"' : '';
+
+        if ($feedType === 'ATOM 1.0') {
+            return '<link rel="enclosure"' . $typeAttr . ' href="' . $url . '" />' . "\n" .
+                '<media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="' . $url . '" />' . "\n";
+        }
+
+        if ($feedType !== 'RSS 2.0') {
+            return null;
+        }
+
+        $suffix = '';
+        if ($mimeType !== '' && preg_match('/^https?:\/\//i', $imageUrl)) {
+            $suffix .= '<enclosure url="' . $url . '" length="0" type="' . self::xml($mimeType) . '" />' . "\n";
+        }
+
+        $suffix .= '<media:content xmlns:media="http://search.yahoo.com/mrss/" url="' . $url . '" medium="image"' . $typeAttr . ' />' . "\n";
+        $suffix .= '<media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="' . $url . '" />' . "\n";
+
+        return $suffix;
     }
 
     public static function renderFeedHtml($html)
@@ -668,6 +766,28 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         }
 
         return self::themeAssetUrl('apple-touch-icon.png', $options);
+    }
+
+    public static function normalizeFeedImageUrl($url, $options)
+    {
+        return self::normalizeImageUrl($url, $options);
+    }
+
+    public static function imageMimeType($url)
+    {
+        $path = parse_url((string) $url, PHP_URL_PATH);
+        $extension = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+        $map = array(
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'avif' => 'image/avif',
+            'svg' => 'image/svg+xml',
+        );
+
+        return isset($map[$extension]) ? $map[$extension] : '';
     }
 
     private static function normalizeImageUrl($url, $options)

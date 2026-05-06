@@ -234,6 +234,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             $content = $this->renderMomentContent(isset($item['text']) ? $item['text'] : '');
             $title = $this->momentTitle($item, $content);
             $excerpt = trim(strip_tags($content));
+            $mediaUrl = $this->firstImageUrl($content);
 
             $xml .= '<item>' . "\n";
             $xml .= '<title>' . $this->xml($title) . '</title>' . "\n";
@@ -241,8 +242,8 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             $xml .= '<guid isPermaLink="false">' . $this->xml($feedUrl . '#coid-' . (int) $item['coid']) . '</guid>' . "\n";
             $xml .= '<pubDate>' . $this->dateForRss(isset($item['created']) ? (int) $item['created'] : 0) . '</pubDate>' . "\n";
             $xml .= '<dc:creator>' . $this->xml($author['screenName']) . '</dc:creator>' . "\n";
-            if ($avatarUrl !== '') {
-                $xml .= '<media:thumbnail url="' . $this->xml($avatarUrl) . '" />' . "\n";
+            if ($mediaUrl !== '') {
+                $xml .= QiwiSitemap_Plugin::feedImageMediaSuffix('RSS 2.0', $mediaUrl);
             }
             if ($excerpt !== '') {
                 $xml .= '<description><![CDATA[' . $this->cdata(strip_tags($excerpt)) . ']]></description>' . "\n";
@@ -680,6 +681,21 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
     private function escapeHtml($value)
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
+    private function firstImageUrl($html)
+    {
+        if (!preg_match('/<img\b[^>]*\bsrc\s*=\s*(["\'])(.*?)\1/iu', (string) $html, $matches)
+            && !preg_match('/<img\b[^>]*\bsrc\s*=\s*([^\s>]+)/iu', (string) $html, $matches)
+        ) {
+            return '';
+        }
+
+        $url = isset($matches[2]) ? $matches[2] : (isset($matches[1]) ? $matches[1] : '');
+        return QiwiSitemap_Plugin::normalizeFeedImageUrl(
+            html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            $this->siteOptions()
+        );
     }
 
     private function avatarUrl()

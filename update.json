@@ -1,13 +1,13 @@
 {
-  "version": "1.4.5",
-  "releaseDate": "2026-05-05",
+  "version": "1.4.6",
+  "releaseDate": "2026-05-06",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "增强 QiwiSitemap 的 RSS 短代码兼容，补齐 caramel、link、not-by-ai 等主题短代码",
-    "规范 RSS / Atom 头像 URL，并回退到主题 Apple Touch Icon",
-    "为说说 RSS 补充频道头像和条目缩略图",
-    "说说 RSS 标题优先取第一条非空正文行，并清理短代码、Markdown 与末尾标点",
-    "修正 Typecho 默认文章 RSS 的后处理挂载条件，并在条目输出阶段兜底清理正文短代码"
+    "修正 Typecho 默认文章 RSS 的后处理挂载条件，并在条目输出阶段兜底清理正文短代码",
+    "修复 RSS / Atom 头像只应作为频道头像输出的问题，避免阅读器把头像误当文章头图",
+    "RSS / Atom 文章条目会读取文章头图字段，并输出 enclosure 与 Media RSS 缩略图",
+    "Time Machine RSS 仅在动态正文含图片时输出条目媒体图，不再用头像填充每条动态",
+    "增强 feed 后处理启动与文章自定义字段读取兜底，提升 Typecho 原生订阅输出稳定性"
   ]
 }
