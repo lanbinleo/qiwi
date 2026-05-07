@@ -2936,22 +2936,27 @@ body.qiwi-lightbox-open {
 }
 
 .moment-comment-reply {
-    display: inline-flex;
-    align-items: center;
-    margin-top: 6px;
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    margin: 4px 0 0;
     padding: 0;
-    border-bottom: 1px solid transparent;
+    border: 0;
+    background: transparent;
     color: var(--color-text-tertiary);
     font-size: 12px;
     font-weight: 500;
     line-height: 1.6;
+    text-align: left;
+    cursor: pointer;
 }
 
 .moment-comment-reply:hover,
 .moment-comment-reply:focus-visible {
     color: var(--color-accent);
-    border-bottom-color: var(--color-accent-soft);
     outline: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .moment-reply-composer {

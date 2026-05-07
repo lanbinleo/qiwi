@@ -270,6 +270,7 @@ EOF;
         .qiwi-gt-captcha { line-height: 44px; }
         .gt-btn-disabled { background-color: #a3b7c1!important; color: #fff!important; cursor: no-drop!important; }
         </style>
+        <div class="qiwi-gt-captcha-root"></div>
         <script id="{$scriptId}">
         (function(script) {
             if (!script) return;

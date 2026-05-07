@@ -118,7 +118,7 @@ $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
 
                 <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
-                    <div id="captcha"></div><?php qiwiRenderCaptcha(); ?>
+                    <?php qiwiRenderCaptcha(); ?>
                     <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                 </div>
                 <?php endif; ?>
