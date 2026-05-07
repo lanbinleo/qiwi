@@ -12,6 +12,8 @@ $pageContent = qiwiGetContent($this);
 // 获取数据
 $pageId = $this->cid;
 $authorUid = $this->author->uid;
+$isMomentManager = $this->user->hasLogin()
+    && ((int) $this->user->uid === (int) $authorUid || (isset($this->user->group) && $this->user->group === 'administrator'));
 $pageSize = 10;
 $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
@@ -152,10 +154,34 @@ function renderMarkdown($text) {
         $text = qiwiRenderShortcodes($text);
     }
 
-    // 最后统一处理换行（包括引用块内部），并压缩独立图片上下的空行。
-    $html = nl2br($text);
-    $html = preg_replace('/(?:<br\s*\/?>\s*){2,}(<img\b[^>]*\bmoment-image\b[^>]*>)(?:\s*<br\s*\/?>){2,}/iu', '<br>$1<br>', $html);
-    return $html;
+    return renderMomentParagraphs($text);
+}
+
+function renderMomentParagraphs($html) {
+    $html = str_replace(array("\r\n", "\r"), "\n", (string) $html);
+    $blocks = preg_split('/\n{2,}/', $html);
+    $paragraphs = [];
+
+    foreach ($blocks as $block) {
+        $block = trim($block);
+        if ($block === '') {
+            continue;
+        }
+
+        if (preg_match('/^<blockquote\b([^>]*)>([\s\S]*)<\/blockquote>$/u', $block, $matches)) {
+            $paragraphs[] = '<blockquote' . $matches[1] . '>' . nl2br(trim($matches[2]), false) . '</blockquote>';
+            continue;
+        }
+
+        if (preg_match('/^<(aside|details|div|ul|ol|pre|table|figure)\b[\s\S]*<\/\1>$/u', $block)) {
+            $paragraphs[] = $block;
+            continue;
+        }
+
+        $paragraphs[] = '<p>' . nl2br($block, false) . '</p>';
+    }
+
+    return implode('', $paragraphs);
 }
 
 function renderMomentAutolinks($html) {
@@ -395,9 +421,9 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     <label for="moment-reply-text">内容 *</label>
                     <textarea name="text" id="moment-reply-text" rows="3" placeholder="写一条评论…" required><?php $this->remember('text'); ?></textarea>
                 </div>
-                <?php if ($this->options->enabledCaptcha): ?>
+                <?php if ($this->options->enabledCaptcha && !$isMomentManager && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
-                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                    <div id="captcha"></div><?php qiwiRenderCaptcha(); ?>
                     <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                 </div>
                 <?php endif; ?>
@@ -442,7 +468,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         <?php endif; ?>
 
         <!-- 发布表单 -->
-        <?php if ($this->user->hasLogin() && ($this->user->uid === $authorUid || $this->user->group === 'administrator')): ?>
+        <?php if ($isMomentManager): ?>
         <div class="moment-publisher">
             <div class="publisher-header">
                 <h3 class="publisher-title">发布新的记录</h3>
@@ -483,14 +509,6 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     $this->widget('Widget_Security')->getToken($this->permalink);
                 echo '<input type="hidden" name="_" value="' . $token . '">';
                 ?>
-
-                <?php if ($this->options->enabledCaptcha): ?>
-                <div class="captcha-script">
-                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
-                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
-                </div>
-                <?php endif; ?>
-                <br>
 
                 <button type="submit" class="submit-button" id="sub_btn">发布</button>
             </form>

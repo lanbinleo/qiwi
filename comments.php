@@ -100,9 +100,9 @@ if (!function_exists('qiwi_capture_remember')) {
             </div>
 
             <div class="comment-form-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
-                <?php if ($this->options->enabledCaptcha): ?>
+                <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                     <div class="captcha-script">
-                        <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                        <div id="captcha"></div><?php qiwiRenderCaptcha(); ?>
                         <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                     </div>
                 <?php endif; ?>

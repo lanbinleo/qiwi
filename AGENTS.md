@@ -32,8 +32,9 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `comments.php`: comment list and form.
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
-- `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, and `CHANGELOG.md` when bumping releases.
+- `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, `CHANGELOG.md`, and all companion plugin `Plugin.php` headers when bumping releases.
 - `components/home-jike.php`: Jike-style home feed component.
+- `plugins/Geetest/`: Qiwi GTest companion plugin source for comment/login captcha integration.
 - `plugins/QiwiSitemap/`: Qiwi Sitemap plugin source maintained with this theme.
 - `plugins/QiwiTheme/`: Qiwi Theme companion plugin source for `thread-*` admin editing and Thread data storage.
 - `docs/design-doc.html`: local visual/style references. Treat as reference unless the task asks to edit them.
@@ -45,12 +46,13 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - Treat this as a production theme: prefer small, focused edits over large rewrites.
 - Before any development change, check the current Git branch. If it is not a `dev/x.x.x` branch, for example if it is `main`, ask the user which version number should carry the work before making code changes.
 - When committing changes, use Conventional Commits style with the correct type prefix, such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`, or `perf:`.
+- When preparing a theme release, keep every public version surface synchronized: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and the `@version` headers for every companion plugin under `plugins/*/Plugin.php`.
 - Keep Typecho template calls intact. When changing markup, preserve PHP conditions and widget output.
 - Reuse the existing design tokens in `assets/css/style.css` instead of hardcoding unrelated colors or spacing.
 - When adding JavaScript, prefer progressive enhancement. The page should remain usable if the script does not run.
 - Avoid browser-only assumptions that break no-JS or small-screen use cases.
 - Do not edit `reference/` files unless the task explicitly asks for it.
-- Plugin development source lives under this theme, for example `plugins/QiwiSitemap/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
+- Plugin development source lives under this theme, for example `plugins/QiwiSitemap/` or `plugins/Geetest/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
 - `plugins/QiwiTheme/` is the Qiwi theme companion plugin. When a feature cannot be solved reliably inside theme templates because it needs routes, actions, storage tables, admin APIs, or Typecho lifecycle hooks, put that logic in `QiwiTheme` instead of unrelated plugins such as `QiwiSitemap`.
 
 ## Theme Configuration Rules

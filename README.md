@@ -29,7 +29,7 @@ Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.4.7`。
 
 可选能力：
 
-- Geetest 插件：用于评论验证码
+- Qiwi GTest 插件：用于评论验证码
 - Font Awesome：导航图标和时光机图标会按需加载
 - KaTeX：文章或页面检测到 LaTeX 后按需加载
 

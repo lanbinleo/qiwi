@@ -2762,8 +2762,14 @@ body.qiwi-lightbox-open {
     margin-bottom: 0;
 }
 
-.moment-text.article-body br + br {
-    display: none;
+.moment-text.article-body p {
+    margin: 0 0 var(--s-3);
+    font-size: inherit;
+    line-height: inherit;
+}
+
+.moment-text.article-body p:last-child {
+    margin-bottom: 0;
 }
 
 .moment-text strong {
