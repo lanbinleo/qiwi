@@ -8,7 +8,7 @@ require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
  *
  * @package Qiwi GTest
  * @author 小胖狐 && 饭饭 && CairBin
- * @version 1.4.7
+ * @version 1.4.8
  * @link http://zsduo.com
  * @link https://ffis.me
  * @link https://cairbin.top
@@ -32,8 +32,8 @@ class Geetest_Plugin implements Typecho_Plugin_Interface
         // 注册后台底部结束钩子
         Typecho_Plugin::factory('admin/footer.php')->end = array(__CLASS__, 'renderCaptcha');
 
-        // 注册用户登录成功钩子
-        Typecho_Plugin::factory('Widget_User')->loginSucceed = array(__CLASS__, 'verifyCaptcha');
+        // 接管登录校验入口，在密码校验前完成后台登录验证码校验
+        Typecho_Plugin::factory('Widget_User')->login = array(__CLASS__, 'login');
 
         // 评论钩子
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'commentCaptchaVerify');
@@ -132,6 +132,8 @@ class Geetest_Plugin implements Typecho_Plugin_Interface
 
         $_SESSION['gt_server_ok'] = $geetestSdk->pre_process($data, 1);
         $_SESSION['gt_user_id'] = $data['user_id'];
+        $captchaResponse = $geetestSdk->get_response();
+        $_SESSION['gt_challenge'] = isset($captchaResponse['challenge']) ? $captchaResponse['challenge'] : '';
 
         echo $geetestSdk->get_response_str();
     }
@@ -479,6 +481,57 @@ EOF;
 
     }
 
+    /**
+     * 登录校验。Typecho 没有密码校验前的登录验证码 hook，因此这里复用核心登录流程。
+     */
+    public static function login($name, $password, $temporarily = false, $expire = 0, $previousResult = null)
+    {
+        if ($previousResult !== null) {
+            return $previousResult;
+        }
+
+        if (self::shouldVerifyLoginCaptcha() && !self::_verifyCaptcha()) {
+            self::rejectLoginCaptcha($name);
+            return false;
+        }
+
+        $userWidget = Typecho_Widget::widget('Widget_User');
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $user = $db->fetchRow($db->select()
+            ->from('table.users')
+            ->where((strpos($name, '@') ? 'mail' : 'name') . ' = ?', $name)
+            ->limit(1));
+
+        if (empty($user)) {
+            return false;
+        }
+
+        $hashValidate = Typecho_Plugin::factory('Widget_User')->trigger($hashPluggable)->hashValidate($password, $user['password']);
+        if (!$hashPluggable) {
+            if ('$P$' == substr($user['password'], 0, 3)) {
+                $hasher = new PasswordHash(8, true);
+                $hashValidate = $hasher->checkPassword($password, $user['password']);
+            } else {
+                $hashValidate = Typecho_Common::hashValidate($password, $user['password']);
+            }
+        }
+
+        if ($user && $hashValidate) {
+            if (!$temporarily) {
+                $userWidget->commitLogin($user, (int) $expire);
+            }
+
+            $userWidget->push($user);
+            self::setCurrentUser($userWidget, $user);
+            Typecho_Plugin::factory('Widget_User')->loginSucceed($userWidget, $name, $password, $temporarily, $expire);
+
+            return true;
+        }
+
+        Typecho_Plugin::factory('Widget_User')->loginFail($userWidget, $name, $password, $temporarily, $expire);
+        return false;
+    }
+
     private static function shouldBypassCommentCaptcha($comment)
     {
         if (!is_array($comment) || empty($comment['cid'])) {
@@ -538,6 +591,49 @@ EOF;
         }
     }
 
+    private static function shouldVerifyLoginCaptcha()
+    {
+        if (!self::isPageEnabled("typechoLogin")) {
+            return false;
+        }
+
+        try {
+            $request = Typecho_Widget::widget('Widget_Options')->request;
+            return $request
+                && $request->isPost()
+                && (string) $request->action === 'login';
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private static function rejectLoginCaptcha($name)
+    {
+        try {
+            Typecho_Cookie::set('__typecho_remember_name', $name);
+            Typecho_Widget::widget('Widget_Notice')->set(_t('验证码错误'), 'error');
+            Typecho_Widget::widget('Widget_Options')->response->goBack();
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+    }
+
+    private static function setCurrentUser($userWidget, array $user)
+    {
+        $reflection = new ReflectionObject($userWidget);
+        foreach (array('currentUser' => $user, 'hasLogin' => true) as $propertyName => $value) {
+            if (!$reflection->hasProperty($propertyName)) {
+                continue;
+            }
+
+            $property = $reflection->getProperty($propertyName);
+            $property->setAccessible(true);
+            $property->setValue($userWidget, $value);
+        }
+    }
+
     private static function captchaAjaxUri()
     {
         try {
@@ -582,7 +678,15 @@ EOF;
         $pluginOptions = Helper::options()->plugin('Geetest');
         $geetestSdk = new GeetestLib($pluginOptions->captchaId, $pluginOptions->privateKey);
 
-        if (!empty($_SESSION['gt_server_ok'])) {
+        if (!isset($_SESSION['gt_server_ok'], $_SESSION['gt_challenge'])
+            || !hash_equals((string) $_SESSION['gt_challenge'], (string) $_POST['geetest_challenge'])) {
+            return 0;
+        }
+
+        if ((int) $_SESSION['gt_server_ok'] === 1) {
+            if (empty($_SESSION['gt_user_id'])) {
+                return 0;
+            }
 
             $widgetRequest = Typecho_Widget::widget('Widget_Options')->request;
             $agent = $widgetRequest->getAgent();
@@ -595,10 +699,24 @@ EOF;
                 'ip_address' => $ipAddress
             );
 
-            return $geetestSdk->success_validate($_POST['geetest_challenge'], $_POST['geetest_validate'], $_POST['geetest_seccode'], $data);
+            $result = $geetestSdk->success_validate($_POST['geetest_challenge'], $_POST['geetest_validate'], $_POST['geetest_seccode'], $data);
+            if ($result) {
+                unset($_SESSION['gt_server_ok'], $_SESSION['gt_user_id'], $_SESSION['gt_challenge']);
+            }
+
+            return $result;
         }
 
-        return $geetestSdk->fail_validate($_POST['geetest_challenge'], $_POST['geetest_validate'], $_POST['geetest_seccode']);
+        if ((int) $_SESSION['gt_server_ok'] === 0) {
+            $result = $geetestSdk->fail_validate($_POST['geetest_challenge'], $_POST['geetest_validate'], $_POST['geetest_seccode']);
+            if ($result) {
+                unset($_SESSION['gt_server_ok'], $_SESSION['gt_user_id'], $_SESSION['gt_challenge']);
+            }
+
+            return $result;
+        }
+
+        return 0;
     }
 
     /**

@@ -55,6 +55,18 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - Plugin development source lives under this theme, for example `plugins/QiwiSitemap/` or `plugins/Geetest/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
 - `plugins/QiwiTheme/` is the Qiwi theme companion plugin. When a feature cannot be solved reliably inside theme templates because it needs routes, actions, storage tables, admin APIs, or Typecho lifecycle hooks, put that logic in `QiwiTheme` instead of unrelated plugins such as `QiwiSitemap`.
 
+## Release Process
+
+When publishing a new Qiwi version, use a controlled release workflow:
+
+1. Confirm the working branch and workspace status. Release work should happen from the matching `dev/x.x.x` branch, and any pre-existing local changes must be understood before editing.
+2. Run the lightweight verification checks first, including PHP linting with the bundled phpstudy PHP runtimes and any targeted JavaScript or configuration checks required by the changed files.
+3. Update all public version surfaces together: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and every companion plugin header under `plugins/*/Plugin.php`.
+4. Write release notes in consistent language across `CHANGELOG.md`, `update.json`, and the `$releaseNotes` entry in `version.php`. The notes should describe user-visible fixes or behavior changes, not internal implementation trivia.
+5. Run the verification checks again after the release metadata is updated.
+6. Review the final diff, commit with a Conventional Commits message, push the release branch, and open a pull request into the target stable branch.
+7. Merge the pull request only after the checks and diff are acceptable. After merging, create and publish the GitHub Release using the same version number and release notes.
+
 ## Theme Configuration Rules
 
 - Any change that adds, moves, renames, imports, exports, or substantially changes a theme option must use the existing admin configuration system:
