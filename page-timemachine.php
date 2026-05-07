@@ -308,15 +308,15 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . '" id="comment-' . $coid . '">';
         echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
         echo '<div class="moment-comment-body">';
-        echo '<div class="moment-comment-meta"><span class="moment-comment-author-stack"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
-        if ($isWaiting) {
-            echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
-        }
-        echo '</span>';
+        echo '<div class="moment-comment-meta"><span class="moment-comment-author-row"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
         // if ($isOwner) {
         //     echo '<span class="moment-owner-badge" title="UP 主亲自回复"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span>';
         // }
-        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time></div>';
+        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time></span>';
+        if ($isWaiting) {
+            echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
+        }
+        echo '</div>';
         echo '<div class="moment-comment-text">' . renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '') . '</div>';
         echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
         renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);

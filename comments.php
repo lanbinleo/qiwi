@@ -30,16 +30,16 @@ if (!function_exists('qiwi_capture_remember')) {
             </div>
             <div class="comment-content">
                 <div class="comment-meta">
-                    <span class="comment-author-stack">
+                    <span class="comment-author-row">
                         <span class="comment-author"><?php $comments->author(); ?></span>
-                        <?php if ($isWaitingComment): ?>
-                        <span class="comment-status-note">您的评论正在等待审核</span>
-                        <?php endif; ?>
+                        <time class="comment-date"
+                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
+                              data-qiwi-local-time
+                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
                     </span>
-                    <time class="comment-date"
-                          datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
-                          data-qiwi-local-time
-                          data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
+                    <?php if ($isWaitingComment): ?>
+                    <span class="comment-status-note">您的评论正在等待审核</span>
+                    <?php endif; ?>
                 </div>
                 <div class="comment-text">
                     <?php $comments->content(); ?>

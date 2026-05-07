@@ -2903,9 +2903,9 @@ body.qiwi-lightbox-open {
 
 .moment-comment-meta {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px var(--s-2);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     margin-bottom: 3px;
 }
 
@@ -2922,6 +2922,14 @@ body.qiwi-lightbox-open {
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+}
+
+.moment-comment-author-row,
+.comment-author-row {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--s-2);
 }
 
 .moment-comment-status-note,
@@ -3850,10 +3858,10 @@ body.qiwi-lightbox-open {
 
 .comment-meta {
     display: flex;
-    gap: calc(var(--spacing-unit) * 2);
-    align-items: center;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
     margin-bottom: calc(var(--spacing-unit));
-    flex-wrap: wrap;
 }
 
 .comment-author {
