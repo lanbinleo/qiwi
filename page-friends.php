@@ -10,6 +10,20 @@ $qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
 $pageContent = qiwiGetContent($this);
 $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
+$friendsRememberAuthor = trim((string) $this->remember('author', true));
+$friendsRememberMail = trim((string) $this->remember('mail', true));
+$friendsWaitingCount = 0;
+
+if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRememberMail !== '') {
+    $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+    $prefix = $db->getPrefix();
+    $friendsWaitingCount = (int) $db->fetchObject($db->select('COUNT(coid) AS total')
+        ->from($prefix . 'comments')
+        ->where('cid = ?', $this->cid)
+        ->where('status = ?', 'waiting')
+        ->where('author = ?', $friendsRememberAuthor)
+        ->where('mail = ?', $friendsRememberMail))->total;
+}
 ?>
 
 <div class="friends-page">
@@ -80,6 +94,9 @@ $friendsSubtitle = trim((string) $this->fields->friendsSubtitle);
         <div class="friends-apply">
             <h3 class="apply-title">申请友链</h3>
             <p class="apply-desc">欢迎交换友链，请填写以下信息</p>
+            <?php if ($friendsWaitingCount > 0): ?>
+            <p class="friends-apply-status">您的评论正在等待审核</p>
+            <?php endif; ?>
 
             <form method="post" action="<?php $this->commentUrl(); ?>" class="apply-form">
                 <?php if (!$this->user->hasLogin()): ?>
