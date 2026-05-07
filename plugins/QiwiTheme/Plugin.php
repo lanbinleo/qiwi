@@ -239,6 +239,10 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "coid" INTEGER NOT NULL,
                     "identity_hash" varchar(64) NOT NULL,
+                    "identity_type" varchar(16) NOT NULL DEFAULT "cookie",
+                    "user_id" INTEGER NOT NULL DEFAULT 0,
+                    "author" varchar(200) NOT NULL DEFAULT "",
+                    "mail_hash" varchar(64) NOT NULL DEFAULT "",
                     "created" INTEGER NOT NULL DEFAULT 0,
                     UNIQUE ("coid", "identity_hash")
                 )';
@@ -247,19 +251,67 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                     `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
                     `coid` int(10) unsigned NOT NULL,
                     `identity_hash` varchar(64) NOT NULL,
+                    `identity_type` varchar(16) NOT NULL DEFAULT "cookie",
+                    `user_id` int(10) unsigned NOT NULL DEFAULT 0,
+                    `author` varchar(200) NOT NULL DEFAULT "",
+                    `mail_hash` varchar(64) NOT NULL DEFAULT "",
                     `created` int(10) unsigned NOT NULL DEFAULT 0,
                     PRIMARY KEY (`id`),
                     UNIQUE KEY `coid_identity` (`coid`, `identity_hash`),
-                    KEY `coid` (`coid`)
+                    KEY `coid` (`coid`),
+                    KEY `mail_hash` (`mail_hash`),
+                    KEY `created` (`created`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
             }
 
             $db->query($sql);
+            self::migrateMomentLikeTable($adapter, $table);
             return true;
         } catch (Exception $e) {
             return false;
         } catch (Throwable $e) {
             return false;
+        }
+    }
+
+    private static function migrateMomentLikeTable($adapter, $table)
+    {
+        $db = Typecho_Db::get();
+        $isSqlite = strpos($adapter, 'sqlite') !== false;
+        $columns = $isSqlite
+            ? array(
+                'identity_type' => 'varchar(16) NOT NULL DEFAULT "cookie"',
+                'user_id' => 'INTEGER NOT NULL DEFAULT 0',
+                'author' => 'varchar(200) NOT NULL DEFAULT ""',
+                'mail_hash' => 'varchar(64) NOT NULL DEFAULT ""',
+            )
+            : array(
+                'identity_type' => 'varchar(16) NOT NULL DEFAULT "cookie"',
+                'user_id' => 'int(10) unsigned NOT NULL DEFAULT 0',
+                'author' => 'varchar(200) NOT NULL DEFAULT ""',
+                'mail_hash' => 'varchar(64) NOT NULL DEFAULT ""',
+            );
+
+        foreach ($columns as $column => $definition) {
+            try {
+                $quotedTable = $isSqlite ? '"' . $table . '"' : '`' . $table . '`';
+                $quotedColumn = $isSqlite ? '"' . $column . '"' : '`' . $column . '`';
+                $db->query('ALTER TABLE ' . $quotedTable . ' ADD COLUMN ' . $quotedColumn . ' ' . $definition);
+            } catch (Exception $e) {
+            } catch (Throwable $e) {
+            }
+        }
+
+        try {
+            if ($isSqlite) {
+                $db->query('CREATE INDEX IF NOT EXISTS "' . $table . '_mail_hash" ON "' . $table . '" ("mail_hash")');
+                $db->query('CREATE INDEX IF NOT EXISTS "' . $table . '_created" ON "' . $table . '" ("created")');
+            } else {
+                $db->query('ALTER TABLE `' . $table . '` ADD KEY `mail_hash` (`mail_hash`)');
+                $db->query('ALTER TABLE `' . $table . '` ADD KEY `created` (`created`)');
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
         }
     }
 
@@ -405,6 +457,22 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         return $ids;
     }
 
+    public static function normalizeMomentEmail($mail)
+    {
+        $mail = strtolower(trim((string) $mail));
+        if ($mail === '' || !filter_var($mail, FILTER_VALIDATE_EMAIL)) {
+            return '';
+        }
+
+        return $mail;
+    }
+
+    public static function momentMailHash($mail)
+    {
+        $mail = self::normalizeMomentEmail($mail);
+        return $mail === '' ? '' : sha1($mail);
+    }
+
     public static function hasMomentLiked($coid, $identityHash = '')
     {
         $coid = (int) $coid;
@@ -429,10 +497,14 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
     }
 
-    public static function toggleMomentLike($coid, $identityHash)
+    public static function toggleMomentLike($coid, $identity)
     {
         $coid = (int) $coid;
-        $identityHash = trim((string) $identityHash);
+        if (!is_array($identity)) {
+            $identity = array('identity_hash' => trim((string) $identity));
+        }
+
+        $identityHash = isset($identity['identity_hash']) ? trim((string) $identity['identity_hash']) : '';
         if ($coid <= 0 || $identityHash === '' || !self::installMomentLikeTable()) {
             return array('liked' => false, 'count' => 0);
         }
@@ -449,8 +521,18 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 $db->query($db->insert($table)->rows(array(
                     'coid' => $coid,
                     'identity_hash' => $identityHash,
+                    'identity_type' => isset($identity['identity_type']) ? substr((string) $identity['identity_type'], 0, 16) : 'cookie',
+                    'user_id' => isset($identity['user_id']) ? max(0, (int) $identity['user_id']) : 0,
+                    'author' => isset($identity['author']) ? substr(trim((string) $identity['author']), 0, 200) : '',
+                    'mail_hash' => isset($identity['mail_hash']) ? substr(trim((string) $identity['mail_hash']), 0, 64) : '',
                     'created' => time(),
                 )));
+                if (!empty($identity['previous_identity_hash'])
+                    && $identity['previous_identity_hash'] !== $identityHash) {
+                    $db->query($db->delete($table)
+                        ->where('coid = ?', $coid)
+                        ->where('identity_hash = ?', (string) $identity['previous_identity_hash']));
+                }
                 $liked = true;
             }
 
@@ -463,6 +545,181 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             $counts = self::momentLikeCounts(array($coid));
             return array('liked' => self::hasMomentLiked($coid, $identityHash), 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
         }
+    }
+
+    public static function getMomentLikeRecords($limit = 100)
+    {
+        $limit = max(1, min(200, (int) $limit));
+        if (!self::installMomentLikeTable()) {
+            return array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('id', 'coid', 'identity_hash', 'identity_type', 'user_id', 'author', 'mail_hash', 'created')
+                ->from(self::momentLikeTableName())
+                ->order('created', Typecho_Db::SORT_DESC)
+                ->limit($limit));
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        if (empty($rows)) {
+            return array();
+        }
+
+        $coids = array();
+        $mailHashes = array();
+        foreach ($rows as $row) {
+            $coid = isset($row['coid']) ? (int) $row['coid'] : 0;
+            if ($coid > 0) {
+                $coids[$coid] = true;
+            }
+
+            $mailHash = isset($row['mail_hash']) ? trim((string) $row['mail_hash']) : '';
+            if ($mailHash !== '') {
+                $mailHashes[$mailHash] = true;
+            }
+        }
+
+        $moments = self::momentLikeMomentMap(array_keys($coids));
+        $matches = self::momentLikeCommentMatches(array_keys($mailHashes));
+        $records = array();
+
+        foreach ($rows as $row) {
+            $coid = isset($row['coid']) ? (int) $row['coid'] : 0;
+            $mailHash = isset($row['mail_hash']) ? trim((string) $row['mail_hash']) : '';
+            $records[] = array(
+                'id' => isset($row['id']) ? (int) $row['id'] : 0,
+                'coid' => $coid,
+                'identityType' => isset($row['identity_type']) && $row['identity_type'] !== '' ? (string) $row['identity_type'] : 'cookie',
+                'userId' => isset($row['user_id']) ? (int) $row['user_id'] : 0,
+                'author' => isset($row['author']) ? (string) $row['author'] : '',
+                'mailHash' => $mailHash,
+                'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                'createdText' => !empty($row['created']) ? date('Y-m-d H:i', (int) $row['created']) : '',
+                'moment' => isset($moments[$coid]) ? $moments[$coid] : array(),
+                'matches' => isset($matches[$mailHash]) ? $matches[$mailHash] : array(),
+            );
+        }
+
+        return $records;
+    }
+
+    private static function momentLikeMomentMap(array $coids)
+    {
+        $map = array();
+        $ids = array();
+        foreach ($coids as $coid) {
+            $coid = (int) $coid;
+            if ($coid > 0) {
+                $ids[$coid] = true;
+            }
+        }
+
+        if (empty($ids)) {
+            return $map;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('table.comments.coid', 'table.comments.text', 'table.comments.created', 'table.contents.title')
+                ->from('table.comments')
+                ->join('table.contents', 'table.comments.cid = table.contents.cid')
+                ->where('table.comments.coid IN (' . implode(',', array_keys($ids)) . ')'));
+            foreach ($rows as $row) {
+                $coid = isset($row['coid']) ? (int) $row['coid'] : 0;
+                if ($coid <= 0) {
+                    continue;
+                }
+
+                $map[$coid] = array(
+                    'title' => isset($row['title']) ? (string) $row['title'] : '',
+                    'excerpt' => self::momentLikeExcerpt(isset($row['text']) ? (string) $row['text'] : ''),
+                    'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                );
+            }
+        } catch (Exception $e) {
+            return $map;
+        } catch (Throwable $e) {
+            return $map;
+        }
+
+        return $map;
+    }
+
+    private static function momentLikeCommentMatches(array $mailHashes)
+    {
+        $wanted = array();
+        foreach ($mailHashes as $hash) {
+            $hash = trim((string) $hash);
+            if ($hash !== '') {
+                $wanted[$hash] = true;
+            }
+        }
+
+        if (empty($wanted)) {
+            return array();
+        }
+
+        $matches = array();
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('coid', 'author', 'mail', 'created')
+                ->from('table.comments')
+                ->where('mail IS NOT NULL')
+                ->where('mail <> ?', '')
+                ->order('created', Typecho_Db::SORT_DESC)
+                ->limit(5000));
+            foreach ($rows as $row) {
+                $mailHash = self::momentMailHash(isset($row['mail']) ? $row['mail'] : '');
+                if ($mailHash === '' || !isset($wanted[$mailHash])) {
+                    continue;
+                }
+
+                if (!isset($matches[$mailHash])) {
+                    $matches[$mailHash] = array();
+                }
+
+                $author = trim((string) (isset($row['author']) ? $row['author'] : ''));
+                $key = $author !== '' ? $author : 'comment-' . (isset($row['coid']) ? (int) $row['coid'] : 0);
+                if (!isset($matches[$mailHash][$key])) {
+                    $matches[$mailHash][$key] = array(
+                        'author' => $author,
+                        'coid' => isset($row['coid']) ? (int) $row['coid'] : 0,
+                        'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                    );
+                }
+            }
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        foreach ($matches as $hash => $items) {
+            $matches[$hash] = array_values($items);
+        }
+
+        return $matches;
+    }
+
+    private static function momentLikeExcerpt($text, $length = 72)
+    {
+        $text = trim(strip_tags(preg_replace('/\s+/u', ' ', (string) $text)));
+        if ($text === '') {
+            return '';
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            return mb_strlen($text, 'UTF-8') > $length
+                ? mb_substr($text, 0, $length, 'UTF-8') . '...'
+                : $text;
+        }
+
+        return strlen($text) > $length * 2 ? substr($text, 0, $length * 2) . '...' : $text;
     }
 
     public static function getThreadData($mid)

@@ -2878,8 +2878,8 @@ body.qiwi-lightbox-open {
 }
 
 .moment-comments-list .moment-comments-list {
-    margin-top: var(--s-3);
-    padding-left: var(--s-5);
+    margin-top: var(--s-2);
+    padding-left: var(--s-4);
     border-left: 1px solid var(--color-border);
 }
 
@@ -2976,6 +2976,7 @@ body.qiwi-lightbox-open {
     border: 0;
     background: transparent;
     color: var(--color-text-tertiary);
+    font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 500;
     line-height: 1.6;
