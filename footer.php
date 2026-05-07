@@ -1409,18 +1409,19 @@ function initQiwiExternalLinks() {
 }
 
 function initQiwiLocalTimes() {
-    var formatter = null;
+    var exactFormatter = null;
     try {
-        formatter = new Intl.DateTimeFormat(navigator.language || 'zh-CN', {
+        exactFormatter = new Intl.DateTimeFormat(navigator.language || 'zh-CN', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
+            second: '2-digit',
             hour12: false
         });
     } catch (error) {
-        formatter = null;
+        exactFormatter = null;
     }
 
     var timeZone = '';
@@ -1430,6 +1431,54 @@ function initQiwiLocalTimes() {
         timeZone = '';
     }
 
+    var pad = function(value) {
+        return String(value).padStart(2, '0');
+    };
+
+    var formatDateTime = function(date, includeSeconds) {
+        if (exactFormatter && includeSeconds) {
+            return exactFormatter.format(date).replace(/\//g, '-');
+        }
+
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' '
+            + pad(date.getHours()) + ':' + pad(date.getMinutes()) + (includeSeconds ? ':' + pad(date.getSeconds()) : '');
+    };
+
+    var startOfDay = function(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    };
+
+    var formatRelativeTime = function(date, now) {
+        var diffSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+
+        if (diffSeconds < 60) {
+            return diffSeconds <= 0 ? '刚刚' : diffSeconds + ' 秒前';
+        }
+
+        if (diffSeconds < 3600) {
+            return Math.floor(diffSeconds / 60) + ' 分钟前';
+        }
+
+        if (diffSeconds < 86400) {
+            return Math.floor(diffSeconds / 3600) + ' 小时前';
+        }
+
+        var dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+        var time = pad(date.getHours()) + ':' + pad(date.getMinutes());
+
+        if (dayDiff === 1) {
+            return '昨天 ' + time;
+        }
+
+        if (dayDiff === 2) {
+            return '前天 ' + time;
+        }
+
+        return formatDateTime(date, false);
+    };
+
+    var now = new Date();
+
     document.querySelectorAll('[data-qiwi-local-time][data-timestamp]').forEach(function(node) {
         var timestamp = parseInt(node.getAttribute('data-timestamp'), 10);
         if (!timestamp) return;
@@ -1437,14 +1486,12 @@ function initQiwiLocalTimes() {
         var date = new Date(timestamp * 1000);
         if (Number.isNaN(date.getTime())) return;
 
-        var label = formatter
-            ? formatter.format(date).replace(/\//g, '-')
-            : date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') + ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
-        node.textContent = label;
+        var exactLabel = formatDateTime(date, true);
+        var title = timeZone ? exactLabel + ' ' + timeZone : exactLabel;
+        node.textContent = formatRelativeTime(date, now);
         node.setAttribute('datetime', date.toISOString());
-        if (timeZone) {
-            node.setAttribute('title', timeZone);
-        }
+        node.setAttribute('title', title);
+        node.setAttribute('aria-label', title);
     });
 }
 

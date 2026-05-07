@@ -28,6 +28,49 @@ if (!function_exists('qiwiGetFieldValue')) {
     }
 }
 
+if (!function_exists('qiwiCanRenderCaptcha')) {
+    function qiwiCanRenderCaptcha()
+    {
+        if (!class_exists('Geetest_Plugin') || !method_exists('Geetest_Plugin', 'commentCaptchaRender')) {
+            return false;
+        }
+
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            if (empty($options->plugins['activated']['Geetest'])) {
+                return false;
+            }
+
+            $pluginOptions = Helper::options()->plugin('Geetest');
+            $enabledPages = isset($pluginOptions->isOpenGeetestPage) ? $pluginOptions->isOpenGeetestPage : [];
+
+            return is_array($enabledPages) && in_array('typechoComment', $enabledPages, true);
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
+if (!function_exists('qiwiRenderCaptcha')) {
+    function qiwiRenderCaptcha()
+    {
+        if (!qiwiCanRenderCaptcha()) {
+            return false;
+        }
+
+        try {
+            Geetest_Plugin::commentCaptchaRender();
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
 if (!function_exists('qiwiGetStoredFieldValue')) {
     function qiwiGetStoredFieldValue($widget, $name, $default = null)
     {
@@ -428,7 +471,7 @@ function themeConfig($form)
 
     $form->addInput($logoUrl);
 
-    // Captcha Script 是否安装Geetest插件并启用 https://github.com/CairBin/typecho-plugin-geetest.git；单选题
+    // Captcha Script 是否安装 Qiwi GTest 插件并启用；单选题
     $enabledCaptcha = new Typecho_Widget_Helper_Form_Element_Radio(
         'enabledCaptcha',
         array(
@@ -437,7 +480,7 @@ function themeConfig($form)
         ),
         '0',
         _t('启用验证码'),
-        _t('如果你已经安装并启用了 Geetest 插件，可以选择启用验证码功能<br>https://github.com/CairBin/typecho-plugin-geetest.git')
+        _t('如果你已经安装并启用了 Qiwi GTest 插件，可以选择启用验证码功能。')
     );
 
     $form->addInput($enabledCaptcha);
@@ -2860,7 +2903,9 @@ if (!function_exists('qiwiGetHomepageJikeData')) {
             ->from($prefix . 'comments')
             ->where('cid = ?', $page['cid'])
             ->where('status = ?', 'approved')
+            ->where('type = ?', 'comment')
             ->where('authorId = ?', $page['authorId'])
+            ->where('(parent IS NULL OR parent = ?)', 0)
             ->order('created', $db::SORT_DESC)
             ->limit((int) $limit));
 

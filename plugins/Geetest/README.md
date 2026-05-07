@@ -1,6 +1,6 @@
-## Geetest for Typecho
+## Qiwi GTest for Typecho
 
-极验验证插件，用于用户登录、用户评论时使用极验提供的滑动验证码，适配了Material主题
+Qiwi GTest 是 Qiwi 主题维护的极验验证码特殊版，用于用户登录、用户评论时使用极验提供的滑动验证码。
 
 ### 更新说明
 保留原插件的登陆验证功能，新增评论验证功能。
@@ -35,12 +35,7 @@ location / {
 
 注册、创建应用的时候，基础版是免费的；
 
-如需开启评论验证码，则需要在你的主题评论模板 `comments.php` 中的任意一行添加如下代码：
-```
-<div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
-<script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
-```
-该功能需要JQuery插件支持，如果主题已经集成则不用引入该插件。
+Qiwi 主题已内置评论表单调用，无需手动编辑 `comments.php`。如果用于其他主题，仍可调用 `Geetest_Plugin::commentCaptchaRender()` 自行接入。
 
 **插件设置**
 

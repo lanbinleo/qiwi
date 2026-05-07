@@ -13,20 +13,33 @@ if (!function_exists('qiwi_capture_remember')) {
 
     <?php if ($comments->have()): ?>
     <h3 class="comments-title">
-        <?php $this->commentsNum(_t('暂无评论'), _t('仅有一条评论'), _t('已有 %d 条评论')); ?>
+        <?php $comments->num(_t('暂无评论'), _t('仅有一条评论'), _t('已有 %d 条评论')); ?>
     </h3>
 
     <div class="comment-list">
         <?php while ($comments->next()): ?>
-        <div id="<?php $comments->theId(); ?>" class="comment-item">
+        <?php
+            $commentStatus = isset($comments->status) ? (string) $comments->status : '';
+            $isWaitingComment = $commentStatus === 'waiting';
+            $commentCreated = isset($comments->created) ? (int) $comments->created : 0;
+        ?>
+        <div id="<?php $comments->theId(); ?>" class="comment-item<?php if ($isWaitingComment): ?> is-waiting<?php endif; ?>">
             <div class="comment-avatar">
                 <img src="https://gravatar.loli.net/avatar/<?php echo md5($comments->mail); ?>?s=64&d=mp"
                      alt="avatar">
             </div>
             <div class="comment-content">
                 <div class="comment-meta">
-                    <span class="comment-author"><?php $comments->author(); ?></span>
-                    <span class="comment-date"><?php $comments->date('Y-m-d H:i'); ?></span>
+                    <span class="comment-author-row">
+                        <span class="comment-author"><?php $comments->author(); ?></span>
+                        <time class="comment-date"
+                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
+                              data-qiwi-local-time
+                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
+                    </span>
+                    <?php if ($isWaitingComment): ?>
+                    <span class="comment-status-note">您的评论正在等待审核</span>
+                    <?php endif; ?>
                 </div>
                 <div class="comment-text">
                     <?php $comments->content(); ?>
@@ -100,9 +113,9 @@ if (!function_exists('qiwi_capture_remember')) {
             </div>
 
             <div class="comment-form-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
-                <?php if ($this->options->enabledCaptcha): ?>
+                <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                     <div class="captcha-script">
-                        <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                        <?php qiwiRenderCaptcha(); ?>
                         <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                     </div>
                 <?php endif; ?>

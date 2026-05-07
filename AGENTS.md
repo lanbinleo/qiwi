@@ -32,8 +32,9 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `comments.php`: comment list and form.
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
-- `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, and `CHANGELOG.md` when bumping releases.
+- `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, `CHANGELOG.md`, and all companion plugin `Plugin.php` headers when bumping releases.
 - `components/home-jike.php`: Jike-style home feed component.
+- `plugins/Geetest/`: Qiwi GTest companion plugin source for comment/login captcha integration.
 - `plugins/QiwiSitemap/`: Qiwi Sitemap plugin source maintained with this theme.
 - `plugins/QiwiTheme/`: Qiwi Theme companion plugin source for `thread-*` admin editing and Thread data storage.
 - `docs/design-doc.html`: local visual/style references. Treat as reference unless the task asks to edit them.
@@ -45,13 +46,26 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - Treat this as a production theme: prefer small, focused edits over large rewrites.
 - Before any development change, check the current Git branch. If it is not a `dev/x.x.x` branch, for example if it is `main`, ask the user which version number should carry the work before making code changes.
 - When committing changes, use Conventional Commits style with the correct type prefix, such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`, or `perf:`.
+- When preparing a theme release, keep every public version surface synchronized: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and the `@version` headers for every companion plugin under `plugins/*/Plugin.php`.
 - Keep Typecho template calls intact. When changing markup, preserve PHP conditions and widget output.
 - Reuse the existing design tokens in `assets/css/style.css` instead of hardcoding unrelated colors or spacing.
 - When adding JavaScript, prefer progressive enhancement. The page should remain usable if the script does not run.
 - Avoid browser-only assumptions that break no-JS or small-screen use cases.
 - Do not edit `reference/` files unless the task explicitly asks for it.
-- Plugin development source lives under this theme, for example `plugins/QiwiSitemap/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
+- Plugin development source lives under this theme, for example `plugins/QiwiSitemap/` or `plugins/Geetest/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
 - `plugins/QiwiTheme/` is the Qiwi theme companion plugin. When a feature cannot be solved reliably inside theme templates because it needs routes, actions, storage tables, admin APIs, or Typecho lifecycle hooks, put that logic in `QiwiTheme` instead of unrelated plugins such as `QiwiSitemap`.
+
+## Release Process
+
+When publishing a new Qiwi version, use a controlled release workflow:
+
+1. Confirm the working branch and workspace status. Release work should happen from the matching `dev/x.x.x` branch, and any pre-existing local changes must be understood before editing.
+2. Run the lightweight verification checks first, including PHP linting with the bundled phpstudy PHP runtimes and any targeted JavaScript or configuration checks required by the changed files.
+3. Update all public version surfaces together: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and every companion plugin header under `plugins/*/Plugin.php`.
+4. Write release notes in consistent language across `CHANGELOG.md`, `update.json`, and the `$releaseNotes` entry in `version.php`. The notes should describe user-visible fixes or behavior changes, not internal implementation trivia.
+5. Run the verification checks again after the release metadata is updated.
+6. Review the final diff, commit with a Conventional Commits message, push the release branch, and open a pull request into the target stable branch.
+7. Merge the pull request only after the checks and diff are acceptable. After merging, create and publish the GitHub Release using the same version number and release notes.
 
 ## Theme Configuration Rules
 

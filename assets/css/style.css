@@ -2762,8 +2762,14 @@ body.qiwi-lightbox-open {
     margin-bottom: 0;
 }
 
-.moment-text.article-body br + br {
-    display: none;
+.moment-text.article-body p {
+    margin: 0 0 var(--s-3);
+    font-size: inherit;
+    line-height: inherit;
+}
+
+.moment-text.article-body p:last-child {
+    margin-bottom: 0;
 }
 
 .moment-text strong {
@@ -2897,9 +2903,9 @@ body.qiwi-lightbox-open {
 
 .moment-comment-meta {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px var(--s-2);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     margin-bottom: 3px;
 }
 
@@ -2907,6 +2913,38 @@ body.qiwi-lightbox-open {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-primary);
+}
+
+.moment-comment-author-stack,
+.moment-author-stack,
+.comment-author-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.moment-comment-author-row,
+.comment-author-row {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.moment-comment-status-note,
+.comment-status-note {
+    color: var(--color-accent);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.friends-apply-status {
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 500;
+    margin: calc(var(--spacing-unit) * 1.5) 0 0;
 }
 
 .moment-comment-time {
@@ -2930,30 +2968,28 @@ body.qiwi-lightbox-open {
 }
 
 .moment-comment-reply {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 26px;
-    margin-top: var(--s-1);
-    padding: 0 var(--s-2);
-    border: 1px solid transparent;
-    border-radius: var(--r-sm);
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    margin: 4px 0 0;
+    padding: 0;
+    border: 0;
     background: transparent;
     color: var(--color-text-tertiary);
     font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 500;
-    line-height: 1;
+    line-height: 1.6;
+    text-align: left;
     cursor: pointer;
-    transition: color var(--transition), border-color var(--transition), background var(--transition);
 }
 
 .moment-comment-reply:hover,
 .moment-comment-reply:focus-visible {
     color: var(--color-accent);
-    border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
-    background: color-mix(in srgb, var(--color-accent-soft) 34%, transparent);
     outline: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .moment-reply-composer {
@@ -3823,10 +3859,10 @@ body.qiwi-lightbox-open {
 
 .comment-meta {
     display: flex;
-    gap: calc(var(--spacing-unit) * 2);
-    align-items: center;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
     margin-bottom: calc(var(--spacing-unit));
-    flex-wrap: wrap;
 }
 
 .comment-author {

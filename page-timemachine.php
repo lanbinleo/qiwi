@@ -21,15 +21,31 @@ $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
 $prefix = $db->getPrefix();
 
-// 查询说说（作者的评论）
+$rememberAuthor = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'author') : trim((string) $this->remember('author', true));
+$rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'mail') : trim((string) $this->remember('mail', true));
+$canShowOwnWaitingReplies = !$this->user->hasLogin() && $rememberAuthor !== '' && $rememberMail !== '';
+
+// 查询说说（作者的评论），并允许访客看见自己的待审核顶层评论。
 $select = $db->select()->from($prefix.'comments')
     ->where('cid = ?', $pageId)
-    ->where('status = ?', 'approved')
     ->where('type = ?', 'comment')
-    ->where('authorId = ?', $authorUid)
     ->where('(parent IS NULL OR parent = ?)', 0)
     ->order('created', $db::SORT_DESC)
     ->page($currentPage, $pageSize);
+
+if ($canShowOwnWaitingReplies) {
+    $select->where(
+        '((status = ? AND authorId = ?) OR (status = ? AND author = ? AND mail = ?))',
+        'approved',
+        $authorUid,
+        'waiting',
+        $rememberAuthor,
+        $rememberMail
+    );
+} else {
+    $select->where('status = ?', 'approved')
+        ->where('authorId = ?', $authorUid);
+}
 
 $comments = $db->fetchAll($select);
 $momentCoids = [];
@@ -62,12 +78,25 @@ if ($momentLikedHash !== '' && class_exists('QiwiTheme_Plugin')) {
 $momentRepliesByParent = [];
 $momentReplyCounts = [];
 if (!empty($momentCoids)) {
-    $replyRows = $db->fetchAll($db->select()->from($prefix.'comments')
+    $replySelect = $db->select()->from($prefix.'comments')
         ->where('cid = ?', $pageId)
-        ->where('status = ?', 'approved')
         ->where('type = ?', 'comment')
         ->where('parent > ?', 0)
-        ->order('created', $db::SORT_ASC));
+        ->order('created', $db::SORT_ASC);
+
+    if ($canShowOwnWaitingReplies) {
+        $replySelect->where(
+            '(status = ? OR (status = ? AND author = ? AND mail = ?))',
+            'approved',
+            'waiting',
+            $rememberAuthor,
+            $rememberMail
+        );
+    } else {
+        $replySelect->where('status = ?', 'approved');
+    }
+
+    $replyRows = $db->fetchAll($replySelect);
 
     foreach ($replyRows as $reply) {
         $parent = isset($reply['parent']) ? (int) $reply['parent'] : 0;
@@ -98,13 +127,29 @@ if (!empty($momentCoids)) {
 }
 
 // 获取总数
-$totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
-    ->from($prefix.'comments')
-    ->where('cid = ?', $pageId)
-    ->where('status = ?', 'approved')
-    ->where('type = ?', 'comment')
-    ->where('authorId = ?', $authorUid)
-    ->where('(parent IS NULL OR parent = ?)', 0));
+if ($canShowOwnWaitingReplies) {
+    $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
+        ->from($prefix.'comments')
+        ->where('cid = ?', $pageId)
+        ->where('type = ?', 'comment')
+        ->where('(parent IS NULL OR parent = ?)', 0)
+        ->where(
+            '((status = ? AND authorId = ?) OR (status = ? AND author = ? AND mail = ?))',
+            'approved',
+            $authorUid,
+            'waiting',
+            $rememberAuthor,
+            $rememberMail
+        ));
+} else {
+    $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
+        ->from($prefix.'comments')
+        ->where('cid = ?', $pageId)
+        ->where('status = ?', 'approved')
+        ->where('type = ?', 'comment')
+        ->where('authorId = ?', $authorUid)
+        ->where('(parent IS NULL OR parent = ?)', 0));
+}
 
 $total = $totalResult ? $totalResult['total'] : 0;
 $totalPages = ceil($total / $pageSize);
@@ -159,10 +204,34 @@ function renderMarkdown($text) {
         $text = qiwiRenderShortcodes($text);
     }
 
-    // 最后统一处理换行（包括引用块内部），并压缩独立图片上下的空行。
-    $html = nl2br($text);
-    $html = preg_replace('/(?:<br\s*\/?>\s*){2,}(<img\b[^>]*\bmoment-image\b[^>]*>)(?:\s*<br\s*\/?>){2,}/iu', '<br>$1<br>', $html);
-    return $html;
+    return renderMomentParagraphs($text);
+}
+
+function renderMomentParagraphs($html) {
+    $html = str_replace(array("\r\n", "\r"), "\n", (string) $html);
+    $blocks = preg_split('/\n{2,}/', $html);
+    $paragraphs = [];
+
+    foreach ($blocks as $block) {
+        $block = trim($block);
+        if ($block === '') {
+            continue;
+        }
+
+        if (preg_match('/^<blockquote\b([^>]*)>([\s\S]*)<\/blockquote>$/u', $block, $matches)) {
+            $paragraphs[] = '<blockquote' . $matches[1] . '>' . nl2br(trim($matches[2]), false) . '</blockquote>';
+            continue;
+        }
+
+        if (preg_match('/^<(aside|details|div|ul|ol|pre|table|figure)\b[\s\S]*<\/\1>$/u', $block)) {
+            $paragraphs[] = $block;
+            continue;
+        }
+
+        $paragraphs[] = '<p>' . nl2br($block, false) . '</p>';
+    }
+
+    return implode('', $paragraphs);
 }
 
 function renderMomentAutolinks($html) {
@@ -239,14 +308,20 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
         $avatar = $isOwner ? $ownerAvatar : renderMomentAvatar(isset($reply['mail']) ? $reply['mail'] : '', $ownerAvatar, 40);
         $coid = isset($reply['coid']) ? (int) $reply['coid'] : 0;
-        echo '<article class="moment-comment" id="comment-' . $coid . '">';
+        $isWaiting = isset($reply['status']) && (string) $reply['status'] === 'waiting';
+        $created = isset($reply['created']) ? (int) $reply['created'] : 0;
+        echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . '" id="comment-' . $coid . '">';
         echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
         echo '<div class="moment-comment-body">';
-        echo '<div class="moment-comment-meta"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
+        echo '<div class="moment-comment-meta"><span class="moment-comment-author-row"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
         // if ($isOwner) {
         //     echo '<span class="moment-owner-badge" title="UP 主亲自回复"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span>';
         // }
-        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', isset($reply['created']) ? (int) $reply['created'] : 0), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . (isset($reply['created']) ? (int) $reply['created'] : 0) . '">' . htmlspecialchars(date('Y-m-d H:i', isset($reply['created']) ? (int) $reply['created'] : 0), ENT_QUOTES, 'UTF-8') . '</time></div>';
+        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time></span>';
+        if ($isWaiting) {
+            echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
+        }
+        echo '</div>';
         echo '<div class="moment-comment-text">' . renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '') . '</div>';
         echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
         renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);
@@ -306,15 +381,24 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                 $likeCount = isset($momentLikeCounts[$coid]) ? (int) $momentLikeCounts[$coid] : 0;
                 $replyCount = isset($momentReplyCounts[$coid]) ? (int) $momentReplyCounts[$coid] : 0;
                 $isLiked = !empty($momentLiked[$coid]);
+                $isWaitingMoment = isset($comment['status']) && (string) $comment['status'] === 'waiting';
+                $isOwnerMoment = isset($comment['authorId']) && (int) $comment['authorId'] === (int) $authorUid;
+                $momentAuthorName = $isOwnerMoment ? (string) $this->author->screenName : (isset($comment['author']) ? (string) $comment['author'] : '');
+                $momentAvatar = $isOwnerMoment ? $ownerAvatar : renderMomentAvatar(isset($comment['mail']) ? $comment['mail'] : '', $ownerAvatar, 48);
             ?>
-            <article class="moment-item" id="comment-<?php echo $coid; ?>" data-moment-id="<?php echo $coid; ?>">
+            <article class="moment-item<?php if ($isWaitingMoment): ?> is-waiting<?php endif; ?>" id="comment-<?php echo $coid; ?>" data-moment-id="<?php echo $coid; ?>">
                 <div class="moment-avatar">
-                    <img src="<?php echo htmlspecialchars($ownerAvatar, ENT_QUOTES, 'UTF-8'); ?>"
+                    <img src="<?php echo htmlspecialchars($momentAvatar, ENT_QUOTES, 'UTF-8'); ?>"
                          alt="avatar">
                 </div>
                 <div class="moment-content">
                     <div class="moment-header">
-                        <span class="moment-author"><?php $this->author->screenName(); ?></span>
+                        <span class="moment-author-stack">
+                            <span class="moment-author"><?php echo htmlspecialchars($momentAuthorName, ENT_QUOTES, 'UTF-8'); ?></span>
+                            <?php if ($isWaitingMoment): ?>
+                            <span class="moment-comment-status-note">您的评论正在等待审核</span>
+                            <?php endif; ?>
+                        </span>
                         <!-- <span class="moment-owner-badge" title="UP 主亲自发布"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span> -->
                     </div>
                     <div class="moment-text article-body">
@@ -354,8 +438,6 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
 
         <?php if ($this->allow('comment')): ?>
         <?php
-            $rememberAuthor = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'author') : trim((string) $this->remember('author', true));
-            $rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'mail') : trim((string) $this->remember('mail', true));
             $rememberUrl = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'url') : trim((string) $this->remember('url', true));
             $hasRememberedProfile = $rememberAuthor !== '' && $rememberMail !== '';
         ?>
@@ -402,9 +484,9 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     <label for="moment-reply-text">内容 *</label>
                     <textarea name="text" id="moment-reply-text" rows="3" placeholder="写一条评论…" required><?php $this->remember('text'); ?></textarea>
                 </div>
-                <?php if ($this->options->enabledCaptcha && !$isMomentManager): ?>
+                <?php if ($this->options->enabledCaptcha && !$isMomentManager && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
-                    <div id="captcha"></div><?php Geetest_Plugin::commentCaptchaRender(); ?>
+                    <?php qiwiRenderCaptcha(); ?>
                     <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                 </div>
                 <?php endif; ?>

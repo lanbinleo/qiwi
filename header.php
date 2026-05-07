@@ -171,6 +171,9 @@ if ($qiwiIsArticle) {
         'image' => [$qiwiOgImage],
     ];
 }
+
+$qiwiStyleVersion = @filemtime(__DIR__ . '/assets/css/style.css');
+$qiwiStyleAsset = 'assets/css/style.css' . ($qiwiStyleVersion ? '?v=' . $qiwiStyleVersion : '');
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($qiwiLang, ENT_QUOTES, 'UTF-8'); ?>">
@@ -181,7 +184,7 @@ if ($qiwiIsArticle) {
     <title><?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="<?php $this->options->themeUrl('assets/css/style.css'); ?>">
+    <link rel="stylesheet" href="<?php $this->options->themeUrl($qiwiStyleAsset); ?>">
     <?php if ($qiwiUseFontAwesome): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>
