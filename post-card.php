@@ -11,12 +11,14 @@ $wordCount = mb_strlen(strip_tags($content), 'UTF-8');
 $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
 $readingTime = max(1, round($wordCount / $speed));
 
-// 格式化字数显示
-if ($wordCount > 1000) {
-    $wordCountDisplay = number_format($wordCount / 1000, 1) . 'k字';
-} else {
-    $wordCountDisplay = $wordCount . '字';
-}
+$postStats = function_exists('qiwiGetPostStats')
+    ? qiwiGetPostStats($this->cid)
+    : array(
+        'views' => function_exists('qiwiGetPostViews') ? qiwiGetPostViews($this->cid) : 0,
+        'comments' => function_exists('qiwiGetCommentCountIncludingReplies') ? qiwiGetCommentCountIncludingReplies($this->cid) : (int) $this->commentsNum,
+    );
+$postViews = isset($postStats['views']) ? (int) $postStats['views'] : 0;
+$postCommentCount = isset($postStats['comments']) ? (int) $postStats['comments'] : (int) $this->commentsNum;
 
 // 判断是否显示头图
 $showThumbnail = $this->fields->showThumbnail;
@@ -30,13 +32,9 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             <div class="article-meta">
                 <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?></span>
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
-                <?php if ($this->categories): ?>
-                <?php $qiwiCategoryLinks = qiwiRenderTermLinks($this->categories, 'meta-category-link', 'category'); ?>
-                <?php if ($qiwiCategoryLinks !== ''): ?>
-                <span class="meta-category">
-                    <?php echo $qiwiCategoryLinks; ?>
-                </span>
-                <?php endif; ?>
+                <span><?php echo (int) $postViews; ?> 浏览</span>
+                <?php if ($postCommentCount > 0): ?>
+                <span><?php echo (int) $postCommentCount; ?> 评论</span>
                 <?php endif; ?>
                 <?php if ($this->fields->isSticky == 1): ?>
                 <span class="meta-sticky">置顶</span>

@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 1.4.9
+ * @version 1.4.10
  * @link https://maxqi.top
  */
 
@@ -167,6 +167,16 @@ if ($currentPage == 1) {
             $hasContent = true;
         }
     }
+}
+
+$postStatsCids = array();
+foreach ($postsToDisplay as $postData) {
+    if (!empty($postData['widget']) && isset($postData['widget']->cid)) {
+        $postStatsCids[] = (int) $postData['widget']->cid;
+    }
+}
+if (function_exists('qiwiPrimePostStatsCache')) {
+    qiwiPrimePostStatsCache($postStatsCids);
 }
 ?>
 

@@ -32,10 +32,22 @@ if ($qiwiIsThreadArchive) {
         </header>
 
         <?php if ($this->have()): ?>
+        <?php
+        $archivePosts = array();
+        $archivePostCids = array();
+        while ($this->next()) {
+            $archivePosts[] = clone $this;
+            $archivePostCids[] = (int) $this->cid;
+        }
+        if (function_exists('qiwiPrimePostStatsCache')) {
+            qiwiPrimePostStatsCache($archivePostCids);
+        }
+        ?>
         <ul class="article-list">
-            <?php while($this->next()): ?>
+            <?php foreach ($archivePosts as $archivePost): ?>
+                <?php foreach (get_object_vars($archivePost) as $key => $value) { $this->$key = $value; } ?>
                 <?php $this->need('post-card.php'); ?>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
         </ul>
 
         <!-- 分页导航 -->

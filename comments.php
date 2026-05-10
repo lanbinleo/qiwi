@@ -39,6 +39,10 @@ if (!function_exists('threadedComments')) {
         $commentClasses = 'comment-item';
         $commentLevel = isset($comments->levels) ? (int) $comments->levels : 0;
         $parentInfo = qiwi_get_comment_parent_info($comments);
+        $commentLocation = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($comments) : '';
+        $avatarUrl = function_exists('qiwiGetCommentAvatarUrl')
+            ? qiwiGetCommentAvatarUrl(isset($comments->mail) ? $comments->mail : '', 40)
+            : 'https://gravatar.loli.net/avatar/' . md5(isset($comments->mail) ? $comments->mail : '') . '?s=40&d=mp';
 
         if ($isWaitingComment) {
             $commentClasses .= ' is-waiting';
@@ -55,11 +59,11 @@ if (!function_exists('threadedComments')) {
         <div id="<?php $comments->theId(); ?>" class="<?php echo $commentClasses; ?>">
             <div class="comment-main">
                 <div class="comment-avatar">
-                    <img src="https://gravatar.loli.net/avatar/<?php echo md5($comments->mail); ?>?s=64&d=mp"
+                    <img src="<?php echo htmlspecialchars($avatarUrl, ENT_QUOTES, 'UTF-8'); ?>"
                          alt="avatar">
                 </div>
                 <div class="comment-content">
-                    <div class="comment-meta">
+                    <div class="comment-author-line">
                         <span class="comment-author-row">
                             <span class="comment-author"><?php $comments->author(); ?></span>
                             <?php if (!empty($parentInfo['author'])): ?>
@@ -67,19 +71,24 @@ if (!function_exists('threadedComments')) {
                             <a class="comment-reply-target" href="<?php echo htmlspecialchars($parentInfo['anchor'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($parentInfo['author'], ENT_QUOTES, 'UTF-8'); ?></a>
                             <?php endif; ?>
                         </span>
-                        <time class="comment-date"
-                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
-                              data-qiwi-local-time
-                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
-                        <?php if ($isWaitingComment): ?>
-                        <span class="comment-status-note">您的评论正在等待审核</span>
-                        <?php endif; ?>
                     </div>
                     <div class="comment-text">
                         <?php $comments->content(); ?>
                     </div>
-                    <div class="comment-reply">
+                    <div class="comment-footnote">
+                        <time class="comment-date"
+                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
+                              data-qiwi-local-time
+                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
+                        <?php if ($commentLocation !== ''): ?>
+                        <span class="comment-location"><?php echo htmlspecialchars($commentLocation, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                        <?php if ($isWaitingComment): ?>
+                        <span class="comment-status-note">您的评论正在等待审核</span>
+                        <?php endif; ?>
+                        <span class="comment-reply">
                         <?php $comments->reply('回复'); ?>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -97,7 +106,18 @@ if (!function_exists('threadedComments')) {
 
     <?php if ($comments->have()): ?>
     <h3 class="comments-title">
-        <?php $comments->num(_t('暂无评论'), _t('仅有一条评论'), _t('已有 %d 条评论')); ?>
+        <?php
+        $commentTotal = function_exists('qiwiGetCommentCountIncludingReplies')
+            ? qiwiGetCommentCountIncludingReplies($this->cid)
+            : 0;
+        if ($commentTotal <= 0) {
+            $comments->num(_t('暂无评论'), _t('仅有一条评论'), _t('已有 %d 条评论'));
+        } elseif ($commentTotal === 1) {
+            _e('仅有一条评论');
+        } else {
+            echo sprintf(_t('已有 %d 条评论'), $commentTotal);
+        }
+        ?>
     </h3>
 
     <?php $comments->listComments(['before' => '<div class="comment-list">', 'after' => '</div>']); ?>

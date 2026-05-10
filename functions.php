@@ -356,6 +356,7 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'showUpdateLog' => (string) qiwiGetThemeOptionSetting('showUpdateLog', '1') === '0' ? '0' : '1',
             'externalLinkStats' => function_exists('qiwiGetExternalLinkStats') ? qiwiGetExternalLinkStats(30) : [],
             'momentLikeRecords' => function_exists('qiwiGetMomentLikeRecords') ? qiwiGetMomentLikeRecords(100) : [],
+            'ipLocationRebuildEndpoint' => qiwiGetThemeActionEndpoint('rebuild-ip-locations'),
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
@@ -447,6 +448,39 @@ if (!function_exists('qiwiGetExternalLinkGotoBase')) {
     }
 }
 
+if (!function_exists('qiwiGetThemeActionEndpoint')) {
+    function qiwiGetThemeActionEndpoint($action, $options = null)
+    {
+        $action = trim((string) $action);
+        if ($action === '') {
+            return '';
+        }
+
+        try {
+            if ($options === null) {
+                $options = Typecho_Widget::widget('Widget_Options');
+            }
+
+            $actionTable = [];
+            if (isset($options->actionTable)) {
+                $actionTable = @unserialize($options->actionTable);
+                $actionTable = is_array($actionTable) ? $actionTable : [];
+            }
+
+            if (!isset($actionTable['qiwi-theme']) || $actionTable['qiwi-theme'] !== 'QiwiTheme_Action') {
+                return '';
+            }
+
+            Typecho_Widget::widget('Widget_Security')->to($security);
+            return $security->getIndex('/action/qiwi-theme?do=' . rawurlencode($action));
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+}
+
 if (!function_exists('qiwiAdminEditorShortcodeAssets')) {
     function qiwiAdminEditorShortcodeAssets()
     {
@@ -493,7 +527,7 @@ function themeConfig($form)
             'ShowArchive'        => _t('显示归档'),
             'ShowTags'           => _t('显示标签'),
         ],
-        ['ShowRecentPosts', 'ShowCategory', 'ShowArchive', 'ShowTags'],
+        ['ShowRecentPosts', 'ShowCategory', 'ShowTags'],
         _t('侧边栏显示')
     );
 
@@ -525,6 +559,39 @@ function themeConfig($form)
         _t('显示在侧边栏头像下方的一小段文字。留空时兼容旧版“关于页面简介”。')
     );
     $form->addInput($sidebarProfileText);
+
+    $showSidebarAnnouncement = new Typecho_Widget_Helper_Form_Element_Radio(
+        'showSidebarAnnouncement',
+        array(
+            1 => _t('显示'),
+            0 => _t('不显示')
+        ),
+        0,
+        _t('侧边栏 - 公告显示'),
+        _t('关闭或公告内容留空时，前台不会输出公告区域。')
+    );
+    $form->addInput($showSidebarAnnouncement);
+
+    $sidebarAnnouncement = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'sidebarAnnouncement',
+        null,
+        '',
+        _t('侧边栏 - 公告'),
+        _t('显示在个人信息下方。支持魔法标签：[PV]、[UV]、[TODAY_PV]、[TODAY_UV]、[PAGE_PV]、[PAGE_UV]、[province]。')
+    );
+    $form->addInput($sidebarAnnouncement);
+
+    $enableBusuanzi = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableBusuanzi',
+        array(
+            1 => _t('加载'),
+            0 => _t('不加载')
+        ),
+        0,
+        _t('不蒜子统计脚本'),
+        _t('开启后主题会加载 busuanzi.cc 的统计脚本；如果你已通过“JS 追踪代码”手动加入，可保持关闭。')
+    );
+    $form->addInput($enableBusuanzi);
 
     // 一言打字机效果
     $enableHitokoto = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -2273,6 +2340,67 @@ if (!function_exists('qiwiGetSidebarProfileText')) {
     }
 }
 
+if (!function_exists('qiwiBusuanziScriptEnabled')) {
+    function qiwiBusuanziScriptEnabled($widget = null)
+    {
+        return (string) qiwiGetOptionValue($widget, 'enableBusuanzi', '0') === '1';
+    }
+}
+
+if (!function_exists('qiwiGetCurrentVisitorLocationLabel')) {
+    function qiwiGetCurrentVisitorLocationLabel()
+    {
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'currentVisitorLocationLabelFromCache')) {
+            $label = QiwiTheme_Plugin::currentVisitorLocationLabelFromCache();
+            return $label !== '' ? $label : '未知';
+        }
+
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'currentVisitorLocationLabel')) {
+            $label = QiwiTheme_Plugin::currentVisitorLocationLabel();
+            return $label !== '' ? $label : '未知';
+        }
+
+        return '未知';
+    }
+}
+
+if (!function_exists('qiwiRenderSidebarAnnouncement')) {
+    function qiwiRenderSidebarAnnouncement($widget)
+    {
+        if ((string) qiwiGetOptionValue($widget, 'showSidebarAnnouncement', '0') !== '1') {
+            return '';
+        }
+
+        $text = trim((string) qiwiGetOptionValue($widget, 'sidebarAnnouncement', ''));
+        if ($text === '') {
+            return '';
+        }
+
+        $tokens = [
+            '[PV]' => '<span id="busuanzi_site_pv">--</span>',
+            '[UV]' => '<span id="busuanzi_site_uv">--</span>',
+            '[TODAY_PV]' => '<span id="busuanzi_today_site_pv">--</span>',
+            '[TODAY_UV]' => '<span id="busuanzi_today_site_uv">--</span>',
+            '[PAGE_PV]' => '<span id="busuanzi_page_pv">--</span>',
+            '[PAGE_UV]' => '<span id="busuanzi_page_uv">--</span>',
+            '[province]' => htmlspecialchars(qiwiGetCurrentVisitorLocationLabel(), ENT_QUOTES, 'UTF-8'),
+        ];
+
+        $parts = [];
+        foreach (preg_split('/\R/u', $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $escaped = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
+            $parts[] = '<p>' . strtr($escaped, $tokens) . '</p>';
+        }
+
+        return implode('', $parts);
+    }
+}
+
 if (!function_exists('qiwiNormalizeSidebarEmailUrl')) {
     function qiwiNormalizeSidebarEmailUrl($value)
     {
@@ -2764,6 +2892,204 @@ if (!function_exists('qiwiGetPostViewsFieldName')) {
     function qiwiGetPostViewsFieldName()
     {
         return 'qiwiViews';
+    }
+}
+
+if (!function_exists('qiwiFormatPostWordCount')) {
+    function qiwiFormatPostWordCount($wordCount)
+    {
+        $wordCount = max(0, (int) $wordCount);
+        if ($wordCount >= 10000) {
+            return rtrim(rtrim(number_format($wordCount / 10000, 1), '0'), '.') . '万字';
+        }
+        if ($wordCount >= 1000) {
+            return rtrim(rtrim(number_format($wordCount / 1000, 1), '0'), '.') . 'k字';
+        }
+
+        return $wordCount . '字';
+    }
+}
+
+if (!function_exists('qiwiGetCommentAvatarUrl')) {
+    function qiwiGetCommentAvatarUrl($mail, $size = 48)
+    {
+        $mail = strtolower(trim((string) $mail));
+        $size = max(24, min(160, (int) $size));
+        $default = 'mp';
+
+        if (preg_match('/^([1-9][0-9]{4,11})@qq\.com$/i', $mail, $matches)) {
+            $qqAvatar = 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100';
+            $default = rawurlencode($qqAvatar);
+        }
+
+        return 'https://gravatar.loli.net/avatar/' . md5($mail) . '?s=' . $size . '&d=' . $default;
+    }
+}
+
+if (!function_exists('qiwiGetCommentCountIncludingReplies')) {
+    function qiwiGetCommentCountIncludingReplies($cid)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0) {
+            return 0;
+        }
+
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+            $row = $db->fetchRow($db->select('COUNT(coid) AS total')
+                ->from($prefix . 'comments')
+                ->where('cid = ?', $cid)
+                ->where('status = ?', 'approved')
+                ->where('type = ?', 'comment'));
+
+            return !empty($row['total']) ? (int) $row['total'] : 0;
+        } catch (Exception $e) {
+            return 0;
+        } catch (Throwable $e) {
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('qiwiPrimePostStatsCache')) {
+    function qiwiPrimePostStatsCache(array $cids)
+    {
+        static $cache = array(
+            'views' => array(),
+            'comments' => array(),
+        );
+
+        $cids = array_values(array_unique(array_filter(array_map('intval', $cids))));
+        if (empty($cids)) {
+            return $cache;
+        }
+
+        $missingViews = array();
+        $missingComments = array();
+        foreach ($cids as $cid) {
+            if (!array_key_exists($cid, $cache['views'])) {
+                $missingViews[] = $cid;
+            }
+            if (!array_key_exists($cid, $cache['comments'])) {
+                $missingComments[] = $cid;
+            }
+        }
+
+        if (empty($missingViews) && empty($missingComments)) {
+            return $cache;
+        }
+
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+
+            if (!empty($missingViews)) {
+                foreach ($missingViews as $cid) {
+                    $cache['views'][$cid] = 0;
+                }
+
+                $viewRows = $db->fetchAll($db->select('cid', 'type', 'int_value', 'str_value', 'float_value')
+                    ->from($prefix . 'fields')
+                    ->where('cid IN ?', $missingViews)
+                    ->where('name = ?', qiwiGetPostViewsFieldName()));
+
+                foreach ($viewRows as $row) {
+                    $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                    if ($cid <= 0) {
+                        continue;
+                    }
+
+                    $type = isset($row['type']) ? (string) $row['type'] : '';
+                    if ($type === 'int') {
+                        $cache['views'][$cid] = max(0, (int) $row['int_value']);
+                        continue;
+                    }
+
+                    if ($type === 'float') {
+                        $cache['views'][$cid] = max(0, (int) $row['float_value']);
+                        continue;
+                    }
+
+                    if ($row['str_value'] !== null && $row['str_value'] !== '') {
+                        $cache['views'][$cid] = max(0, (int) $row['str_value']);
+                        continue;
+                    }
+
+                    if ($row['int_value'] !== null) {
+                        $cache['views'][$cid] = max(0, (int) $row['int_value']);
+                    }
+                }
+            }
+
+            if (!empty($missingComments)) {
+                foreach ($missingComments as $cid) {
+                    $cache['comments'][$cid] = 0;
+                }
+
+                $commentRows = $db->fetchAll($db->select('cid', 'COUNT(coid) AS total')
+                    ->from($prefix . 'comments')
+                    ->where('cid IN ?', $missingComments)
+                    ->where('status = ?', 'approved')
+                    ->where('type = ?', 'comment')
+                    ->group('cid'));
+
+                foreach ($commentRows as $row) {
+                    $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                    if ($cid > 0) {
+                        $cache['comments'][$cid] = max(0, (int) $row['total']);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return $cache;
+    }
+}
+
+if (!function_exists('qiwiGetPostStats')) {
+    function qiwiGetPostStats($cid)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0) {
+            return array('views' => 0, 'comments' => 0);
+        }
+
+        $cache = qiwiPrimePostStatsCache(array($cid));
+        return array(
+            'views' => isset($cache['views'][$cid]) ? (int) $cache['views'][$cid] : 0,
+            'comments' => isset($cache['comments'][$cid]) ? (int) $cache['comments'][$cid] : 0,
+        );
+    }
+}
+
+if (!function_exists('qiwiGetCommentLocationLabel')) {
+    function qiwiGetCommentLocationLabel($comment)
+    {
+        $ip = '';
+        if (is_object($comment) && isset($comment->ip)) {
+            $ip = (string) $comment->ip;
+        } elseif (is_array($comment) && isset($comment['ip'])) {
+            $ip = (string) $comment['ip'];
+        }
+
+        if ($ip === '' || !class_exists('QiwiTheme_Plugin')) {
+            return '未知';
+        }
+
+        if (method_exists('QiwiTheme_Plugin', 'ipLocationLabelFromCache')) {
+            $label = QiwiTheme_Plugin::ipLocationLabelFromCache($ip);
+            return $label !== '' ? $label : '未知';
+        }
+
+        if (method_exists('QiwiTheme_Plugin', 'ipLocationLabel')) {
+            $label = QiwiTheme_Plugin::ipLocationLabel($ip);
+            return $label !== '' ? $label : '未知';
+        }
+
+        return '未知';
     }
 }
 

@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  MaxQiwi
- * @version 1.4.9
+ * @version 1.4.10
  * @link    https://www.maxqi.top/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
