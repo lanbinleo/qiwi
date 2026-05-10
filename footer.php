@@ -52,6 +52,9 @@ if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
 </footer>
 
 <?php echo $versionDrawerOutput; ?>
+<?php if (function_exists('qiwiBusuanziScriptEnabled') && qiwiBusuanziScriptEnabled($this)): ?>
+<script defer src="//cdn.busuanzi.cc/busuanzi/3.6.9/busuanzi.min.js"></script>
+<?php endif; ?>
 
 <!-- 主题切换脚本 -->
 <script>
@@ -1307,9 +1310,9 @@ function initQiwiFolds() {
 
 function initQiwiExternalLinks() {
     var siteUrl = <?php echo json_encode(rtrim((string) $this->options->siteUrl, '/') . '/', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-    var configuredGotoBase = <?php echo json_encode(function_exists('qiwiGetExternalLinkGotoBase') ? qiwiGetExternalLinkGotoBase($this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var configuredRecordEndpoint = <?php echo json_encode(function_exists('qiwiGetThemeActionEndpoint') ? qiwiGetThemeActionEndpoint('external-link', $this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var siteHost = '';
-    var gotoBase = String(configuredGotoBase || '');
+    var recordEndpoint = String(configuredRecordEndpoint || '');
 
     try {
         siteHost = normalizeHost(new URL(siteUrl, window.location.href).hostname);
@@ -1333,20 +1336,6 @@ function initQiwiExternalLinks() {
         } catch (error) {
             return false;
         }
-    }
-
-    function encodeBase64Utf8(value) {
-        value = String(value || '');
-        try {
-            return window.btoa(unescape(encodeURIComponent(value)));
-        } catch (error) {
-            return window.btoa(value);
-        }
-    }
-
-    function gotoUrl(url) {
-        if (!gotoBase) return url;
-        return gotoBase + (gotoBase.indexOf('?') === -1 ? '?' : '&') + 'url=' + encodeURIComponent(encodeBase64Utf8(url));
     }
 
     function displayDomain(url) {
@@ -1379,12 +1368,38 @@ function initQiwiExternalLinks() {
         anchor.dataset.qiwiExternalEnhanced = '1';
         anchor.dataset.qiwiExternalUrl = original;
         anchor.classList.add('qiwi-external-link');
-        if (gotoBase) {
-            anchor.setAttribute('href', gotoUrl(original));
-        }
+        anchor.setAttribute('href', original);
         anchor.setAttribute('title', original);
         anchor.setAttribute('target', '_blank');
         anchor.setAttribute('rel', 'noopener noreferrer');
+        if (recordEndpoint) {
+            anchor.addEventListener('click', function() {
+                recordExternalClick(original);
+            });
+        }
+    }
+
+    function recordExternalClick(url) {
+        if (!recordEndpoint || !url) return;
+
+        var payload = new URLSearchParams();
+        payload.set('url', url);
+        payload.set('source', window.location.pathname + window.location.search);
+
+        try {
+            if (navigator.sendBeacon && navigator.sendBeacon(recordEndpoint, payload)) {
+                return;
+            }
+        } catch (error) {}
+
+        try {
+            fetch(recordEndpoint, {
+                method: 'POST',
+                body: payload,
+                keepalive: true,
+                credentials: 'same-origin'
+            }).catch(function() {});
+        } catch (error) {}
     }
 
     function autolinkTextNode(node) {
@@ -1432,9 +1447,9 @@ function initQiwiExternalLinks() {
         node.parentNode.replaceChild(fragment, node);
     }
 
-    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .comment-text, .post-copyright-body, .about-bio').forEach(function(scope) {
-        scope.querySelectorAll('a[href]').forEach(enhanceAnchor);
+    document.querySelectorAll('a[href]').forEach(enhanceAnchor);
 
+    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .moment-comment-text, .comment-text, .post-copyright-body, .about-bio, .friends-extra, .sidebar-announcement-body').forEach(function(scope) {
         var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
             acceptNode: function(node) {
                 return isSkippableTextParent(node.parentElement)

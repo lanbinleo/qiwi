@@ -286,6 +286,10 @@ function renderMomentLinkDomain($host) {
 function renderMomentAvatar($mail, $fallback, $size = 48) {
     $mail = trim((string) $mail);
     if ($mail !== '') {
+        if (function_exists('qiwiGetCommentAvatarUrl')) {
+            return qiwiGetCommentAvatarUrl($mail, $size);
+        }
+
         return 'https://gravatar.loli.net/avatar/' . md5(strtolower($mail)) . '?s=' . (int) $size . '&d=mp';
     }
 
@@ -310,6 +314,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         $coid = isset($reply['coid']) ? (int) $reply['coid'] : 0;
         $isWaiting = isset($reply['status']) && (string) $reply['status'] === 'waiting';
         $created = isset($reply['created']) ? (int) $reply['created'] : 0;
+        $location = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($reply) : '';
         echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . '" id="comment-' . $coid . '">';
         echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
         echo '<div class="moment-comment-body">';
@@ -317,7 +322,11 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         // if ($isOwner) {
         //     echo '<span class="moment-owner-badge" title="UP 主亲自回复"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span>';
         // }
-        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time></span>';
+        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time>';
+        if ($location !== '') {
+            echo '<span class="moment-comment-location">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '</span>';
+        }
+        echo '</span>';
         if ($isWaiting) {
             echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
         }

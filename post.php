@@ -37,16 +37,15 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                     <?php $this->title(); ?>
                 </h1>
                 <div class="article-header-meta">
-                    <img src="https://gravatar.loli.net/avatar/<?php echo md5($this->author->mail); ?>?s=96&d=mp" alt="<?php $this->author(); ?>" class="author-avatar">
+                    <img src="<?php echo htmlspecialchars(function_exists('qiwiGetCommentAvatarUrl') ? qiwiGetCommentAvatarUrl($this->author->mail, 96) : 'https://gravatar.loli.net/avatar/' . md5($this->author->mail) . '?s=96&d=mp', ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->author(); ?>" class="author-avatar">
                     <div class="author-info">
                         <span class="author-name"><?php $this->author(); ?></span>
                         <span class="post-date"><?php $this->date('Y-m-d H:i'); ?> · <?php
                             $content = $this->content;
                             $wordCount = mb_strlen(strip_tags($content), 'UTF-8');
-                            $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
-                            $readingTime = max(1, round($wordCount / $speed));
-                            echo $readingTime;
-                        ?> 分钟阅读 · <?php echo (int) $postViews; ?> 次浏览 · <?php echo (int) $this->commentsNum; ?> 条评论</span>
+                            $articleCommentCount = function_exists('qiwiGetCommentCountIncludingReplies') ? qiwiGetCommentCountIncludingReplies($this->cid) : (int) $this->commentsNum;
+                            echo function_exists('qiwiFormatPostWordCount') ? qiwiFormatPostWordCount($wordCount) : (int) $wordCount . '字';
+                        ?> · <?php echo (int) $postViews; ?> 次浏览<?php if ($articleCommentCount > 0): ?> · <a href="#comments"><?php echo (int) $articleCommentCount; ?> 条评论</a><?php endif; ?></span>
                     </div>
                 </div>
             </header>

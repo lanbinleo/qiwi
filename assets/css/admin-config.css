@@ -604,6 +604,27 @@
     white-space: nowrap;
 }
 
+.qiwi-ip-location-tools {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid #e1e7ea;
+    border-radius: 8px;
+    background: #fbfdfe;
+}
+
+.qiwi-ip-location-tools strong {
+    color: #333;
+    font-size: 15px;
+}
+
+.qiwi-ip-location-tools p,
+.qiwi-ip-location-tools [data-ip-location-status] {
+    margin: 0;
+    color: #777;
+    font-size: 12px;
+}
+
 .qiwi-like-records-row {
     grid-template-columns: 130px minmax(140px, 1fr) minmax(190px, 1.2fr) minmax(260px, 1.6fr) minmax(120px, 0.8fr);
     min-width: 900px;

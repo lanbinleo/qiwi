@@ -54,6 +54,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - Do not edit `reference/` files unless the task explicitly asks for it.
 - Plugin development source lives under this theme, for example `plugins/QiwiSitemap/` or `plugins/Geetest/`. Do not confuse it with the local Typecho runtime plugin directory such as `D:\phpstudy_pro\WWW\localhost\usr\plugins\QiwiSitemap`, which is only a deployment/testing copy unless the user explicitly asks to sync or inspect it.
 - `plugins/QiwiTheme/` is the Qiwi theme companion plugin. When a feature cannot be solved reliably inside theme templates because it needs routes, actions, storage tables, admin APIs, or Typecho lifecycle hooks, put that logic in `QiwiTheme` instead of unrelated plugins such as `QiwiSitemap`.
+- When changing companion plugin code for local testing, sync `plugins/*` into the local Typecho test runtime at `D:\phpstudy_pro\WWW\localhost\usr\plugins` before reporting completion. Use `scripts/sync-local-plugins.ps1`; it also refreshes selected plugin registrations so newly added hooks/actions/routes are written to Typecho's `options.plugins` record without deleting existing plugin configuration.
 
 ## Release Process
 

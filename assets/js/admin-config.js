@@ -989,8 +989,8 @@
         if (!rows.length) {
             container.innerHTML =
                 '<section class="qiwi-link-stats-empty">' +
-                    '<strong>还没有外链跳转记录</strong>' +
-                    '<p>前台内容外链被点击后，会先经过 /goto 记录，再跳转到真实地址。</p>' +
+                    '<strong>还没有外链点击记录</strong>' +
+                    '<p>前台外链被点击时，会通过后台请求记录，不再跳到中间页。</p>' +
                 '</section>';
             return;
         }
@@ -1013,6 +1013,110 @@
                     '</div>';
                 }).join('') +
             '</div>';
+    }
+
+    function initIpLocationTools(panel) {
+        var container = $('[data-qiwi-ip-location-tools]', panel);
+        if (!container || container.dataset.qiwiIpToolsReady === '1') return;
+
+        container.dataset.qiwiIpToolsReady = '1';
+        var config = getAdminConfig();
+        var endpoint = config.ipLocationRebuildEndpoint || '';
+
+        if (!endpoint) {
+            container.innerHTML =
+                '<section class="qiwi-link-stats-empty">' +
+                    '<strong>IP 归属地工具不可用</strong>' +
+                    '<p>启用 Qiwi Theme 伴生插件后，可以在这里重建评论 IP 归属地缓存。</p>' +
+                '</section>';
+            return;
+        }
+
+        container.innerHTML =
+            '<section class="qiwi-ip-location-tools">' +
+                '<strong>评论 IP 归属地缓存</strong>' +
+                '<p>评论发布时会写入缓存；旧评论或缓存缺失时，可在这里重新整理。</p>' +
+                '<div class="qiwi-admin-toolbar">' +
+                    '<button type="button" class="qiwi-admin-button is-primary" data-ip-location-rebuild="all"><i class="fa-solid fa-rotate" aria-hidden="true"></i>全量刷新</button>' +
+                    '<button type="button" class="qiwi-admin-button" data-ip-location-rebuild="missing"><i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i>补齐未缓存</button>' +
+                    '<span data-ip-location-status></span>' +
+                '</div>' +
+            '</section>';
+
+        var status = $('[data-ip-location-status]', container);
+        var buttons = $$('[data-ip-location-rebuild]', container);
+        if (!buttons.length || !status) return;
+
+        function setButtonsDisabled(disabled) {
+            buttons.forEach(function(other) {
+                other.disabled = disabled;
+            });
+        }
+
+        function formatProgress(label, totals, result) {
+            var scanned = result.scanned || 0;
+            var updated = result.updated || 0;
+            var failed = result.failed || 0;
+            var total = result.pending || result.total || 0;
+            totals.scanned += scanned;
+            totals.updated += updated;
+            totals.failed += failed;
+            totals.total = Math.max(totals.total, total);
+
+            var prefix = label + '中';
+            if (totals.total > 0) {
+                prefix += '：已处理 ' + Math.min(totals.scanned, totals.total) + ' / ' + totals.total;
+            } else {
+                prefix += '：没有需要处理的 IP';
+            }
+
+            return prefix + '，写入 ' + totals.updated + ' 个，失败 ' + totals.failed + ' 个。';
+        }
+
+        function runBatch(mode, label, totals) {
+            var payload = new URLSearchParams();
+            payload.set('mode', mode);
+            payload.set('limit', '20');
+
+            return fetch(endpoint, {
+                method: 'POST',
+                body: payload,
+                credentials: 'same-origin'
+            }).then(function(response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            }).then(function(payload) {
+                var result = payload && payload.result ? payload.result : {};
+                status.textContent = formatProgress(label, totals, result);
+
+                if (result.hasMore && (result.updated || result.scanned === 0)) {
+                    return runBatch(mode, label, totals);
+                }
+
+                if (result.hasMore && result.failed) {
+                    status.textContent = label + '暂停：已处理 ' + totals.scanned + ' 个，写入 ' + totals.updated + ' 个，失败 ' + totals.failed + ' 个。可稍后重试。';
+                    return;
+                }
+
+                status.textContent = label + '完成：处理 ' + totals.scanned + ' 个，写入 ' + totals.updated + ' 个，失败 ' + totals.failed + ' 个。';
+            });
+        }
+
+        buttons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var mode = button.getAttribute('data-ip-location-rebuild') || 'missing';
+                var label = mode === 'all' ? '全量刷新' : '补齐未缓存';
+                var totals = { scanned: 0, updated: 0, failed: 0, total: 0 };
+                setButtonsDisabled(true);
+                status.textContent = '正在' + label + '...';
+
+                runBatch(mode, label, totals).catch(function() {
+                    status.textContent = label + '失败，请稍后重试。';
+                }).then(function() {
+                    setButtonsDisabled(false);
+                });
+            });
+        });
     }
 
     function initMomentLikeRecords(panel) {
@@ -1694,6 +1798,9 @@
         'enableTravellings',
         'sidebarProfileAvatar',
         'sidebarProfileText',
+        'showSidebarAnnouncement',
+        'sidebarAnnouncement',
+        'enableBusuanzi',
         'sidebarBlock',
         'jikePosition',
         'jikeTimeMode',
@@ -1726,6 +1833,7 @@
         logoUrl: '留空时导航栏仅显示站点标题',
         sidebarProfileAvatar: '留空时使用“关于页面 - 头像”，再留空使用默认头像',
         sidebarProfileText: '留空时使用“关于页面 - 简介”',
+        sidebarAnnouncement: '留空时不显示公告区域',
         sidebarMomentCount: '4',
         footerInfo: '留空时使用站点描述',
         defaultCopyrightInfo: '留空时使用主题内置版权说明',
@@ -2570,7 +2678,8 @@
                         '</div>' +
                         '<div class="qiwi-admin-nav-group">' +
                             '<span class="qiwi-admin-nav-label">运维</span>' +
-                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links" data-qiwi-title="外链统计" data-qiwi-desc="伴生插件记录的外链跳转数据。"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>外链统计</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="links" data-qiwi-title="外链统计" data-qiwi-desc="伴生插件记录的外链点击数据。"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>外链统计</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="ip-location" data-qiwi-title="IP 归属地" data-qiwi-desc="评论 IP 归属地缓存写入。"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>IP 归属地</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="likes" data-qiwi-title="点赞记录" data-qiwi-desc="说说点赞身份、邮箱 hash 与评论匹配。"><i class="fa-regular fa-heart" aria-hidden="true"></i><span>点赞记录</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security" data-qiwi-title="后台与安全" data-qiwi-desc="版本提示、验证码与后台开关。"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>后台与安全</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw" data-qiwi-title="原始数据" data-qiwi-desc="结构化编辑器背后的兼容数据。"><i class="fa-solid fa-code" aria-hidden="true"></i><span>原始数据</span></button>' +
@@ -2623,6 +2732,7 @@
                         '<div data-qiwi-book-list></div>' +
                     '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="ip-location"><div class="qiwi-link-stats" data-qiwi-ip-location-tools></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="likes"><div class="qiwi-link-stats qiwi-like-records" data-qiwi-moment-like-records></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
@@ -2633,7 +2743,7 @@
 
         moveFields(['homeHeroEyebrow', 'homeHeroLines', 'homeHeroQuote', 'homeHeroSwitchInterval', 'homeHeroAnimation', 'homeHeroTypingSpeed', 'homeHeroDeletingSpeed', 'homeHeroTypingPause', 'homeHeroHitokotoMode'], $('[data-qiwi-home-fields]', panel));
         moveFields(['logoUrl', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
-        moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
+        moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
         moveFields(['footerInfo', 'defaultCopyrightInfo', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
@@ -2655,6 +2765,7 @@
 
         initTabs(panel);
         initExternalLinkStats(panel);
+        initIpLocationTools(panel);
         initMomentLikeRecords(panel);
         var editors = {
             nav: initNavEditor(panel, navTextarea),

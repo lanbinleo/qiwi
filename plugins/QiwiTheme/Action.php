@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isGotoRequest() || $this->isMomentLikeRequest()) {
+        if ($this->isGotoRequest() || $this->isMomentLikeRequest() || $this->isExternalLinkRequest()) {
             return;
         }
 
@@ -19,12 +19,16 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         if ($this->request->is('do=goto')) {
             $this->goto();
         }
+        if ($this->request->is('do=external-link')) {
+            $this->externalLink();
+        }
 
         Typecho_Widget::widget('Widget_Security')->protect();
         $this->on($this->request->is('do=read-thread'))->readThread();
         $this->on($this->request->is('do=save-thread'))->saveThread();
         $this->on($this->request->is('do=posts'))->posts();
         $this->on($this->request->is('do=moment-like'))->momentLike();
+        $this->on($this->request->is('do=rebuild-ip-locations'))->rebuildIpLocations();
         $this->json(array('success' => false, 'message' => 'Unknown action'), 404);
     }
 
@@ -36,8 +40,21 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             $this->response->throwContent("Invalid external link\n", 'text/plain');
         }
 
-        QiwiTheme_Plugin::recordExternalLinkClick($url);
+        QiwiTheme_Plugin::recordExternalLinkClick($url, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
         $this->response->redirect($url);
+    }
+
+    public function externalLink()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        Typecho_Widget::widget('Widget_Security')->protect();
+        $url = trim((string) $this->request->get('url', ''));
+        $source = trim((string) $this->request->get('source', ''));
+        $ok = QiwiTheme_Plugin::recordExternalLinkClick($url, $source);
+        $this->json(array('success' => $ok));
     }
 
     public function readThread()
@@ -143,6 +160,21 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             'coid' => $coid,
             'liked' => !empty($result['liked']),
             'count' => isset($result['count']) ? (int) $result['count'] : 0,
+        ));
+    }
+
+    public function rebuildIpLocations()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        $limit = (int) $this->request->get('limit', 20);
+        $mode = trim((string) $this->request->get('mode', 'missing'));
+        $result = QiwiTheme_Plugin::rebuildIpLocationCache($limit, $mode);
+        $this->json(array(
+            'success' => true,
+            'result' => $result,
         ));
     }
 
@@ -316,6 +348,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     private function isMomentLikeRequest()
     {
         return $this->request && $this->request->is('do=moment-like');
+    }
+
+    private function isExternalLinkRequest()
+    {
+        return $this->request && $this->request->is('do=external-link');
     }
 
     private function json($payload, $status = 200)
