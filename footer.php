@@ -1007,6 +1007,48 @@ function initCommentProfile() {
     });
 }
 
+function initCommentTargetHighlight() {
+    var highlightedClass = 'is-highlighted';
+
+    function highlightComment(target) {
+        if (!target) return;
+
+        target.classList.remove(highlightedClass);
+        target.offsetHeight;
+        target.classList.add(highlightedClass);
+    }
+
+    document.querySelectorAll('.comment-reply-target[href^="#"]').forEach(function(link) {
+        link.addEventListener('click', function(event) {
+            var hash = link.getAttribute('href');
+            if (!hash || hash === '#') return;
+
+            var target = document.getElementById(hash.slice(1));
+            if (!target) return;
+
+            event.preventDefault();
+            if (history.pushState) {
+                history.pushState(null, '', hash);
+            } else {
+                window.location.hash = hash;
+            }
+
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(function() {
+                highlightComment(target);
+            }, 260);
+        });
+    });
+
+    document.querySelectorAll('.comment-item').forEach(function(item) {
+        item.addEventListener('animationend', function(event) {
+            if (event.animationName === 'qiwiCommentHighlight') {
+                item.classList.remove(highlightedClass);
+            }
+        });
+    });
+}
+
 function initArticleImages() {
     var images = document.querySelectorAll('.article-body img');
     if (!images.length) return;
@@ -1502,6 +1544,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initHomeHero();
     initHomeJike();
     initCommentProfile();
+    initCommentTargetHighlight();
     initArticleImages();
     initQiwiFolds();
     initQiwiExternalLinks();

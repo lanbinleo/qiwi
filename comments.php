@@ -6,6 +6,90 @@ if (!function_exists('qiwi_capture_remember')) {
         return trim((string) $widget->remember($key, true));
     }
 }
+
+if (!function_exists('qiwi_get_comment_parent_info')) {
+    function qiwi_get_comment_parent_info($comments) {
+        $parentId = isset($comments->parent) ? (int) $comments->parent : 0;
+
+        if ($parentId <= 0) {
+            return null;
+        }
+
+        static $parentInfo = [];
+        if (array_key_exists($parentId, $parentInfo)) {
+            return $parentInfo[$parentId];
+        }
+
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $row = $db->fetchRow($db->select('coid', 'type', 'author')->from('table.comments')->where('coid = ?', $parentId)->limit(1));
+        $parentInfo[$parentId] = !empty($row['author']) ? [
+            'author' => (string) $row['author'],
+            'anchor' => '#' . (!empty($row['type']) ? (string) $row['type'] : 'comment') . '-' . (int) $row['coid'],
+        ] : null;
+
+        return $parentInfo[$parentId];
+    }
+}
+
+if (!function_exists('threadedComments')) {
+    function threadedComments($comments, $singleCommentOptions) {
+        $commentStatus = isset($comments->status) ? (string) $comments->status : '';
+        $isWaitingComment = $commentStatus === 'waiting';
+        $commentCreated = isset($comments->created) ? (int) $comments->created : 0;
+        $commentClasses = 'comment-item';
+        $commentLevel = isset($comments->levels) ? (int) $comments->levels : 0;
+        $parentInfo = qiwi_get_comment_parent_info($comments);
+
+        if ($isWaitingComment) {
+            $commentClasses .= ' is-waiting';
+        }
+
+        if ($commentLevel > 0) {
+            $commentClasses .= ' comment-child';
+        }
+
+        if ($commentLevel > 1) {
+            $commentClasses .= ' comment-child-flattened';
+        }
+        ?>
+        <div id="<?php $comments->theId(); ?>" class="<?php echo $commentClasses; ?>">
+            <div class="comment-main">
+                <div class="comment-avatar">
+                    <img src="https://gravatar.loli.net/avatar/<?php echo md5($comments->mail); ?>?s=64&d=mp"
+                         alt="avatar">
+                </div>
+                <div class="comment-content">
+                    <div class="comment-meta">
+                        <span class="comment-author-row">
+                            <span class="comment-author"><?php $comments->author(); ?></span>
+                            <?php if (!empty($parentInfo['author'])): ?>
+                            <span class="comment-reply-separator" aria-hidden="true">&gt;</span>
+                            <a class="comment-reply-target" href="<?php echo htmlspecialchars($parentInfo['anchor'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($parentInfo['author'], ENT_QUOTES, 'UTF-8'); ?></a>
+                            <?php endif; ?>
+                        </span>
+                        <time class="comment-date"
+                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
+                              data-qiwi-local-time
+                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
+                        <?php if ($isWaitingComment): ?>
+                        <span class="comment-status-note">您的评论正在等待审核</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="comment-text">
+                        <?php $comments->content(); ?>
+                    </div>
+                    <div class="comment-reply">
+                        <?php $comments->reply('回复'); ?>
+                    </div>
+                </div>
+            </div>
+            <?php if ($comments->children): ?>
+                <?php $comments->threadedComments(); ?>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+}
 ?>
 
 <div id="comments" class="comments-section">
@@ -16,41 +100,7 @@ if (!function_exists('qiwi_capture_remember')) {
         <?php $comments->num(_t('暂无评论'), _t('仅有一条评论'), _t('已有 %d 条评论')); ?>
     </h3>
 
-    <div class="comment-list">
-        <?php while ($comments->next()): ?>
-        <?php
-            $commentStatus = isset($comments->status) ? (string) $comments->status : '';
-            $isWaitingComment = $commentStatus === 'waiting';
-            $commentCreated = isset($comments->created) ? (int) $comments->created : 0;
-        ?>
-        <div id="<?php $comments->theId(); ?>" class="comment-item<?php if ($isWaitingComment): ?> is-waiting<?php endif; ?>">
-            <div class="comment-avatar">
-                <img src="https://gravatar.loli.net/avatar/<?php echo md5($comments->mail); ?>?s=64&d=mp"
-                     alt="avatar">
-            </div>
-            <div class="comment-content">
-                <div class="comment-meta">
-                    <span class="comment-author-row">
-                        <span class="comment-author"><?php $comments->author(); ?></span>
-                        <time class="comment-date"
-                              datetime="<?php echo htmlspecialchars(gmdate('c', $commentCreated), ENT_QUOTES, 'UTF-8'); ?>"
-                              data-qiwi-local-time
-                              data-timestamp="<?php echo $commentCreated; ?>"><?php $comments->date('Y-m-d H:i'); ?></time>
-                    </span>
-                    <?php if ($isWaitingComment): ?>
-                    <span class="comment-status-note">您的评论正在等待审核</span>
-                    <?php endif; ?>
-                </div>
-                <div class="comment-text">
-                    <?php $comments->content(); ?>
-                </div>
-                <div class="comment-reply">
-                    <?php $comments->reply('回复'); ?>
-                </div>
-            </div>
-        </div>
-        <?php endwhile; ?>
-    </div>
+    <?php $comments->listComments(['before' => '<div class="comment-list">', 'after' => '</div>']); ?>
 
     <?php $comments->pageNav('« 前一页', '后一页 »'); ?>
     <?php endif; ?>
