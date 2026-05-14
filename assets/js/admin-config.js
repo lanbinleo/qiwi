@@ -1044,7 +1044,7 @@
             '</section>';
 
         var status = $('[data-ip-location-status]', container);
-        var buttons = $$('[data-ip-location-rebuild]', container);
+        var buttons = $all('[data-ip-location-rebuild]', container);
         if (!buttons.length || !status) return;
 
         function setButtonsDisabled(disabled) {
@@ -1409,7 +1409,7 @@
         renderUpdateDetails(panel, data || {}, isOutdated);
     }
 
-    function initUpdatePanel(anchorRow) {
+    function initUpdatePanel(target) {
         var config = getAdminConfig();
         if (!config.updateEndpoint || config.showUpdateLog === '0' || $('.qiwi-update-panel')) return;
 
@@ -1450,7 +1450,8 @@
                 '</div>' +
             '</div>';
 
-        anchorRow.parentNode.insertBefore(panel, anchorRow);
+        if (!target) return;
+        target.appendChild(panel);
 
         var card = $('.qiwi-update-card', panel);
         var expand = $('.qiwi-update-expand', panel);
@@ -1597,6 +1598,26 @@
 
         syncSourceInputs();
         checkForUpdates(false);
+    }
+
+    function initAdminSaveButton(panel) {
+        var button = $('[data-qiwi-save-trigger]', panel);
+        var form = panel.closest('form');
+        var submit = form ? $('button[type="submit"], input[type="submit"]', form) : null;
+        if (!button || !form || !submit) return;
+
+        button.addEventListener('click', function() {
+            if (submit.click) {
+                submit.click();
+                return;
+            }
+            form.submit();
+        });
+
+        var submitRow = submit.closest('.typecho-option-submit') || submit.closest('ul');
+        if (submitRow) {
+            submitRow.classList.add('qiwi-original-submit');
+        }
     }
 
     function initTabs(panel) {
@@ -2651,7 +2672,6 @@
         if (!navRow) return;
 
         document.body.classList.add('qiwi-admin-config-page');
-        initUpdatePanel(navRow);
 
         var panel = document.createElement('div');
         panel.className = 'qiwi-admin-panel';
@@ -2660,7 +2680,7 @@
                 '<aside class="qiwi-admin-sidebar" aria-label="Qiwi 设置导航">' +
                     '<div class="qiwi-admin-brand">' +
                         '<span class="qiwi-admin-brand-mark"><i class="fa-solid fa-seedling" aria-hidden="true"></i></span>' +
-                        '<span><strong>Qiwi 设置</strong><em>1.4.7 工作台</em></span>' +
+                        '<span><strong>Qiwi 设置</strong><em>v' + escapeHtml(getAdminConfig().currentVersion || 'unknown') + ' 工作台</em></span>' +
                     '</div>' +
                     '<nav class="qiwi-admin-tabs" role="tablist">' +
                         '<div class="qiwi-admin-nav-group">' +
@@ -2689,7 +2709,7 @@
                 '<main class="qiwi-admin-main">' +
                     '<header class="qiwi-admin-main-head">' +
                         '<div><strong data-qiwi-current-title>首页</strong><span data-qiwi-current-desc></span></div>' +
-                        '<span class="qiwi-admin-save-hint"><i class="fa-regular fa-circle-check" aria-hidden="true"></i> 使用页面底部按钮保存</span>' +
+                        '<div class="qiwi-admin-head-actions"><button type="button" class="qiwi-admin-button is-primary qiwi-admin-save-button" data-qiwi-save-trigger><i class="fa-regular fa-circle-check" aria-hidden="true"></i>保存设置</button></div>' +
                     '</header>' +
                     '<section class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="nav">' +
@@ -2734,7 +2754,7 @@
                     '<section class="qiwi-admin-pane" data-qiwi-pane="links"><div class="qiwi-link-stats" data-qiwi-external-stats></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="ip-location"><div class="qiwi-link-stats" data-qiwi-ip-location-tools></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="likes"><div class="qiwi-link-stats qiwi-like-records" data-qiwi-moment-like-records></div></section>' +
-                    '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div data-qiwi-update-panel></div><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
                 '</main>' +
             '</div>';
@@ -2764,15 +2784,17 @@
         });
 
         initTabs(panel);
-        initExternalLinkStats(panel);
-        initIpLocationTools(panel);
-        initMomentLikeRecords(panel);
+        initAdminSaveButton(panel);
         var editors = {
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),
             books: initBookEditor(panel, bookInput),
             sidebarSocial: initSidebarSocialEditor(panel, sidebarSocialTextarea)
         };
+        initExternalLinkStats(panel);
+        initIpLocationTools(panel);
+        initMomentLikeRecords(panel);
+        initUpdatePanel($('[data-qiwi-update-panel]', panel));
         initConfigImportExport(rawPane, editors);
         applyRecommendedDefaults();
         enhanceSpecialTextareas();
