@@ -568,10 +568,12 @@
 }
 
 .qiwi-link-stats-table {
-    overflow-x: auto;
+    max-height: 430px;
+    overflow: auto;
     border: 1px solid #e1e1e1;
     border-radius: 8px;
     background: #fff;
+    scrollbar-gutter: stable;
 }
 
 .qiwi-link-stats-row {
@@ -591,6 +593,9 @@
 }
 
 .qiwi-link-stats-head {
+    position: sticky;
+    z-index: 1;
+    top: 0;
     background: #f7f9fa;
     color: #777;
     font-size: 12px;
@@ -1861,5 +1866,339 @@
 
     .qiwi-nav-row[data-level="child"] {
         margin-left: 0;
+    }
+}
+
+/* Linear-inspired settings workspace */
+.qiwi-admin-config-page {
+    background: #010102;
+}
+
+.qiwi-admin-config-page .typecho-page-main > .col-mb-12.col-tb-8.col-tb-offset-2 {
+    width: min(100%, 1280px);
+}
+
+.qiwi-admin-panel {
+    --qiwi-admin-canvas: #010102;
+    --qiwi-admin-surface-1: #0b0c10;
+    --qiwi-admin-surface-2: #111218;
+    --qiwi-admin-surface-3: #171922;
+    --qiwi-admin-surface-4: #1d202a;
+    --qiwi-admin-ink: #f7f8f8;
+    --qiwi-admin-muted: #d0d6e0;
+    --qiwi-admin-subtle: #8a8f98;
+    --qiwi-admin-tertiary: #62666d;
+    --qiwi-admin-line: #23252a;
+    --qiwi-admin-line-strong: #323540;
+    --qiwi-admin-line-soft: #1a1c22;
+    --qiwi-admin-paper: var(--qiwi-admin-surface-1);
+    --qiwi-admin-soft: var(--qiwi-admin-surface-2);
+    --qiwi-admin-accent: #5e6ad2;
+    --qiwi-admin-accent-hover: #828fff;
+    --qiwi-admin-accent-soft: rgba(94, 106, 210, 0.14);
+    width: min(100%, 1280px);
+    margin: 20px auto 28px;
+    border-color: var(--qiwi-admin-line);
+    border-radius: 16px;
+    background: var(--qiwi-admin-surface-1);
+    color: var(--qiwi-admin-ink);
+    font-family: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.qiwi-admin-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.qiwi-admin-sidebar {
+    border-right-color: var(--qiwi-admin-line);
+    background: var(--qiwi-admin-canvas);
+}
+
+.qiwi-admin-brand {
+    border-bottom-color: var(--qiwi-admin-line);
+}
+
+.qiwi-admin-brand-mark {
+    border-color: var(--qiwi-admin-line-strong);
+    border-radius: 10px;
+    background: var(--qiwi-admin-accent);
+    color: #fff;
+}
+
+.qiwi-admin-brand strong,
+.qiwi-admin-main-head strong,
+.qiwi-admin-fields .qiwi-managed-field > label,
+.qiwi-admin-fields .qiwi-managed-field label.typecho-label,
+.qiwi-update-title,
+.qiwi-update-log-title,
+.qiwi-ip-location-tools strong,
+.qiwi-like-records-row strong {
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-brand strong {
+    letter-spacing: -0.2px;
+}
+
+.qiwi-admin-brand em,
+.qiwi-admin-main-head span,
+.qiwi-admin-nav-label,
+.qiwi-update-subtitle,
+.qiwi-update-log,
+.qiwi-ip-location-tools p,
+.qiwi-ip-location-tools [data-ip-location-status],
+.qiwi-like-records-row em,
+.qiwi-like-muted,
+.qiwi-admin-fields .description,
+.qiwi-admin-panel p.description {
+    color: var(--qiwi-admin-subtle);
+}
+
+.qiwi-admin-tabs {
+    gap: 18px;
+}
+
+.qiwi-admin-nav-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+}
+
+.qiwi-admin-tab {
+    min-height: 40px;
+    border-radius: 8px;
+    color: var(--qiwi-admin-muted);
+    font-weight: 500;
+}
+
+.qiwi-admin-tab i {
+    color: var(--qiwi-admin-tertiary);
+}
+
+.qiwi-admin-tab:hover,
+.qiwi-admin-tab:focus {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-2);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-tab.is-active {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-2);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-tab.is-active i {
+    color: var(--qiwi-admin-accent-hover);
+}
+
+.qiwi-admin-main {
+    background: var(--qiwi-admin-surface-1);
+}
+
+.qiwi-admin-main-head {
+    position: sticky;
+    z-index: 5;
+    top: 0;
+    border-bottom-color: var(--qiwi-admin-line);
+    background: rgba(11, 12, 16, 0.96);
+}
+
+.qiwi-admin-main-head strong {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+.qiwi-admin-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qiwi-admin-save-button {
+    min-height: 40px;
+}
+
+.qiwi-original-submit {
+    display: none !important;
+}
+
+.qiwi-admin-pane {
+    background: var(--qiwi-admin-surface-1);
+}
+
+.qiwi-admin-fields .qiwi-managed-field,
+.qiwi-social-editor,
+.qiwi-nav-row,
+.qiwi-book-row,
+.qiwi-friend-category,
+.qiwi-social-row,
+.qiwi-friend-row,
+.qiwi-link-stats-summary > div,
+.qiwi-link-stats-empty,
+.qiwi-admin-empty,
+.qiwi-config-transfer,
+.qiwi-raw-details,
+.qiwi-ip-location-tools,
+.qiwi-update-card,
+.qiwi-update-expand,
+.qiwi-update-modal-card {
+    border-color: var(--qiwi-admin-line);
+    background: var(--qiwi-admin-surface-2);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-fields .qiwi-managed-field,
+.qiwi-social-editor,
+.qiwi-nav-row,
+.qiwi-book-row,
+.qiwi-friend-category,
+.qiwi-social-row,
+.qiwi-friend-row {
+    border-radius: 12px;
+}
+
+.qiwi-admin-panel input[type="text"],
+.qiwi-admin-panel input[type="number"],
+.qiwi-admin-panel input[type="url"],
+.qiwi-admin-panel select,
+.qiwi-admin-panel textarea,
+.qiwi-update-root-preview,
+.qiwi-update-command code {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-1);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-panel input:focus,
+.qiwi-admin-panel select:focus,
+.qiwi-admin-panel textarea:focus {
+    border-color: var(--qiwi-admin-accent);
+    box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.5);
+}
+
+.qiwi-admin-button {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-2);
+    color: var(--qiwi-admin-ink);
+    font-weight: 500;
+}
+
+.qiwi-admin-button:hover,
+.qiwi-admin-button:focus {
+    border-color: var(--qiwi-admin-accent-hover);
+    background: var(--qiwi-admin-surface-3);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-admin-button.is-primary,
+.qiwi-admin-button.is-active {
+    border-color: var(--qiwi-admin-accent);
+    background: var(--qiwi-admin-accent);
+    color: #fff;
+}
+
+.qiwi-admin-button.is-primary:hover,
+.qiwi-admin-button.is-active:hover {
+    border-color: var(--qiwi-admin-accent-hover);
+    background: var(--qiwi-admin-accent-hover);
+    color: #fff;
+}
+
+.qiwi-admin-button.is-danger:hover,
+.qiwi-admin-button.is-danger:focus {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-3);
+    color: var(--qiwi-admin-ink);
+}
+
+.qiwi-link-stats-table {
+    border-color: var(--qiwi-admin-line);
+    background: var(--qiwi-admin-surface-1);
+}
+
+.qiwi-link-stats-row {
+    border-top-color: var(--qiwi-admin-line-soft);
+    color: var(--qiwi-admin-muted);
+}
+
+.qiwi-link-stats-head {
+    background: var(--qiwi-admin-surface-3);
+    color: var(--qiwi-admin-muted);
+}
+
+.qiwi-link-stats-row a,
+.qiwi-raw-details summary,
+.qiwi-like-records-row code {
+    color: var(--qiwi-admin-accent-hover);
+}
+
+.qiwi-like-records-row code {
+    background: var(--qiwi-admin-accent-soft);
+}
+
+.qiwi-update-panel {
+    margin: 0 0 18px;
+}
+
+.qiwi-update-panel[data-update-state="ready"] .qiwi-update-card,
+.qiwi-update-panel[data-update-state="error"] .qiwi-update-card {
+    border-color: var(--qiwi-admin-line);
+    background: var(--qiwi-admin-surface-2);
+}
+
+.qiwi-update-status {
+    border: 1px solid rgba(94, 106, 210, 0.26);
+    background: var(--qiwi-admin-accent-soft);
+    color: var(--qiwi-admin-accent-hover);
+}
+
+.qiwi-update-panel[data-update-state="error"] .qiwi-update-status {
+    border-color: var(--qiwi-admin-line-strong);
+    background: var(--qiwi-admin-surface-3);
+    color: var(--qiwi-admin-muted);
+}
+
+.qiwi-update-spinner {
+    border-color: rgba(130, 143, 255, 0.24);
+    border-top-color: var(--qiwi-admin-accent-hover);
+}
+
+.qiwi-update-modal {
+    background: rgba(1, 1, 2, 0.76);
+}
+
+.qiwi-update-source-field legend,
+.qiwi-update-root-field,
+.qiwi-update-source-field label,
+.qiwi-update-root-help,
+.qiwi-config-transfer-status {
+    color: var(--qiwi-admin-muted);
+}
+
+.qiwi-social-editor-body,
+.qiwi-friend-editor {
+    border-top-color: var(--qiwi-admin-line);
+    background: var(--qiwi-admin-surface-1);
+}
+
+.qiwi-friend-summary:hover {
+    background: var(--qiwi-admin-surface-3);
+}
+
+@media (max-width: 1024px) {
+    .qiwi-admin-shell {
+        grid-template-columns: 224px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 820px) {
+    .qiwi-admin-sidebar {
+        border-bottom-color: var(--qiwi-admin-line);
+    }
+
+    .qiwi-admin-main-head {
+        position: static;
     }
 }
