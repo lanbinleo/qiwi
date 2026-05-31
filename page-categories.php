@@ -120,22 +120,25 @@ $pageContent = qiwiGetContent($this);
                         $threadSubtitle = trim((string) $threadData['subtitle']);
                         $threadField = trim((string) $threadData['field']);
                         $threadStatus = function_exists('qiwiThreadStatusLabel') ? qiwiThreadStatusLabel($threadData['status']) : '连载中';
+                        $threadSummary = trim((string) $threadData['summary']);
+                        $threadDescription = $threadSubtitle !== '' ? $threadSubtitle : $threadSummary;
+                        $threadMeta = trim($threadStatus . ($threadField !== '' ? ' / ' . $threadField : ''));
                     ?>
                     <li class="archive-post-item taxonomy-list-item thread-taxonomy-item">
                         <a href="<?php echo htmlspecialchars($thread['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="post-title-link">
                             <?php echo htmlspecialchars($thread['name'], ENT_QUOTES, 'UTF-8'); ?>
                         </a>
-                        <span class="thread-taxonomy-meta">
-                            <span><?php echo htmlspecialchars($threadStatus, ENT_QUOTES, 'UTF-8'); ?></span>
-                            <?php if ($threadField !== ''): ?><span><?php echo htmlspecialchars($threadField, ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?>
-                            <span><?php echo (int) $thread['count']; ?> 篇</span>
-                        </span>
-                        <?php if ($threadSubtitle !== ''): ?>
-                            <span class="taxonomy-description"><?php echo htmlspecialchars(qiwiExcerptText($threadSubtitle, 56), ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php if ($threadMeta !== '' || $threadDescription !== ''): ?>
+                            <span class="taxonomy-description thread-taxonomy-description">
+                                <?php if ($threadMeta !== ''): ?>
+                                    <span class="thread-taxonomy-kicker"><?php echo htmlspecialchars($threadMeta, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                                <?php if ($threadDescription !== ''): ?>
+                                    <span class="thread-taxonomy-text"><?php echo htmlspecialchars(qiwiExcerptText($threadDescription, 56), ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                            </span>
                         <?php endif; ?>
-                        <?php if (trim((string) $threadData['summary']) !== ''): ?>
-                            <span class="taxonomy-description"><?php echo htmlspecialchars(qiwiExcerptText($threadData['summary'], 56), ENT_QUOTES, 'UTF-8'); ?></span>
-                        <?php endif; ?>
+                        <span class="post-wordcount"><?php echo (int) $thread['count']; ?> 篇</span>
                     </li>
                     <?php endforeach; ?>
                 </ul>

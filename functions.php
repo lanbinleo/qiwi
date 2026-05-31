@@ -787,13 +787,30 @@ function themeConfig($form)
         null,
         null,
         _t('默认版权说明'),
-        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]、[link]、[not-by-ai]；支持版权魔法标签：[default]、[thread]、[no-repost]、[ai-generated]；支持占位符 {permalink}、{title}、{author}、{site}、{year}、{thread_title}。普通外链会自动解析。留空则使用主题内置默认文案。")
+        _t("文章未单独填写版权说明时使用。支持短代码：[badge]、[callout]、[button]、[buttons]、[link]、[not-by-ai]、[noai]；支持版权魔法标签：[default]、[thread]、[no-repost]、[ai-generated]；支持占位符 {permalink}、{title}、{author}、{site}、{year}、{thread_title}。普通外链会自动解析。留空则使用主题内置默认文案。")
+    );
+    $defaultCopyrightLicense = new Typecho_Widget_Helper_Form_Element_Radio(
+        'defaultCopyrightLicense',
+        array(
+            'cc-by-4' => _t('CC BY 4.0'),
+            'cc-by-sa-4' => _t('CC BY-SA 4.0'),
+            'cc-by-nd-4' => _t('CC BY-ND 4.0'),
+            'cc-by-nc-4' => _t('CC BY-NC 4.0'),
+            'cc-by-nc-sa-4' => _t('CC BY-NC-SA 4.0'),
+            'cc-by-nc-nd-4' => _t('CC BY-NC-ND 4.0'),
+            'cc0-1' => _t('CC0 1.0'),
+            'all-rights-reserved' => _t('保留所有权利')
+        ),
+        'cc-by-nc-nd-4',
+        _t('默认版权协议'),
+        _t('用于主题内置默认版权说明的协议徽章和链接；文章自定义版权说明中使用 [default] 时也会读取这里。')
     );
 
     $form->addInput($customCSS);
     $form->addInput($customJS);
     $form->addInput($trackingCode);
     $form->addInput($footerInfo);
+    $form->addInput($defaultCopyrightLicense->multiMode());
     $form->addInput($defaultCopyrightInfo);
 
     // === 友链配置 ===
@@ -848,7 +865,7 @@ function themeFields($layout) {
         null,
         null,
         _t('文章 - 版权说明'),
-        _t("留空则使用默认版权说明。支持短代码和版权魔法标签，例如：[default]、[thread]、[not-by-ai]、[no-repost]、[ai-generated]。也可继续使用 [badge]、[callout]、[link href=\"{permalink}\"]原文链接[/link] 等写法。")
+        _t("留空则使用默认版权说明。支持短代码和版权魔法标签，例如：[default]、[thread]、[not-by-ai]、[noai]、[no-repost]、[ai-generated]。也可继续使用 [badge]、[callout]、[link href=\"{permalink}\"]原文链接[/link] 等写法。")
     );
 
     $friendsSubtitle = new Typecho_Widget_Helper_Form_Element_Text('friendsSubtitle', null, null, _t('页面 - 友链页副标题'), _t('使用“友链页面”模板时显示在页面标题下方；页面正文会显示在友链列表之后、申请表单之前。'));
@@ -1752,7 +1769,7 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
             $html = qiwiRenderCopyrightMagicShortcodes($html, $context);
         }
 
-        $html = preg_replace_callback('/\[(?:not-by-ai|notbyai)([^\]]*)\](?:\s*\[\/(?:not-by-ai|notbyai)\])?/iu', function ($matches) {
+        $html = preg_replace_callback('/\[(?:not-by-ai|notbyai|noai)([^\]]*)\](?:\s*\[\/(?:not-by-ai|notbyai|noai)\])?/iu', function ($matches) {
             $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
             $href = qiwiSanitizeShortcodeUrl(isset($attrs['href']) ? $attrs['href'] : (isset($attrs['url']) ? $attrs['url'] : 'https://notbyai.fyi/'));
             $label = isset($attrs['label']) && trim($attrs['label']) !== '' ? trim($attrs['label']) : '本文非 AI 生成';
@@ -1983,7 +2000,7 @@ if (!function_exists('qiwiRenderFieldRichText')) {
             $escaped = htmlspecialchars($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $escaped = nl2br($escaped, false);
             if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)
-                || (!empty($context['copyright_context']) && preg_match('/^\[(?:default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\]/iu', $block))) {
+                || (!empty($context['copyright_context']) && preg_match('/^\[(?:default|thread|collection|not-by-ai|notbyai|noai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\]/iu', $block))) {
                 $html .= $escaped;
             } else {
                 $html .= '<p>' . $escaped . '</p>';
@@ -2076,6 +2093,103 @@ if (!function_exists('qiwiGetCategoryPermalink')) {
     }
 }
 
+if (!function_exists('qiwiCopyrightLicenseDefinitions')) {
+    function qiwiCopyrightLicenseDefinitions()
+    {
+        return [
+            'cc-by-4' => [
+                'label' => 'CC BY 4.0',
+                'url' => 'https://creativecommons.org/licenses/by/4.0/',
+                'summary' => '署名 4.0 国际'
+            ],
+            'cc-by-sa-4' => [
+                'label' => 'CC BY-SA 4.0',
+                'url' => 'https://creativecommons.org/licenses/by-sa/4.0/',
+                'summary' => '署名-相同方式共享 4.0 国际'
+            ],
+            'cc-by-nd-4' => [
+                'label' => 'CC BY-ND 4.0',
+                'url' => 'https://creativecommons.org/licenses/by-nd/4.0/',
+                'summary' => '署名-禁止演绎 4.0 国际'
+            ],
+            'cc-by-nc-4' => [
+                'label' => 'CC BY-NC 4.0',
+                'url' => 'https://creativecommons.org/licenses/by-nc/4.0/',
+                'summary' => '署名-非商业性使用 4.0 国际'
+            ],
+            'cc-by-nc-sa-4' => [
+                'label' => 'CC BY-NC-SA 4.0',
+                'url' => 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
+                'summary' => '署名-非商业性使用-相同方式共享 4.0 国际'
+            ],
+            'cc-by-nc-nd-4' => [
+                'label' => 'CC BY-NC-ND 4.0',
+                'url' => 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+                'summary' => '署名-非商业性使用-禁止演绎 4.0 国际'
+            ],
+            'cc0-1' => [
+                'label' => 'CC0 1.0',
+                'url' => 'https://creativecommons.org/publicdomain/zero/1.0/',
+                'summary' => '公共领域贡献'
+            ],
+            'all-rights-reserved' => [
+                'label' => '保留所有权利',
+                'url' => '',
+                'summary' => '未经许可不得转载、改编或再发布'
+            ]
+        ];
+    }
+}
+
+if (!function_exists('qiwiNormalizeCopyrightLicense')) {
+    function qiwiNormalizeCopyrightLicense($value)
+    {
+        $value = strtolower(trim((string) $value));
+        $value = str_replace(['_', '.', ' '], '-', $value);
+        $aliases = [
+            'cc-by' => 'cc-by-4',
+            'cc-by-4-0' => 'cc-by-4',
+            'cc-by-sa' => 'cc-by-sa-4',
+            'cc-by-sa-4-0' => 'cc-by-sa-4',
+            'cc-by-nd' => 'cc-by-nd-4',
+            'cc-by-nd-4-0' => 'cc-by-nd-4',
+            'cc-by-nc' => 'cc-by-nc-4',
+            'cc-by-nc-4-0' => 'cc-by-nc-4',
+            'cc-by-nc-sa' => 'cc-by-nc-sa-4',
+            'cc-by-nc-sa-4-0' => 'cc-by-nc-sa-4',
+            'cc-by-nc-nd' => 'cc-by-nc-nd-4',
+            'cc-by-nc-nd-4-0' => 'cc-by-nc-nd-4',
+            'cc0' => 'cc0-1',
+            'cc0-1-0' => 'cc0-1',
+            'reserved' => 'all-rights-reserved',
+            'all-rights' => 'all-rights-reserved'
+        ];
+        if (isset($aliases[$value])) {
+            $value = $aliases[$value];
+        }
+
+        $definitions = qiwiCopyrightLicenseDefinitions();
+        return isset($definitions[$value]) ? $value : 'cc-by-nc-nd-4';
+    }
+}
+
+if (!function_exists('qiwiCopyrightLicenseComponentHtml')) {
+    function qiwiCopyrightLicenseComponentHtml(array $context)
+    {
+        $licenseKey = qiwiNormalizeCopyrightLicense(isset($context['copyright_license']) ? $context['copyright_license'] : '');
+        $license = qiwiCopyrightLicenseDefinitions()[$licenseKey];
+        $label = htmlspecialchars($license['label'], ENT_QUOTES, 'UTF-8');
+        $summary = htmlspecialchars($license['summary'], ENT_QUOTES, 'UTF-8');
+        $content = '<span>许可协议</span><strong>' . $label . '</strong><em>' . $summary . '</em>';
+
+        if ($license['url'] === '') {
+            return '<span class="post-copyright-license post-copyright-license-static">' . $content . '</span>';
+        }
+
+        return '<a class="post-copyright-license" href="' . htmlspecialchars($license['url'], ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $content . '</a>';
+    }
+}
+
 if (!function_exists('qiwiCopyrightDefaultTemplateHtml')) {
     function qiwiCopyrightDefaultTemplateHtml(array $context)
     {
@@ -2085,14 +2199,15 @@ if (!function_exists('qiwiCopyrightDefaultTemplateHtml')) {
         $permalinkEscaped = htmlspecialchars($permalink, ENT_QUOTES, 'UTF-8');
 
         return '<p><span class="qiwi-badge qiwi-badge-cyan qiwi-badge-soft">原创</span> 本文由 ' . htmlspecialchars($author, ENT_QUOTES, 'UTF-8') . ' 发布于 <a href="' . $permalinkEscaped . '">' . htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') . '</a>。</p>'
-            . '<p>转载或引用时，请保留作者与原文链接：<a href="' . $permalinkEscaped . '">' . $permalinkEscaped . '</a></p>';
+            . '<p>原文链接：<a href="' . $permalinkEscaped . '">' . $permalinkEscaped . '</a></p>'
+            . '<div class="post-copyright-license-row">' . qiwiCopyrightLicenseComponentHtml($context) . '</div>';
     }
 }
 
 if (!function_exists('qiwiCopyrightHasMagicTags')) {
     function qiwiCopyrightHasMagicTags($text)
     {
-        return preg_match('/\[(?:default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\]|\[(?:禁止转载|不能转载|不可转载)\]/iu', (string) $text) === 1;
+        return preg_match('/\[(?:default|thread|collection|not-by-ai|notbyai|noai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\]|\[(?:禁止转载|不能转载|不可转载)\]/iu', (string) $text) === 1;
     }
 }
 
@@ -2118,7 +2233,7 @@ if (!function_exists('qiwiNormalizeCopyrightMagicWords')) {
 if (!function_exists('qiwiCopyrightVisibleTextWithoutMagic')) {
     function qiwiCopyrightVisibleTextWithoutMagic($text)
     {
-        $text = preg_replace('/\[(default|thread|collection|not-by-ai|notbyai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\](?:\s*\[\/\1\])?/iu', '', (string) $text);
+        $text = preg_replace('/\[(default|thread|collection|not-by-ai|notbyai|noai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\](?:\s*\[\/\1\])?/iu', '', (string) $text);
         $text = preg_replace('/\[(default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\][\s\S]*?\[\/\1\]/iu', '', $text);
         return trim(strip_tags($text));
     }
@@ -2224,6 +2339,7 @@ if (!function_exists('qiwiGetPostCopyrightHtml')) {
     {
         $context = qiwiPostRichTextContext($widget);
         $context['copyright_context'] = true;
+        $context['copyright_license'] = qiwiNormalizeCopyrightLicense(qiwiGetOptionValue($widget, 'defaultCopyrightLicense', 'cc-by-nc-nd-4'));
         $thread = qiwiGetPostThreadCollection($widget);
         if (!empty($thread)) {
             $context['thread_title'] = $thread['name'];
