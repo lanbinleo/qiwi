@@ -1782,7 +1782,8 @@
                     { label: '文本链接', before: '[link href="{permalink}"]', after: '[/link]', placeholder: '原文链接' },
                     { label: '按钮', before: '[button href="https://example.com"]', after: '[/button]', placeholder: '相关链接' },
                     { label: '按钮组', before: '[buttons]\n[button href="{permalink}"]', after: '[/button]\n[/buttons]', placeholder: '原文链接' },
-                    { label: 'Not By AI', before: '[not-by-ai]', after: '', placeholder: '' }
+                    { label: 'Not By AI', before: '[not-by-ai]', after: '', placeholder: '' },
+                    { label: 'No AI', before: '[noai]', after: '', placeholder: '' }
                 ]
             }, {
                 label: '占位符',
@@ -1828,6 +1829,7 @@
         'sidebarMomentCount',
         'enableHitokoto',
         'footerInfo',
+        'defaultCopyrightLicense',
         'defaultCopyrightInfo',
         'customCSS',
         'customJS',
@@ -1857,6 +1859,7 @@
         sidebarAnnouncement: '留空时不显示公告区域',
         sidebarMomentCount: '4',
         footerInfo: '留空时使用站点描述',
+        defaultCopyrightLicense: '默认使用 CC BY-NC-ND 4.0',
         defaultCopyrightInfo: '留空时使用主题内置版权说明',
         customCSS: '留空不追加自定义 CSS',
         customJS: '留空不追加自定义 JS',
@@ -2764,7 +2767,7 @@
         moveFields(['homeHeroEyebrow', 'homeHeroLines', 'homeHeroQuote', 'homeHeroSwitchInterval', 'homeHeroAnimation', 'homeHeroTypingSpeed', 'homeHeroDeletingSpeed', 'homeHeroTypingPause', 'homeHeroHitokotoMode'], $('[data-qiwi-home-fields]', panel));
         moveFields(['logoUrl', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
         moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
-        moveFields(['footerInfo', 'defaultCopyrightInfo', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
 

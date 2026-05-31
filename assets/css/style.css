@@ -2396,6 +2396,52 @@ body.qiwi-lightbox-open {
     border-color: var(--color-accent);
 }
 
+.post-copyright-license-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+}
+
+.post-endnote a.post-copyright-license,
+.post-copyright-license {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45em;
+    max-width: 100%;
+    padding: 0.34em 0.72em;
+    border: 1px solid color-mix(in srgb, var(--qiwi-green) 28%, var(--color-border));
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--qiwi-green-bg) 48%, var(--color-bg));
+    color: var(--color-text-primary);
+    font-size: var(--t-sm);
+    line-height: 1.45;
+    text-decoration: none;
+}
+
+.post-copyright-license span {
+    color: var(--color-text-tertiary);
+    font-size: var(--t-xs);
+    font-weight: 600;
+}
+
+.post-copyright-license strong {
+    color: var(--color-text-primary);
+    font-weight: 700;
+}
+
+.post-copyright-license em {
+    color: var(--color-text-secondary);
+    font-style: normal;
+}
+
+.post-endnote a.post-copyright-license:hover {
+    border-color: color-mix(in srgb, var(--qiwi-green) 48%, var(--color-border));
+    background: color-mix(in srgb, var(--qiwi-green-bg) 64%, var(--color-bg));
+    color: var(--color-text-primary);
+}
+
 .post-endnote .qiwi-callout {
     margin: var(--s-4) 0;
     background: var(--color-bg);
@@ -4566,24 +4612,28 @@ body.qiwi-lightbox-open {
 }
 
 .thread-taxonomy-item {
-    border-left: 3px solid var(--color-accent);
-    background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+    border-left: 0;
+    background: transparent;
 }
 
-.thread-taxonomy-meta {
-    display: flex;
-    flex-wrap: wrap;
+.thread-taxonomy-description {
+    display: inline-flex;
+    align-items: baseline;
     gap: var(--s-2);
-    margin-top: var(--s-1);
-    color: var(--color-text-tertiary);
+}
+
+.thread-taxonomy-kicker {
+    flex: 0 0 auto;
+    color: var(--color-accent);
     font-family: var(--font-mono);
     font-size: var(--t-xs);
 }
 
-.thread-taxonomy-meta span:not(:last-child)::after {
-    content: "/";
-    margin-left: var(--s-2);
-    color: var(--color-border);
+.thread-taxonomy-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .thread-taxonomy-stats {
@@ -5831,6 +5881,14 @@ body.qiwi-lightbox-open {
 
     .taxonomy-description {
         width: 100%;
+        white-space: normal;
+    }
+
+    .thread-taxonomy-description {
+        flex-wrap: wrap;
+    }
+
+    .thread-taxonomy-text {
         white-space: normal;
     }
 

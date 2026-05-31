@@ -1,3 +1,4 @@
 start-claude.ps1
 dev-docs
 .claude
+.env.doc

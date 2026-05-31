@@ -8,18 +8,14 @@
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
 
-// 计算字数的函数
+// 计算可见文本字数
 function getWordCount($text) {
-    // 移除HTML标签
-    $text = strip_tags($text);
-    // 统计中文字符
-    preg_match_all('/[\x{4e00}-\x{9fa5}]/u', $text, $chineseMatches);
-    $chineseCount = count($chineseMatches[0]);
-    // 统计英文单词（使用正则匹配连续的字母）
-    preg_match_all('/[a-zA-Z]+/', $text, $englishMatches);
-    $englishCount = count($englishMatches[0]);
+    $text = function_exists('qiwiExtractPlainText')
+        ? qiwiExtractPlainText($text)
+        : strip_tags(html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $text = preg_replace('/\s+/u', '', $text);
 
-    return $chineseCount + $englishCount;
+    return mb_strlen((string) $text, 'UTF-8');
 }
 
 // 获取数据库
