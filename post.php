@@ -42,7 +42,9 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                         <span class="author-name"><?php $this->author(); ?></span>
                         <span class="post-date"><?php $this->date('Y-m-d H:i'); ?> · <?php
                             $content = $this->content;
-                            $wordCount = mb_strlen(strip_tags($content), 'UTF-8');
+                            $wordCount = function_exists('qiwiCountReadableWords')
+                                ? qiwiCountReadableWords($content)
+                                : mb_strlen(strip_tags($content), 'UTF-8');
                             $articleCommentCount = function_exists('qiwiGetCommentCountIncludingReplies') ? qiwiGetCommentCountIncludingReplies($this->cid) : (int) $this->commentsNum;
                             echo function_exists('qiwiFormatPostWordCount') ? qiwiFormatPostWordCount($wordCount) : (int) $wordCount . '字';
                         ?> · <?php echo (int) $postViews; ?> 次浏览<?php if ($articleCommentCount > 0): ?> · <a href="#comments"><?php echo (int) $articleCommentCount; ?> 条评论</a><?php endif; ?></span>
