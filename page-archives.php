@@ -10,12 +10,12 @@ $this->need('header.php');
 
 // 计算可见文本字数
 function getWordCount($text) {
-    $text = function_exists('qiwiExtractPlainText')
-        ? qiwiExtractPlainText($text)
-        : strip_tags(html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-    $text = preg_replace('/\s+/u', '', $text);
+    if (function_exists('qiwiCountReadableWords')) {
+        return qiwiCountReadableWords($text);
+    }
 
-    return mb_strlen((string) $text, 'UTF-8');
+    $text = trim(strip_tags(html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    return function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
 }
 
 // 获取数据库

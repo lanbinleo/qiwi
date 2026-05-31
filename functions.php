@@ -966,6 +966,41 @@ if (!function_exists('qiwiExcerptText')) {
     }
 }
 
+if (!function_exists('qiwiCountReadableWords')) {
+    function qiwiCountReadableWords($text)
+    {
+        $text = function_exists('qiwiExtractPlainText')
+            ? qiwiExtractPlainText($text)
+            : trim(strip_tags(html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        if ($text === '') {
+            return 0;
+        }
+
+        $count = 0;
+        $cjkPattern = '/[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}]/u';
+        if (preg_match_all($cjkPattern, $text, $matches)) {
+            $count += count($matches[0]);
+        }
+
+        $latinText = preg_replace($cjkPattern, ' ', $text);
+        if (preg_match_all('/[\p{L}\p{N}]+(?:[\'’.-][\p{L}\p{N}]+)*/u', $latinText, $matches)) {
+            $count += count($matches[0]);
+        }
+
+        return $count;
+    }
+}
+
+if (!function_exists('qiwiEstimateReadingMinutes')) {
+    function qiwiEstimateReadingMinutes($wordCount)
+    {
+        $wordCount = max(0, (int) $wordCount);
+        $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
+
+        return max(1, (int) round($wordCount / $speed));
+    }
+}
+
 if (!function_exists('qiwiFallbackJikeExcerpt')) {
     function qiwiFallbackJikeExcerpt($text)
     {
@@ -1450,10 +1485,15 @@ if (!function_exists('qiwiThreadPostFromRow')) {
         }
 
         $content = isset($row['text']) ? (string) $row['text'] : (isset($row['content']) ? (string) $row['content'] : '');
-        $plain = function_exists('qiwiExtractPlainText') ? qiwiExtractPlainText($content) : trim(strip_tags($content));
-        $wordCount = function_exists('mb_strlen') ? mb_strlen($plain, 'UTF-8') : strlen($plain);
-        $speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
-        $readingTime = max(1, (int) round($wordCount / $speed));
+        if (function_exists('qiwiCountReadableWords')) {
+            $wordCount = qiwiCountReadableWords($content);
+        } else {
+            $plain = trim(strip_tags($content));
+            $wordCount = function_exists('mb_strlen') ? mb_strlen($plain, 'UTF-8') : strlen($plain);
+        }
+        $readingTime = function_exists('qiwiEstimateReadingMinutes')
+            ? qiwiEstimateReadingMinutes($wordCount)
+            : max(1, (int) round($wordCount / 300));
         $excerpt = qiwiThreadCleanOptionalText(function_exists('qiwiExcerptText') ? qiwiExcerptText($content, 128) : '');
 
         return [

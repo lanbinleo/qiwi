@@ -7,9 +7,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 // 计算字数和阅读时间
 $content = $this->content;
-$wordCount = mb_strlen(strip_tags($content), 'UTF-8');
-$speed = 300 + ($wordCount > 1000 ? 100 : 0) + ($wordCount > 2000 ? 100 : 0) + ($wordCount > 3000 ? 100 : 0);
-$readingTime = max(1, round($wordCount / $speed));
+$wordCount = function_exists('qiwiCountReadableWords')
+    ? qiwiCountReadableWords($content)
+    : mb_strlen(strip_tags($content), 'UTF-8');
+$readingTime = function_exists('qiwiEstimateReadingMinutes')
+    ? qiwiEstimateReadingMinutes($wordCount)
+    : max(1, (int) round($wordCount / 300));
 
 $postStats = function_exists('qiwiGetPostStats')
     ? qiwiGetPostStats($this->cid)
