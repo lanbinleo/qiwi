@@ -7,6 +7,9 @@ $postViews = qiwiRecordPostView($this->cid);
 $qiwiShowToc = qiwiShouldShowToc($this);
 $this->need('header.php');
 $qiwiCopyrightHtml = function_exists('qiwiGetPostCopyrightHtml') ? qiwiGetPostCopyrightHtml($this) : '';
+$qiwiCategoryLinks = function_exists('qiwiRenderTermLinks')
+    ? qiwiRenderTermLinks(isset($this->categories) ? $this->categories : array(), 'post-date-category-link', 'category')
+    : '';
 
 ob_start();
 $this->thePrev('%s', '');
@@ -40,7 +43,7 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                     <img src="<?php echo htmlspecialchars(function_exists('qiwiGetCommentAvatarUrl') ? qiwiGetCommentAvatarUrl($this->author->mail, 96) : 'https://gravatar.loli.net/avatar/' . md5($this->author->mail) . '?s=96&d=mp', ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->author(); ?>" class="author-avatar">
                     <div class="author-info">
                         <span class="author-name"><?php $this->author(); ?></span>
-                        <span class="post-date"><?php $this->date('Y-m-d H:i'); ?> · <?php
+                        <span class="post-date"><?php $this->date('Y-m-d H:i'); ?><?php if ($qiwiCategoryLinks !== ''): ?> · <span class="post-date-categories"><?php echo $qiwiCategoryLinks; ?></span><?php endif; ?> · <?php
                             $content = $this->content;
                             $wordCount = function_exists('qiwiCountReadableWords')
                                 ? qiwiCountReadableWords($content)
