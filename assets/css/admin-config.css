@@ -1869,9 +1869,13 @@
     }
 }
 
-/* Linear-inspired settings workspace */
+/* Qiwi settings workspace */
 .qiwi-admin-config-page {
-    background: #010102;
+    background: #f3f6f8;
+}
+
+.qiwi-admin-config-page .typecho-page-main .typecho-option-tabs {
+    margin-bottom: 18px;
 }
 
 .qiwi-admin-config-page .typecho-page-main > .col-mb-12.col-tb-8.col-tb-offset-2 {
@@ -1879,27 +1883,28 @@
 }
 
 .qiwi-admin-panel {
-    --qiwi-admin-canvas: #010102;
-    --qiwi-admin-surface-1: #0b0c10;
-    --qiwi-admin-surface-2: #111218;
-    --qiwi-admin-surface-3: #171922;
-    --qiwi-admin-surface-4: #1d202a;
-    --qiwi-admin-ink: #f7f8f8;
-    --qiwi-admin-muted: #d0d6e0;
-    --qiwi-admin-subtle: #8a8f98;
-    --qiwi-admin-tertiary: #62666d;
-    --qiwi-admin-line: #23252a;
-    --qiwi-admin-line-strong: #323540;
-    --qiwi-admin-line-soft: #1a1c22;
+    --qiwi-admin-canvas: #f7fafb;
+    --qiwi-admin-surface-1: #ffffff;
+    --qiwi-admin-surface-2: #f8fbfc;
+    --qiwi-admin-surface-3: #eef5f7;
+    --qiwi-admin-surface-4: #e4edf1;
+    --qiwi-admin-ink: #24313a;
+    --qiwi-admin-muted: #52616b;
+    --qiwi-admin-subtle: #7f8b94;
+    --qiwi-admin-tertiary: #9aa7b0;
+    --qiwi-admin-line: #dce5ea;
+    --qiwi-admin-line-strong: #c5d5dc;
+    --qiwi-admin-line-soft: #edf3f6;
     --qiwi-admin-paper: var(--qiwi-admin-surface-1);
     --qiwi-admin-soft: var(--qiwi-admin-surface-2);
-    --qiwi-admin-accent: #5e6ad2;
-    --qiwi-admin-accent-hover: #828fff;
-    --qiwi-admin-accent-soft: rgba(94, 106, 210, 0.14);
+    --qiwi-admin-accent: #2f7d95;
+    --qiwi-admin-accent-hover: #256c80;
+    --qiwi-admin-accent-soft: #e7f4f7;
+    clear: both;
     width: min(100%, 1280px);
-    margin: 20px auto 28px;
+    margin: 34px auto 28px;
     border-color: var(--qiwi-admin-line);
-    border-radius: 16px;
+    border-radius: 12px;
     background: var(--qiwi-admin-surface-1);
     color: var(--qiwi-admin-ink);
     font-family: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -1937,7 +1942,7 @@
 }
 
 .qiwi-admin-brand strong {
-    letter-spacing: -0.2px;
+    letter-spacing: 0;
 }
 
 .qiwi-admin-brand em,
@@ -1961,7 +1966,7 @@
 .qiwi-admin-nav-label {
     font-size: 12px;
     font-weight: 500;
-    letter-spacing: 0.4px;
+    letter-spacing: 0;
 }
 
 .qiwi-admin-tab {
@@ -2001,13 +2006,13 @@
     z-index: 5;
     top: 0;
     border-bottom-color: var(--qiwi-admin-line);
-    background: rgba(11, 12, 16, 0.96);
+    background: rgba(255, 255, 255, 0.96);
 }
 
 .qiwi-admin-main-head strong {
     font-size: 20px;
     font-weight: 600;
-    letter-spacing: -0.3px;
+    letter-spacing: 0;
 }
 
 .qiwi-admin-head-actions {
@@ -2075,7 +2080,7 @@
 .qiwi-admin-panel select:focus,
 .qiwi-admin-panel textarea:focus {
     border-color: var(--qiwi-admin-accent);
-    box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.5);
+    box-shadow: 0 0 0 2px rgba(47, 125, 149, 0.14);
 }
 
 .qiwi-admin-button {
@@ -2149,7 +2154,7 @@
 }
 
 .qiwi-update-status {
-    border: 1px solid rgba(94, 106, 210, 0.26);
+    border: 1px solid #bfdde6;
     background: var(--qiwi-admin-accent-soft);
     color: var(--qiwi-admin-accent-hover);
 }
@@ -2161,12 +2166,12 @@
 }
 
 .qiwi-update-spinner {
-    border-color: rgba(130, 143, 255, 0.24);
+    border-color: rgba(47, 125, 149, 0.2);
     border-top-color: var(--qiwi-admin-accent-hover);
 }
 
 .qiwi-update-modal {
-    background: rgba(1, 1, 2, 0.76);
+    background: rgba(15, 23, 42, 0.32);
 }
 
 .qiwi-update-source-field legend,

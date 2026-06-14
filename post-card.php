@@ -22,6 +22,9 @@ $postStats = function_exists('qiwiGetPostStats')
     );
 $postViews = isset($postStats['views']) ? (int) $postStats['views'] : 0;
 $postCommentCount = isset($postStats['comments']) ? (int) $postStats['comments'] : (int) $this->commentsNum;
+$postCategoryLinks = function_exists('qiwiRenderTermLinks')
+    ? qiwiRenderTermLinks(isset($this->categories) ? $this->categories : array(), 'meta-category-link', 'category')
+    : '';
 
 // 判断是否显示头图
 $showThumbnail = $this->fields->showThumbnail;
@@ -34,6 +37,9 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
         <div class="article-content">
             <div class="article-meta">
                 <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?></span>
+                <?php if ($postCategoryLinks !== ''): ?>
+                <span class="meta-category"><?php echo $postCategoryLinks; ?></span>
+                <?php endif; ?>
                 <span><?php echo $readingTime; ?> 分钟阅读</span>
                 <span><?php echo (int) $postViews; ?> 浏览</span>
                 <?php if ($postCommentCount > 0): ?>

@@ -50,6 +50,23 @@ foreach ($posts as $post) {
     $totalWords += getWordCount($post['text']);
 }
 
+// 统计时光机说说，和文章字数分开展示
+$momentRows = $db->fetchAll($db->select('table.comments.text')
+    ->from('table.comments')
+    ->join('table.contents', 'table.comments.cid = table.contents.cid')
+    ->where('table.comments.status = ?', 'approved')
+    ->where('table.comments.type = ?', 'comment')
+    ->where('table.comments.authorId = table.contents.authorId')
+    ->where('(table.comments.parent IS NULL OR table.comments.parent = ?)', 0)
+    ->where('table.contents.type = ?', 'page')
+    ->where('table.contents.status = ?', 'publish')
+    ->where('(table.contents.template = ? OR table.contents.template = ?)', 'page-timemachine.php', 'page-timemachine'));
+$totalMoments = count($momentRows);
+$totalMomentWords = 0;
+foreach ($momentRows as $moment) {
+    $totalMomentWords += getWordCount(isset($moment['text']) ? $moment['text'] : '');
+}
+
 // 计算写作天数（从第一篇文章到现在）
 $writingDays = 0;
 if (!empty($posts)) {
@@ -139,6 +156,13 @@ $pageContent = qiwiGetContent($this);
                 <?php if ($nextMilestone): ?>
                 <li class="stats-item">
                     距离下一个里程碑（<?php echo number_format($nextMilestone); ?> 字）还有 <span class="stats-highlight"><?php echo number_format($wordsToNext); ?></span> 字
+                </li>
+                <?php endif; ?>
+                <?php if ($totalMoments > 0): ?>
+                <li class="stats-item">除了文章外，还写了 <?php echo number_format($totalMoments); ?> 条说说<br>
+                </li>
+                <li class="stats-item"> 
+                    共 <span class="stats-highlight"><?php echo number_format($totalMomentWords); ?></span> 字
                 </li>
                 <?php endif; ?>
             </ul>

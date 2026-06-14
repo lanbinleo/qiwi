@@ -1497,6 +1497,23 @@ img {
     color: var(--color-accent);
 }
 
+.post-date-categories {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-1);
+    vertical-align: baseline;
+}
+
+.post-date-categories a {
+    color: var(--term-color, var(--color-accent));
+    font-weight: 600;
+}
+
+.post-date-categories a:hover,
+.post-date-categories a:focus-visible {
+    color: var(--term-color, var(--color-accent));
+}
+
 /* 文章头图 */
 .article-hero {
     display: block;
