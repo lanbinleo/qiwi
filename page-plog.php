@@ -50,6 +50,10 @@ if (!function_exists('qiwiPlogNormalizeMode')) {
         $map = [
             'grid' => 'grid',
             '网格' => 'grid',
+            'masonry' => 'masonry',
+            'waterfall' => 'masonry',
+            '瀑布流' => 'masonry',
+            '瀑布' => 'masonry',
             'justified' => 'justified',
             'gallery' => 'justified',
             '画廊' => 'justified',
@@ -294,7 +298,8 @@ $this->need('header.php');
         <?php endforeach; ?>
     </section>
     <?php else: ?>
-    <section class="<?php echo $mode === 'justified' ? 'plog-justified' : 'plog-grid'; ?>" aria-label="<?php echo qiwiPlogEscape($plog['title']); ?>" data-plog-gallery>
+    <?php $galleryClass = $mode === 'justified' ? 'plog-justified' : ($mode === 'masonry' ? 'plog-masonry' : 'plog-grid'); ?>
+    <section class="<?php echo qiwiPlogEscape($galleryClass); ?>" aria-label="<?php echo qiwiPlogEscape($plog['title']); ?>" data-plog-gallery>
         <?php foreach ($photos as $index => $photo): ?>
         <button class="plog-item" type="button" data-plog-index="<?php echo (int) $index; ?>" data-plog-ratio="<?php echo qiwiPlogEscape($photo['w'] / $photo['h']); ?>" style="aspect-ratio: <?php echo (int) $photo['w']; ?> / <?php echo (int) $photo['h']; ?>;">
             <img src="<?php echo qiwiPlogEscape($photo['thumb']); ?>" alt="<?php echo qiwiPlogEscape($photo['title']); ?>" loading="lazy" decoding="async">
@@ -314,7 +319,8 @@ $this->need('header.php');
     <button class="plog-lightbox-close" type="button" data-plog-close aria-label="关闭图片预览">&times;</button>
     <button class="plog-lightbox-nav plog-lightbox-prev" type="button" data-plog-prev aria-label="上一张">&#8249;</button>
     <figure class="plog-lightbox-content">
-        <img src="" alt="" data-plog-lightbox-image>
+        <span class="plog-lightbox-spinner" data-plog-lightbox-spinner aria-hidden="true"></span>
+        <img src="" alt="" decoding="async" data-plog-lightbox-image>
         <figcaption>
             <strong data-plog-lightbox-title></strong>
             <span data-plog-lightbox-desc></span>
@@ -338,6 +344,7 @@ $this->need('header.php');
     var album = document.querySelector('[data-plog-lightbox-album]');
     var date = document.querySelector('[data-plog-lightbox-date]');
     var counter = document.querySelector('[data-plog-counter]');
+    var spinner = document.querySelector('[data-plog-lightbox-spinner]');
     var currentIndex = 0;
 
     function setLoaded(event) {
@@ -346,19 +353,28 @@ $this->need('header.php');
     }
 
     document.querySelectorAll('.plog-item img, .plog-entry-media img').forEach(function(img) {
+        img.addEventListener('load', setLoaded);
+        img.addEventListener('error', setLoaded);
         if (img.complete) {
-            img.closest('.plog-item, .plog-entry-media').classList.add('is-loaded');
-        } else {
-            img.addEventListener('load', setLoaded);
+            var holder = img.closest('.plog-item, .plog-entry-media');
+            if (holder) holder.classList.add('is-loaded');
         }
     });
+
+    function setLightboxLoaded() {
+        image.classList.add('is-loaded');
+        if (spinner) spinner.hidden = true;
+    }
 
     function openLightbox(index) {
         currentIndex = (index + photos.length) % photos.length;
         var photo = photos[currentIndex];
         image.classList.remove('is-loaded');
-        image.onload = function() { image.classList.add('is-loaded'); };
+        if (spinner) spinner.hidden = false;
+        image.onload = setLightboxLoaded;
+        image.onerror = setLightboxLoaded;
         image.src = photo.full || photo.src || photo.thumb;
+        if (image.complete && image.naturalWidth > 0) setLightboxLoaded();
         image.alt = photo.title || '';
         title.textContent = photo.title || '';
         desc.textContent = photo.desc || '';

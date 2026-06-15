@@ -2780,7 +2780,7 @@
                                 '<strong>Plog 页面正文模板</strong>' +
                                 '<span>把下面内容粘到独立页面正文里，再在页面设置中选择 `page-plog.php` 模板。</span>' +
                             '</div>' +
-                            '<pre class="qiwi-plog-template-code"><code data-plog-template-code># Plog\n用照片记录生活的碎片\nmode: justified\n\n![玄武湖畔](https://example.com/photo-01.jpg)\ntitle: 玄武湖畔\ndesc: 傍晚沿湖跑步时拍的，光线刚好\nalbum: 南京游\ndate: 1781524213\nw: 4\nh: 3\n\n![先锋书店](https://example.com/photo-02.jpg)\ntitle: 先锋书店\ndesc: 地下停车场改造的书店，很有氛围\nalbum: 南京游\ndate: 2026-06-15 19:50\nw: 16\nh: 9</code></pre>' +
+                            '<pre class="qiwi-plog-template-code"><code data-plog-template-code># Plog\n用照片记录生活的碎片\nmode: masonry\n\n![玄武湖畔](https://example.com/photo-01.jpg)\ntitle: 玄武湖畔\ndesc: 傍晚沿湖跑步时拍的，光线刚好\nalbum: 南京游\ndate: 1781524213\nw: 4\nh: 3\n\n![先锋书店](https://example.com/photo-02.jpg)\ntitle: 先锋书店\ndesc: 地下停车场改造的书店，很有氛围\nalbum: 南京游\ndate: 2026-06-15 19:50\nw: 16\nh: 9</code></pre>' +
                         '</div>' +
                     '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></section>' +

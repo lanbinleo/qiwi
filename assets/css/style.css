@@ -900,6 +900,19 @@ img {
     gap: var(--s-3);
 }
 
+.plog-masonry {
+    column-count: 3;
+    column-gap: var(--s-3);
+}
+
+.plog-masonry .plog-item {
+    display: block;
+    margin: 0 0 var(--s-3);
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+}
+
 .plog-justified {
     display: flex;
     flex-wrap: wrap;
@@ -950,7 +963,8 @@ img {
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    transition: opacity 0.32s var(--ease), transform 0.4s var(--ease);
+    transition: opacity 0.32s var(--ease), transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+    will-change: transform;
 }
 
 .plog-item.is-loaded img,
@@ -1093,6 +1107,7 @@ img {
 }
 
 .plog-lightbox-content {
+    position: relative;
     display: grid;
     justify-items: center;
     gap: var(--s-4);
@@ -1113,6 +1128,28 @@ img {
 
 .plog-lightbox-content img.is-loaded {
     opacity: 1;
+}
+
+.plog-lightbox-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border: 2px solid rgba(255,255,255,0.22);
+    border-top-color: var(--color-accent);
+    border-radius: var(--r-pill);
+    animation: qiwiPlogSpin 0.8s linear infinite;
+}
+
+.plog-lightbox-spinner[hidden] {
+    display: none;
+}
+
+@keyframes qiwiPlogSpin {
+    to { transform: rotate(360deg); }
 }
 
 .plog-lightbox figcaption {
@@ -2966,6 +3003,15 @@ body.qiwi-lightbox-open {
     .plog-grid {
         grid-template-columns: 1fr;
         gap: var(--s-2);
+    }
+
+    .plog-masonry {
+        column-count: 1;
+        column-gap: var(--s-2);
+    }
+
+    .plog-masonry .plog-item {
+        margin-bottom: var(--s-2);
     }
 
     .plog-justified {
@@ -5619,6 +5665,10 @@ body.qiwi-lightbox-open {
 
     .main-layout .sidebar {
         grid-column: 2 / 3;
+    }
+
+    .plog-masonry {
+        column-count: 2;
     }
 
     /* 确保文章内容不超出屏幕 */
