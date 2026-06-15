@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  MaxQiwi
- * @version 1.4.14
+ * @version 1.5.0
  * @link    https://www.maxqi.top/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface

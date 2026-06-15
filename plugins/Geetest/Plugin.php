@@ -8,7 +8,7 @@ require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
  *
  * @package Qiwi GTest
  * @author 小胖狐 && 饭饭 && CairBin
- * @version 1.4.14
+ * @version 1.5.0
  * @link http://zsduo.com
  * @link https://ffis.me
  * @link https://cairbin.top
