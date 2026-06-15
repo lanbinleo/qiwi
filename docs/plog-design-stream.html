@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plog Design - Centered Stream (方案B)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #18181b; --surface: #27272a; --text-1: #e4e4e7;
+  --text-2: #a1a1aa; --text-3: #71717a; --accent: #d4c4b0;
+  --accent-soft: #8b7355; --border: rgba(255,255,255,0.08);
+}
+body { background: var(--bg); color: var(--text-1); font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif; line-height: 1.6; }
+
+/* Navbar */
+.navbar { position: sticky; top: 0; z-index: 100; background: rgba(24,24,27,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 12px 48px; display: flex; align-items: center; justify-content: space-between; }
+.navbar .logo { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.navbar nav a { font-size: 15px; color: var(--text-2); text-decoration: none; margin-left: 24px; transition: color 0.24s; }
+.navbar nav a:hover { color: var(--accent); }
+
+/* Page Header */
+.page-header { padding: 64px 48px 48px; max-width: 800px; margin: 0 auto; text-align: center; }
+.page-header h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+.page-header p { font-size: 15px; color: var(--text-3); }
+
+/* Stream */
+.plog-stream { max-width: 800px; margin: 0 auto; padding: 0 24px 80px; }
+.plog-entry { margin-bottom: 64px; }
+.plog-entry img { width: 100%; border-radius: 8px; display: block; cursor: pointer; transition: transform 0.3s; }
+.plog-entry img:hover { transform: scale(1.01); }
+.plog-entry .meta { display: flex; align-items: baseline; gap: 12px; margin-top: 14px; padding: 0 4px; }
+.plog-entry .meta .title { font-size: 16px; font-weight: 500; color: var(--text-1); }
+.plog-entry .meta .date { font-size: 13px; color: var(--text-3); }
+.plog-entry .meta .desc { font-size: 14px; color: var(--text-2); margin-top: 6px; flex-basis: 100%; }
+.plog-divider { height: 1px; background: var(--border); margin-bottom: 64px; }
+
+/* Lightbox */
+.lightbox { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.92); backdrop-filter: blur(10px); align-items: center; justify-content: center; flex-direction: column; }
+.lightbox.active { display: flex; }
+.lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 6px; }
+.lightbox .info { margin-top: 16px; text-align: center; }
+.lightbox .info .title { font-size: 17px; color: #fff; font-weight: 500; }
+.lightbox .info .date { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+.lightbox .close { position: absolute; top: 24px; right: 32px; font-size: 28px; color: var(--text-2); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+.lightbox .close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); font-size: 32px; color: var(--text-2); cursor: pointer; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+.lightbox .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn.prev { left: 24px; }
+.lightbox .nav-btn.next { right: 24px; }
+
+@media (max-width: 600px) { .plog-stream { padding: 0 16px 48px; } .navbar { padding: 12px 16px; } .page-header { padding: 32px 16px 32px; } .plog-entry { margin-bottom: 48px; } .plog-divider { margin-bottom: 48px; } }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="logo">Qiwi</div>
+  <nav>
+    <a href="#">首页</a>
+    <a href="#">归档</a>
+    <a href="#" style="color:var(--accent)">Plog</a>
+    <a href="#">关于</a>
+  </nav>
+</div>
+
+<div class="page-header">
+  <h1>Plog</h1>
+  <p>用照片记录生活的碎片</p>
+</div>
+
+<div class="plog-stream" id="stream"></div>
+
+<div class="lightbox" id="lightbox">
+  <div class="close" onclick="closeLightbox()">&times;</div>
+  <div class="nav-btn prev" onclick="navLightbox(-1)">&#8249;</div>
+  <div class="nav-btn next" onclick="navLightbox(1)">&#8250;</div>
+  <img id="lb-img" src="" alt="">
+  <div class="info">
+    <div class="title" id="lb-title"></div>
+    <div class="date" id="lb-date"></div>
+  </div>
+</div>
+
+<script>
+const photos = Array.from({length: 8}, (_, i) => ({
+  src: `https://picsum.photos/seed/${i + 300}/800/540?t=${Date.now()}`,
+  full: `https://picsum.photos/seed/${i + 300}/1600/1080?t=${Date.now()}`,
+  title: ['清晨的公园', '城市天际线', '安静的书房', '深秋落叶', '海边栈道', '老城墙角', '雨中骑行', '夜市霓虹'][i],
+  date: `2024.${String(12 - i).padStart(2,'0')}.${String(Math.floor(Math.random()*28)+1).padStart(2,'0')}`,
+  desc: ['阳光穿过树叶洒在长椅上', '从楼顶看出去的傍晚', '周末午后的角落', '满地金黄的银杏', '海风很大，盐味的空气', '转角处的旧招牌', '骑了三十公里后停下来', '热闹而温暖的一条街'][i]
+}));
+
+const stream = document.getElementById('stream');
+photos.forEach((p, i) => {
+  const entry = document.createElement('div');
+  entry.className = 'plog-entry';
+  entry.innerHTML = `
+    <img src="${p.src}" alt="${p.title}" loading="lazy" onclick="openLightbox(${i})">
+    <div class="meta">
+      <span class="title">${p.title}</span>
+      <span class="date">${p.date}</span>
+    </div>
+    <div class="meta"><span class="desc">${p.desc}</span></div>
+  `;
+  stream.appendChild(entry);
+  if (i < photos.length - 1) {
+    const div = document.createElement('div');
+    div.className = 'plog-divider';
+    stream.appendChild(div);
+  }
+});
+
+let currentIdx = 0;
+function openLightbox(i) {
+  currentIdx = i;
+  document.getElementById('lb-img').src = photos[i].full;
+  document.getElementById('lb-title').textContent = photos[i].title;
+  document.getElementById('lb-date').textContent = photos[i].date;
+  document.getElementById('lightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+  document.body.style.overflow = '';
+}
+function navLightbox(dir) {
+  currentIdx = (currentIdx + dir + photos.length) % photos.length;
+  openLightbox(currentIdx);
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('active')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') navLightbox(-1);
+  if (e.key === 'ArrowRight') navLightbox(1);
+});
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) closeLightbox(); });
+</script>
+</body>
+</html>

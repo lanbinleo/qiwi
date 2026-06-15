@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plog Design - Grid (方案D)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #18181b; --surface: #27272a; --text-1: #e4e4e7;
+  --text-2: #a1a1aa; --text-3: #71717a; --accent: #d4c4b0;
+  --accent-soft: #8b7355; --border: rgba(255,255,255,0.08);
+}
+body { background: var(--bg); color: var(--text-1); font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif; line-height: 1.6; }
+
+/* Navbar */
+.navbar { position: sticky; top: 0; z-index: 100; background: rgba(24,24,27,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 12px 48px; display: flex; align-items: center; justify-content: space-between; }
+.navbar .logo { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.navbar nav a { font-size: 15px; color: var(--text-2); text-decoration: none; margin-left: 24px; transition: color 0.24s; }
+.navbar nav a:hover { color: var(--accent); }
+
+/* Page Header */
+.page-header { padding: 64px 48px 32px; max-width: 1400px; margin: 0 auto; }
+.page-header h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+.page-header p { font-size: 15px; color: var(--text-3); }
+
+/* Grid */
+.plog-grid { max-width: 1400px; margin: 0 auto; padding: 0 48px 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.plog-item { position: relative; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; cursor: pointer; }
+.plog-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.25,0.1,0.25,1); }
+.plog-item:hover img { transform: scale(1.05); }
+.plog-item .overlay { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,0,0,0.7)); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: flex-end; padding: 16px; }
+.plog-item:hover .overlay { opacity: 1; }
+.plog-item .overlay .title { font-size: 15px; font-weight: 500; color: #fff; }
+.plog-item .overlay .date { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+/* Lightbox */
+.lightbox { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.92); backdrop-filter: blur(10px); align-items: center; justify-content: center; flex-direction: column; }
+.lightbox.active { display: flex; }
+.lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 6px; }
+.lightbox .info { margin-top: 16px; text-align: center; }
+.lightbox .info .title { font-size: 17px; color: #fff; font-weight: 500; }
+.lightbox .info .date { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+.lightbox .close { position: absolute; top: 24px; right: 32px; font-size: 28px; color: var(--text-2); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+.lightbox .close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); font-size: 32px; color: var(--text-2); cursor: pointer; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+.lightbox .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn.prev { left: 24px; }
+.lightbox .nav-btn.next { right: 24px; }
+
+/* Responsive */
+@media (max-width: 1100px) { .plog-grid { grid-template-columns: repeat(2, 1fr); padding: 0 32px 48px; } .page-header { padding: 48px 32px 24px; } }
+@media (max-width: 600px) { .plog-grid { grid-template-columns: 1fr; padding: 0 16px 32px; } .navbar { padding: 12px 16px; } .page-header { padding: 32px 16px 16px; } }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="logo">Qiwi</div>
+  <nav>
+    <a href="#">首页</a>
+    <a href="#">归档</a>
+    <a href="#" style="color:var(--accent)">Plog</a>
+    <a href="#">关于</a>
+  </nav>
+</div>
+
+<div class="page-header">
+  <h1>Plog</h1>
+  <p>用照片记录生活的碎片</p>
+</div>
+
+<div class="plog-grid" id="grid"></div>
+
+<div class="lightbox" id="lightbox">
+  <div class="close" onclick="closeLightbox()">&times;</div>
+  <div class="nav-btn prev" onclick="navLightbox(-1)">&#8249;</div>
+  <div class="nav-btn next" onclick="navLightbox(1)">&#8250;</div>
+  <img id="lb-img" src="" alt="">
+  <div class="info">
+    <div class="title" id="lb-title"></div>
+    <div class="date" id="lb-date"></div>
+  </div>
+</div>
+
+<script>
+const photos = Array.from({length: 12}, (_, i) => ({
+  src: `https://picsum.photos/seed/${i + 40}/800/600?t=${Date.now()}`,
+  full: `https://picsum.photos/seed/${i + 40}/1600/1200?t=${Date.now()}`,
+  title: ['晨光', '街角', '远山', '咖啡', '雨后', '暮色', '老巷', '花开', '窗台', '路灯', '天桥', '海边'][i],
+  date: `2024.${String(Math.floor(Math.random()*12)+1).padStart(2,'0')}.${String(Math.floor(Math.random()*28)+1).padStart(2,'0')}`
+}));
+
+const grid = document.getElementById('grid');
+photos.forEach((p, i) => {
+  const item = document.createElement('div');
+  item.className = 'plog-item';
+  item.onclick = () => openLightbox(i);
+  item.innerHTML = `<img src="${p.src}" alt="${p.title}" loading="lazy"><div class="overlay"><div class="title">${p.title}</div><div class="date">${p.date}</div></div>`;
+  grid.appendChild(item);
+});
+
+let currentIdx = 0;
+function openLightbox(i) {
+  currentIdx = i;
+  document.getElementById('lb-img').src = photos[i].full;
+  document.getElementById('lb-title').textContent = photos[i].title;
+  document.getElementById('lb-date').textContent = photos[i].date;
+  document.getElementById('lightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+  document.body.style.overflow = '';
+}
+function navLightbox(dir) {
+  currentIdx = (currentIdx + dir + photos.length) % photos.length;
+  openLightbox(currentIdx);
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('active')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') navLightbox(-1);
+  if (e.key === 'ArrowRight') navLightbox(1);
+});
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) closeLightbox(); });
+</script>
+</body>
+</html>
