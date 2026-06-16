@@ -48,8 +48,28 @@
         try {
             document.execCommand('copy');
             if (done) done();
-        } catch (error) {}
+        } catch (error) {
+            if (done) done();
+        }
         document.body.removeChild(textarea);
+    }
+
+    function copyTextWithLabel(button, text, label, done) {
+        if (!button) {
+            copyText(text, done);
+            return;
+        }
+
+        var original = button.innerHTML;
+        button.disabled = true;
+        copyText(text, function() {
+            button.innerHTML = label || original;
+            setTimeout(function() {
+                button.innerHTML = original;
+                button.disabled = false;
+            }, 1600);
+            if (done) done();
+        });
     }
 
     function fieldByName(name) {
@@ -583,6 +603,16 @@
             refresh: function() { render(parseNav(textarea.value)); },
             sync: sync
         };
+    }
+
+    function initPlogTemplatePanel(panel) {
+        var copyButton = $('[data-plog-template-copy]', panel);
+        var output = $('[data-plog-template-code]', panel);
+        if (!copyButton || !output) return;
+
+        copyButton.addEventListener('click', function() {
+            copyTextWithLabel(copyButton, output.textContent || output.innerText || '', '已复制');
+        });
     }
 
     function parseFriends(text) {
@@ -2691,6 +2721,7 @@
                             '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="home" data-qiwi-title="首页" data-qiwi-desc="Hero、一言与首页动态展示。"><i class="fa-solid fa-house" aria-hidden="true"></i><span>首页</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="nav" data-qiwi-title="导航栏" data-qiwi-desc="顶部导航、外链与二级菜单。"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>导航栏</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar" data-qiwi-title="侧边栏" data-qiwi-desc="个人信息、社交链接与侧边栏模块。"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>侧边栏</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="templates" data-qiwi-title="页面模板" data-qiwi-desc="常用独立页面正文模板，可一键复制到页面正文。"><i class="fa-regular fa-copy" aria-hidden="true"></i><span>页面模板</span></button>' +
                         '</div>' +
                         '<div class="qiwi-admin-nav-group">' +
                             '<span class="qiwi-admin-nav-label">页面数据</span>' +
@@ -2740,6 +2771,18 @@
                             '<div data-qiwi-sidebar-social-list></div>' +
                         '</section>' +
                     '</section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="templates">' +
+                        '<div class="qiwi-admin-toolbar">' +
+                            '<button type="button" class="qiwi-admin-button is-primary" data-plog-template-copy><i class="fa-regular fa-copy" aria-hidden="true"></i>一键复制模板</button>' +
+                        '</div>' +
+                        '<div class="qiwi-plog-template-card">' +
+                            '<div class="qiwi-plog-template-head">' +
+                                '<strong>Plog 页面正文模板</strong>' +
+                                '<span>把下面内容粘到独立页面正文里，再在页面设置中选择 `page-plog.php` 模板。</span>' +
+                            '</div>' +
+                            '<pre class="qiwi-plog-template-code"><code data-plog-template-code># Plog\n用照片记录生活的碎片\nmode: masonry\nsort: date-desc\ndateDisplay: show\ndatePrecision: auto\n\n![玄武湖畔](https://example.com/photo-01.jpg)\ntitle: 玄武湖畔\ndesc: 傍晚沿湖跑步时拍的，光线刚好\nalbum: 南京游\ndate: 1781524213\nw: 4\nh: 3\n\n![先锋书店](https://example.com/photo-02.jpg)\ntitle: 先锋书店\ndesc: 地下停车场改造的书店，很有氛围\nalbum: 南京游\ndate: 2026-06-15 19:50\ndatePrecision: datetime\nw: 16\nh: 9</code></pre>' +
+                        '</div>' +
+                    '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="about"><div class="qiwi-admin-fields" data-qiwi-about-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="friends">' +
@@ -2788,6 +2831,7 @@
 
         initTabs(panel);
         initAdminSaveButton(panel);
+        initPlogTemplatePanel(panel);
         var editors = {
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),

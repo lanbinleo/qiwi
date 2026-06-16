@@ -2118,6 +2118,46 @@
     color: var(--qiwi-admin-ink);
 }
 
+.qiwi-plog-template-card {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid var(--qiwi-admin-line);
+    border-radius: 10px;
+    background: var(--qiwi-admin-surface-2);
+}
+
+.qiwi-plog-template-head {
+    display: grid;
+    gap: 6px;
+}
+
+.qiwi-plog-template-head strong {
+    color: var(--qiwi-admin-ink);
+    font-size: 15px;
+}
+
+.qiwi-plog-template-head span {
+    color: var(--qiwi-admin-subtle);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.qiwi-plog-template-code {
+    max-height: 420px;
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    border: 1px solid var(--qiwi-admin-line-strong);
+    border-radius: 8px;
+    background: var(--qiwi-admin-surface-1);
+    color: var(--qiwi-admin-ink);
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
 .qiwi-link-stats-table {
     border-color: var(--qiwi-admin-line);
     background: var(--qiwi-admin-surface-1);

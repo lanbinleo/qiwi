@@ -136,3 +136,373 @@
     border-color: #9aa6b5;
     background: #fff;
 }
+
+.qiwi-plog-editor[hidden] {
+    display: none;
+}
+
+.qiwi-plog-editor {
+    margin: 14px 0 18px;
+    padding: 14px;
+    border: 1px solid #d9dfe7;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.qiwi-plog-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.qiwi-plog-editor-head > div:first-child {
+    display: grid;
+    gap: 3px;
+}
+
+.qiwi-plog-editor-head strong {
+    color: #202328;
+    font-size: 14px;
+}
+
+.qiwi-plog-editor-head span {
+    color: #6d7785;
+    font-size: 12px;
+}
+
+.qiwi-plog-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #d9dfe7;
+    border-radius: 8px;
+    background: #f8f9fb;
+}
+
+.qiwi-plog-tab {
+    min-height: 30px;
+    padding: 4px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #4b5563;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.qiwi-plog-tab.is-active {
+    background: #202328;
+    color: #fff;
+}
+
+.qiwi-plog-pane {
+    display: none;
+}
+
+.qiwi-plog-pane.is-active {
+    display: block;
+}
+
+.qiwi-plog-fields,
+.qiwi-plog-photo-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.qiwi-plog-fields label,
+.qiwi-plog-photo-fields label {
+    display: grid;
+    gap: 5px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qiwi-plog-fields input,
+.qiwi-plog-fields select,
+.qiwi-plog-fields textarea,
+.qiwi-plog-photo-fields input,
+.qiwi-plog-photo-fields select,
+.qiwi-plog-photo-fields textarea,
+.qiwi-plog-raw textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid #cfd6df;
+    border-radius: 6px;
+    background: #fff;
+    color: #202328;
+    font-size: 13px;
+}
+
+.qiwi-plog-fields input,
+.qiwi-plog-fields select,
+.qiwi-plog-photo-fields input,
+.qiwi-plog-photo-fields select {
+    min-height: 32px;
+    padding: 5px 8px;
+}
+
+.qiwi-plog-fields textarea,
+.qiwi-plog-photo-fields textarea,
+.qiwi-plog-raw textarea {
+    padding: 8px;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.qiwi-plog-wide {
+    grid-column: 1 / -1;
+}
+
+.qiwi-plog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.qiwi-plog-button,
+.qiwi-plog-photo-actions button {
+    min-height: 30px;
+    border: 1px solid #d9dfe7;
+    border-radius: 6px;
+    background: #f8f9fb;
+    color: #202328;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.qiwi-plog-button {
+    padding: 5px 10px;
+}
+
+.qiwi-plog-button.is-primary {
+    border-color: #202328;
+    background: #202328;
+    color: #fff;
+}
+
+.qiwi-plog-button:hover,
+.qiwi-plog-button:focus,
+.qiwi-plog-photo-actions button:hover,
+.qiwi-plog-photo-actions button:focus {
+    border-color: #9aa6b5;
+    background: #fff;
+}
+
+.qiwi-plog-button.is-primary:hover,
+.qiwi-plog-button.is-primary:focus {
+    border-color: #202328;
+    background: #343941;
+    color: #fff;
+}
+
+.qiwi-plog-photo-list {
+    display: grid;
+    gap: 12px;
+}
+
+.qiwi-plog-empty {
+    padding: 18px;
+    border: 1px dashed #cfd6df;
+    border-radius: 8px;
+    color: #6d7785;
+    text-align: center;
+}
+
+.qiwi-plog-photo {
+    overflow: hidden;
+    border: 1px solid #e1e6ed;
+    border-radius: 8px;
+    background: #fafbfc;
+}
+
+.qiwi-plog-photo.is-dragging {
+    opacity: 0.48;
+}
+
+.qiwi-plog-photo-summary {
+    display: grid;
+    grid-template-columns: 26px 58px minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.qiwi-plog-photo-summary:hover,
+.qiwi-plog-photo-summary:focus {
+    background: #fff;
+}
+
+.qiwi-plog-photo-drag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 32px;
+    border-radius: 6px;
+    color: #8b96a5;
+    cursor: grab;
+}
+
+.qiwi-plog-photo-drag:active {
+    cursor: grabbing;
+}
+
+.qiwi-plog-photo-preview {
+    width: 58px;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: #edf0f4;
+    color: #7a8491;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.qiwi-plog-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.qiwi-plog-photo-title {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.qiwi-plog-photo-title strong,
+.qiwi-plog-photo-title em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-plog-photo-title strong {
+    color: #202328;
+    font-size: 13px;
+}
+
+.qiwi-plog-photo-title em {
+    color: #778291;
+    font-size: 12px;
+    font-style: normal;
+}
+
+.qiwi-plog-photo-arrow {
+    color: #8b96a5;
+    text-align: center;
+    transition: transform 160ms ease;
+}
+
+.qiwi-plog-photo.is-open .qiwi-plog-photo-arrow {
+    transform: rotate(180deg);
+}
+
+.qiwi-plog-photo-editor {
+    display: none;
+    padding: 0 12px 12px;
+}
+
+.qiwi-plog-photo.is-open .qiwi-plog-photo-editor {
+    display: block;
+}
+
+.qiwi-plog-photo-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 2px 0 10px;
+}
+
+.qiwi-plog-photo-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 5px;
+}
+
+.qiwi-plog-photo-actions button {
+    width: 30px;
+    padding: 0;
+}
+
+.qiwi-plog-raw-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    color: #6d7785;
+    font-size: 12px;
+}
+
+.qiwi-plog-raw-head strong {
+    color: #202328;
+}
+
+.qiwi-plog-raw .wmd-panel {
+    margin: 0;
+}
+
+.qiwi-plog-raw #wmd-button-bar {
+    margin-top: 0;
+}
+
+.qiwi-plog-raw textarea {
+    min-height: 620px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.qiwi-plog-editor-page #wmd-preview,
+.qiwi-plog-editor-page .wmd-preview {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    .qiwi-plog-editor {
+        padding: 12px;
+    }
+
+    .qiwi-plog-editor-head,
+    .qiwi-plog-raw-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .qiwi-plog-tabs {
+        width: 100%;
+    }
+
+    .qiwi-plog-tab {
+        flex: 1;
+    }
+
+    .qiwi-plog-fields,
+    .qiwi-plog-photo-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .qiwi-plog-photo-summary {
+        grid-template-columns: 24px 50px minmax(0, 1fr) 22px;
+        gap: 8px;
+    }
+
+    .qiwi-plog-photo-preview {
+        width: 50px;
+    }
+}

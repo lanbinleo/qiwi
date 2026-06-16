@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plog Design - Final</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #18181b; --surface: #27272a; --text-1: #e4e4e7;
+  --text-2: #a1a1aa; --text-3: #71717a; --accent: #d4c4b0;
+  --accent-soft: #8b7355; --border: rgba(255,255,255,0.08);
+  --radius: 8px;
+}
+body { background: var(--bg); color: var(--text-1); font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif; line-height: 1.6; }
+
+.navbar { position: sticky; top: 0; z-index: 100; background: rgba(24,24,27,0.97); border-bottom: 1px solid var(--border); padding: 12px 48px; display: flex; align-items: center; justify-content: space-between; }
+.navbar .logo { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.navbar nav a { font-size: 15px; color: var(--text-2); text-decoration: none; margin-left: 24px; transition: color 0.24s; }
+.navbar nav a:hover { color: var(--accent); }
+
+.page-header { padding: 64px 48px 24px; max-width: 1400px; margin: 0 auto; }
+.page-header h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+.page-header p { font-size: 15px; color: var(--text-3); }
+
+.mode-switcher { max-width: 1400px; margin: 0 auto; padding: 0 48px 32px; display: flex; gap: 8px; }
+.mode-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-2); font-size: 13px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.mode-btn:hover { border-color: var(--accent-soft); color: var(--text-1); }
+.mode-btn.active { background: var(--accent-soft); border-color: var(--accent-soft); color: #fff; }
+
+/* Skeleton loading */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.plog-item, .plog-entry .img-wrap { position: relative; background: var(--surface); contain: content; }
+.plog-item::before, .plog-entry .img-wrap::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit;
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s ease infinite;
+  will-change: background-position;
+}
+.plog-item.loaded::before, .plog-entry .img-wrap.loaded::before { content: none; }
+.plog-item img, .plog-entry .img-wrap img { opacity: 0; transition: opacity 0.3s ease; }
+.plog-item.loaded img, .plog-entry .img-wrap.loaded img { opacity: 1; }
+.plog-item img, .plog-justified .plog-item img, .plog-grid .plog-item img { will-change: transform; }
+
+/* Grid */
+.plog-grid { max-width: 1400px; margin: 0 auto; padding: 0 48px 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.plog-grid .plog-item { aspect-ratio: 4/3; border-radius: var(--radius); overflow: hidden; cursor: pointer; }
+.plog-grid .plog-item img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s, transform 0.4s cubic-bezier(0.25,0.1,0.25,1); }
+.plog-grid .plog-item:hover img { transform: scale(1.05); }
+.plog-grid .plog-item .overlay { position: absolute; inset: 0; z-index: 2; background: linear-gradient(transparent 40%, rgba(0,0,0,0.75)); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: flex-end; padding: 16px; }
+.plog-grid .plog-item:hover .overlay { opacity: 1; }
+.plog-grid .plog-item .overlay .title { font-size: 15px; font-weight: 500; color: #fff; }
+.plog-grid .plog-item .overlay .desc { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.album-tag { display: inline-block; width: fit-content; font-size: 11px; color: var(--accent); background: rgba(212,196,176,0.15); padding: 2px 8px; border-radius: 10px; margin-top: 8px; align-self: flex-start; }
+
+/* Justified */
+.plog-justified { max-width: 1400px; margin: 0 auto; padding: 0 48px 64px; }
+.plog-justified .plog-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.plog-justified .plog-item { overflow: hidden; border-radius: 6px; cursor: pointer; flex-shrink: 0; }
+.plog-justified .plog-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.4s, transform 0.4s cubic-bezier(0.25,0.1,0.25,1); }
+.plog-justified .plog-item:hover img { transform: scale(1.05); }
+.plog-justified .plog-item .overlay { position: absolute; inset: 0; z-index: 2; background: linear-gradient(transparent 40%, rgba(0,0,0,0.75)); opacity: 0; transition: opacity 0.3s; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px; }
+.plog-justified .plog-item:hover .overlay { opacity: 1; }
+.plog-justified .plog-item .overlay .title { font-size: 14px; font-weight: 500; color: #fff; }
+.plog-justified .plog-item .overlay .desc { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plog-justified .plog-item .overlay .album-tag { font-size: 10px; padding: 2px 7px; margin-top: 6px; }
+
+/* Stream */
+.plog-stream { max-width: 800px; margin: 0 auto; padding: 0 24px 80px; }
+.plog-stream .plog-entry { margin-bottom: 56px; }
+.plog-stream .plog-entry .img-wrap { width: 100%; border-radius: var(--radius); overflow: hidden; cursor: pointer; }
+.plog-stream .plog-entry .img-wrap img { width: 100%; display: block; transition: opacity 0.4s, transform 0.3s; }
+.plog-stream .plog-entry .img-wrap:hover img { transform: scale(1.01); }
+.plog-stream .plog-entry .meta { margin-top: 14px; padding: 0 4px; }
+.plog-stream .plog-entry .meta .top-row { display: flex; align-items: baseline; gap: 12px; }
+.plog-stream .plog-entry .meta .title { font-size: 16px; font-weight: 500; color: var(--text-1); }
+.plog-stream .plog-entry .meta .date { font-size: 13px; color: var(--text-3); }
+.plog-stream .plog-entry .meta .desc { font-size: 14px; color: var(--text-2); margin-top: 6px; }
+.plog-stream .plog-entry .meta .album-line { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.plog-stream .plog-entry .meta .album-line .label { font-size: 12px; color: var(--text-3); }
+.plog-stream .plog-entry .meta .album-line .album-tag { font-size: 12px; margin-top: 0; }
+.plog-stream .plog-divider { height: 1px; background: var(--border); margin-bottom: 56px; }
+
+/* Lightbox */
+.lightbox { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.96); align-items: center; justify-content: center; }
+.lightbox.active { display: flex; }
+.lightbox .lb-content { display: flex; flex-direction: column; align-items: center; max-width: 92vw; max-height: 92vh; }
+.lightbox .lb-content img { max-width: 90vw; max-height: 78vh; min-height: 200px; object-fit: contain; border-radius: 6px; opacity: 0; transition: opacity 0.3s; }
+.lightbox .lb-content img.loaded { min-height: unset; }
+.lightbox .lb-content img.loaded { opacity: 1; }
+.lightbox .lb-spinner { width: 32px; height: 32px; border: 2px solid var(--text-3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; position: absolute; top: 50%; left: 50%; margin: -16px 0 0 -16px; }
+.lightbox .lb-spinner.hide { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.lightbox .lb-info { margin-top: 20px; text-align: center; max-width: 600px; }
+.lightbox .lb-info .title { font-size: 18px; color: #fff; font-weight: 500; }
+.lightbox .lb-info .desc { font-size: 14px; color: var(--text-2); margin-top: 6px; }
+.lightbox .lb-info .album-line { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.lightbox .lb-info .album-line .sep { color: var(--text-3); }
+.lightbox .lb-info .album-line .album-tag { font-size: 12px; margin-top: 0; }
+.lightbox .lb-info .date { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+.lightbox .close { position: absolute; top: 24px; right: 32px; font-size: 28px; color: var(--text-2); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+.lightbox .close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); font-size: 32px; color: var(--text-2); cursor: pointer; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; user-select: none; }
+.lightbox .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.lightbox .nav-btn.prev { left: 24px; }
+.lightbox .nav-btn.next { right: 24px; }
+.lightbox .counter { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--text-3); }
+
+.hidden { display: none !important; }
+@media (max-width: 1100px) { .plog-grid { grid-template-columns: repeat(2, 1fr); padding: 0 32px 48px; } .plog-justified { padding: 0 32px 48px; } .page-header, .mode-switcher { padding-left: 32px; padding-right: 32px; } }
+@media (max-width: 600px) { .plog-grid { grid-template-columns: 1fr; padding: 0 16px 32px; } .plog-justified { padding: 0 16px 32px; } .plog-stream { padding: 0 16px 48px; } .navbar { padding: 12px 16px; } .page-header, .mode-switcher { padding-left: 16px; padding-right: 16px; } .page-header { padding-top: 32px; } }
+</style>
+</head>
+<body>
+<div class="navbar"><div class="logo">Qiwi</div><nav><a href="#">首页</a><a href="#">归档</a><a href="#" style="color:var(--accent)">Plog</a><a href="#">关于</a></nav></div>
+<div class="page-header"><h1>Plog</h1><p>用照片记录生活的碎片</p></div>
+<div class="mode-switcher"><button class="mode-btn active" onclick="setMode('grid')">网格</button><button class="mode-btn" onclick="setMode('justified')">画廊</button><button class="mode-btn" onclick="setMode('stream')">时间流</button></div>
+<div class="plog-grid" id="view-grid"></div>
+<div class="plog-justified hidden" id="view-justified"></div>
+<div class="plog-stream hidden" id="view-stream"></div>
+<div class="lightbox" id="lightbox">
+  <div class="close" onclick="closeLightbox()">&times;</div>
+  <div class="nav-btn prev" onclick="navLightbox(-1)">&#8249;</div>
+  <div class="nav-btn next" onclick="navLightbox(1)">&#8250;</div>
+  <div class="lb-content">
+    <div class="lb-spinner" id="lb-spinner"></div>
+    <img id="lb-img" src="" alt="">
+    <div class="lb-info">
+      <div class="title" id="lb-title"></div>
+      <div class="desc" id="lb-desc"></div>
+      <div class="album-line"><span class="sep">&mdash;</span><span class="album-tag" id="lb-album"></span></div>
+      <div class="date" id="lb-date"></div>
+    </div>
+  </div>
+  <div class="counter" id="lb-counter"></div>
+</div>
+<script>
+const photos = [
+  { w:4,h:3, title:'玄武湖畔', desc:'傍晚沿湖跑步时拍的，光线刚好', album:'南京游', date:'2024.10.15' },
+  { w:16,h:9, title:'先锋书店', desc:'地下停车场改造的书店，很有氛围', album:'南京游', date:'2024.10.15' },
+  { w:3,h:4, title:'鸡鸣寺的猫', desc:'台阶上晒太阳的橘猫', album:'南京游', date:'2024.10.16' },
+  { w:4,h:3, title:'明城墙', desc:'城墙上看到的秋色，满眼金黄', album:'南京游', date:'2024.10.16' },
+  { w:16,h:9, title:'秦淮夜色', desc:'夫子庙那边人太多了但灯光确实好看', album:'南京游', date:'2024.10.17' },
+  { w:4,h:3, title:'早餐摊', desc:'路边的锅贴和豆浆，简单又满足', album:'日常', date:'2024.11.02' },
+  { w:1,h:1, title:'工位一角', desc:'新买的键盘终于到了', album:'日常', date:'2024.11.05' },
+  { w:16,h:9, title:'晚霞', desc:'下班路上抬头看到的，赶紧掏手机', album:'日常', date:'2024.11.08' },
+  { w:4,h:3, title:'西湖断桥', desc:'冬天的断桥人少很多，安静', album:'杭州周末', date:'2024.12.01' },
+  { w:3,h:4, title:'龙井茶园', desc:'山路上雾气很重，像走进水墨画', album:'杭州周末', date:'2024.12.01' },
+  { w:16,h:9, title:'钱塘江边', desc:'骑车到江边看日落', album:'杭州周末', date:'2024.12.02' },
+  { w:4,h:3, title:'老社区', desc:'梧桐树下的信箱生锈了', album:'日常', date:'2024.12.10' },
+];
+
+photos.forEach((p, i) => {
+  p.thumb = `https://picsum.photos/seed/plog${i}/${p.w * 100}/${p.h * 100}`;
+  p.full = `https://picsum.photos/seed/plog${i}/${p.w * 400}/${p.h * 400}`;
+});
+
+function onThumbLoad(e) {
+  e.target.closest('.plog-item, .img-wrap').classList.add('loaded');
+}
+
+function createItem(p, idx) {
+  const el = document.createElement('div');
+  el.className = 'plog-item';
+  el.dataset.idx = idx;
+  const img = document.createElement('img');
+  img.alt = p.title;
+  img.loading = 'lazy';
+  img.onload = onThumbLoad;
+  img.src = p.thumb;
+  el.appendChild(img);
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="title">${p.title}</div><div class="desc">${p.desc}</div><span class="album-tag">${p.album}</span>`;
+  el.appendChild(ov);
+  return el;
+}
+
+function renderGrid() {
+  const el = document.getElementById('view-grid');
+  el.innerHTML = '';
+  photos.forEach((p, i) => el.appendChild(createItem(p, i)));
+}
+
+function renderJustified() {
+  const el = document.getElementById('view-justified');
+  el.innerHTML = '';
+  const TARGET_H = 260, gap = 8;
+  const containerW = el.clientWidth || (Math.min(1400, window.innerWidth) - 96);
+  let row = [], rowW = 0;
+  photos.forEach((p, i) => {
+    const sw = (p.w / p.h) * TARGET_H;
+    row.push({ p, sw, idx: i });
+    rowW += sw + (row.length > 1 ? gap : 0);
+    if (rowW >= containerW || i === photos.length - 1) {
+      const totalGap = (row.length - 1) * gap;
+      const ratio = (containerW - totalGap) / (rowW - totalGap);
+      const fh = Math.floor(TARGET_H * ratio);
+      const rowEl = document.createElement('div');
+      rowEl.className = 'plog-row';
+      rowEl.style.height = fh + 'px';
+      row.forEach(item => {
+        const w = Math.floor(item.sw * ratio);
+        const cell = createItem(item.p, item.idx);
+        cell.style.width = w + 'px';
+        cell.style.height = fh + 'px';
+        rowEl.appendChild(cell);
+      });
+      el.appendChild(rowEl);
+      row = []; rowW = 0;
+    }
+  });
+}
+
+function renderStream() {
+  const el = document.getElementById('view-stream');
+  el.innerHTML = '';
+  photos.forEach((p, i) => {
+    const entry = document.createElement('div');
+    entry.className = 'plog-entry';
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
+    wrap.dataset.idx = i;
+    wrap.style.aspectRatio = `${p.w}/${p.h}`;
+    const img = document.createElement('img');
+    img.alt = p.title;
+    img.loading = 'lazy';
+    img.onload = onThumbLoad;
+    img.src = p.thumb;
+    wrap.appendChild(img);
+    entry.appendChild(wrap);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `<div class="top-row"><span class="title">${p.title}</span><span class="date">${p.date}</span></div><div class="desc">${p.desc}</div><div class="album-line"><span class="label">图集</span><span class="album-tag">${p.album}</span></div>`;
+    entry.appendChild(meta);
+    el.appendChild(entry);
+    if (i < photos.length - 1) {
+      const div = document.createElement('div');
+      div.className = 'plog-divider';
+      el.appendChild(div);
+    }
+  });
+}
+
+document.addEventListener('click', e => {
+  const item = e.target.closest('[data-idx]');
+  if (item && !document.getElementById('lightbox').contains(item)) {
+    openLightbox(parseInt(item.dataset.idx));
+  }
+});
+
+let currentMode = 'grid';
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', ['grid','justified','stream'][i] === mode);
+  });
+  document.getElementById('view-grid').classList.toggle('hidden', mode !== 'grid');
+  document.getElementById('view-justified').classList.toggle('hidden', mode !== 'justified');
+  document.getElementById('view-stream').classList.toggle('hidden', mode !== 'stream');
+  if (mode === 'justified') renderJustified();
+}
+renderGrid(); renderStream();
+
+let currentIdx = 0;
+function openLightbox(i) {
+  currentIdx = i;
+  const p = photos[i];
+  const img = document.getElementById('lb-img');
+  const spinner = document.getElementById('lb-spinner');
+  img.classList.remove('loaded');
+  img.style.aspectRatio = `${p.w}/${p.h}`;
+  spinner.classList.remove('hide');
+  img.onload = () => { img.classList.add('loaded'); spinner.classList.add('hide'); };
+  img.src = p.full;
+  document.getElementById('lb-title').textContent = p.title;
+  document.getElementById('lb-desc').textContent = p.desc;
+  document.getElementById('lb-album').textContent = p.album;
+  document.getElementById('lb-date').textContent = p.date;
+  document.getElementById('lb-counter').textContent = `${i + 1} / ${photos.length}`;
+  document.getElementById('lightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+  document.body.style.overflow = '';
+}
+function navLightbox(dir) {
+  currentIdx = (currentIdx + dir + photos.length) % photos.length;
+  openLightbox(currentIdx);
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('active')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') navLightbox(-1);
+  if (e.key === 'ArrowRight') navLightbox(1);
+});
+document.getElementById('lightbox').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeLightbox();
+});
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (currentMode === 'justified') renderJustified(); }, 150);
+});
+</script>
+</body>
+</html>
