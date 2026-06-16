@@ -19,7 +19,7 @@ if (!function_exists('qiwiPlogParseDate')) {
     {
         $raw = trim((string) $value);
         if ($raw === '') {
-            return [0, ''];
+            return [0, '', false];
         }
 
         if (preg_match('/^\d{10,13}$/', $raw)) {
@@ -27,7 +27,7 @@ if (!function_exists('qiwiPlogParseDate')) {
             if (strlen($raw) === 13) {
                 $timestamp = (int) floor($timestamp / 1000);
             }
-            return [$timestamp, date('Y.m.d H:i', $timestamp)];
+            return [$timestamp, date('Y.m.d H:i', $timestamp), true];
         }
 
         $normalized = preg_replace('/^(\d{4})(\d{2})(\d{2})(\s+\d{1,2}:\d{2}(?::\d{2})?)?$/u', '$1-$2-$3$4', $raw);
@@ -35,11 +35,89 @@ if (!function_exists('qiwiPlogParseDate')) {
 
         $timestamp = strtotime($normalized);
         if ($timestamp === false) {
-            return [0, $raw];
+            return [0, $raw, false];
         }
 
         $hasTime = preg_match('/\d{1,2}:\d{2}(?::\d{2})?$/u', $raw) === 1;
-        return [$timestamp, $hasTime ? date('Y.m.d H:i', $timestamp) : date('Y.m.d', $timestamp)];
+        return [$timestamp, $hasTime ? date('Y.m.d H:i', $timestamp) : date('Y.m.d', $timestamp), $hasTime];
+    }
+}
+
+if (!function_exists('qiwiPlogNormalizeDateDisplay')) {
+    function qiwiPlogNormalizeDateDisplay($value, $fallback = 'show')
+    {
+        $value = strtolower(trim((string) $value));
+        $map = [
+            'show' => 'show',
+            '显示' => 'show',
+            '1' => 'show',
+            'true' => 'show',
+            'yes' => 'show',
+            'on' => 'show',
+            'hide' => 'hide',
+            '隐藏' => 'hide',
+            '0' => 'hide',
+            'false' => 'hide',
+            'no' => 'hide',
+            'off' => 'hide',
+            'inherit' => 'inherit',
+            'default' => 'inherit',
+            '默认' => 'inherit',
+        ];
+
+        return isset($map[$value]) ? $map[$value] : $fallback;
+    }
+}
+
+if (!function_exists('qiwiPlogNormalizeDatePrecision')) {
+    function qiwiPlogNormalizeDatePrecision($value, $fallback = 'auto')
+    {
+        $value = strtolower(trim((string) $value));
+        $map = [
+            'auto' => 'auto',
+            '自动' => 'auto',
+            'date' => 'date',
+            'day' => 'date',
+            '日期' => 'date',
+            'datetime' => 'datetime',
+            'time' => 'datetime',
+            'full' => 'datetime',
+            '详细' => 'datetime',
+            'inherit' => 'inherit',
+            'default' => 'inherit',
+            '默认' => 'inherit',
+        ];
+
+        return isset($map[$value]) ? $map[$value] : $fallback;
+    }
+}
+
+if (!function_exists('qiwiPlogFormatDateLabel')) {
+    function qiwiPlogFormatDateLabel($photo, $globalDisplay, $globalPrecision)
+    {
+        $display = isset($photo['date_display']) ? qiwiPlogNormalizeDateDisplay($photo['date_display'], 'inherit') : 'inherit';
+        if ($display === 'inherit') {
+            $display = qiwiPlogNormalizeDateDisplay($globalDisplay, 'show');
+        }
+        if ($display === 'hide') {
+            return '';
+        }
+
+        $timestamp = isset($photo['date_ts']) ? (int) $photo['date_ts'] : 0;
+        $rawLabel = isset($photo['date_raw_label']) ? (string) $photo['date_raw_label'] : '';
+        if ($timestamp <= 0) {
+            return $rawLabel;
+        }
+
+        $precision = isset($photo['date_precision']) ? qiwiPlogNormalizeDatePrecision($photo['date_precision'], 'inherit') : 'inherit';
+        if ($precision === 'inherit') {
+            $precision = qiwiPlogNormalizeDatePrecision($globalPrecision, 'auto');
+        }
+        if ($precision === 'datetime' || ($precision === 'auto' && !empty($photo['date_has_time']))) {
+            return date('Y.m.d H:i', $timestamp);
+        }
+
+        return date('Y.m.d', $timestamp);
     }
 }
 
@@ -66,6 +144,37 @@ if (!function_exists('qiwiPlogNormalizeMode')) {
     }
 }
 
+if (!function_exists('qiwiPlogNormalizeSort')) {
+    function qiwiPlogNormalizeSort($sort)
+    {
+        $sort = strtolower(trim((string) $sort));
+        $map = [
+            'date-desc' => 'date-desc',
+            'date_desc' => 'date-desc',
+            'newest' => 'date-desc',
+            '最新' => 'date-desc',
+            'date-asc' => 'date-asc',
+            'date_asc' => 'date-asc',
+            'oldest' => 'date-asc',
+            '最早' => 'date-asc',
+            'title-asc' => 'title-asc',
+            'title' => 'title-asc',
+            '标题' => 'title-asc',
+            'title-desc' => 'title-desc',
+            'album-asc' => 'album-asc',
+            'album' => 'album-asc',
+            '图集' => 'album-asc',
+            'album-desc' => 'album-desc',
+            'manual' => 'manual',
+            'order' => 'manual',
+            'source' => 'manual',
+            '手动' => 'manual',
+        ];
+
+        return isset($map[$sort]) ? $map[$sort] : 'date-desc';
+    }
+}
+
 if (!function_exists('qiwiPlogParseImageLine')) {
     function qiwiPlogParseImageLine($line)
     {
@@ -83,6 +192,10 @@ if (!function_exists('qiwiPlogParseImageLine')) {
             'date_raw' => '',
             'date_ts' => 0,
             'date_label' => '',
+            'date_raw_label' => '',
+            'date_has_time' => false,
+            'date_display' => 'inherit',
+            'date_precision' => 'inherit',
             'w' => 4,
             'h' => 3,
             'order' => 0,
@@ -113,6 +226,24 @@ if (!function_exists('qiwiPlogKeyName')) {
             '上传日期' => 'date',
             '日期' => 'date',
             '时间' => 'date',
+            'datedisplay' => 'dateDisplay',
+            'date-display' => 'dateDisplay',
+            'date_display' => 'dateDisplay',
+            'showdate' => 'dateDisplay',
+            'show-date' => 'dateDisplay',
+            'show_date' => 'dateDisplay',
+            '展示时间' => 'dateDisplay',
+            '显示时间' => 'dateDisplay',
+            'dateprecision' => 'datePrecision',
+            'date-precision' => 'datePrecision',
+            'date_precision' => 'datePrecision',
+            'timeprecision' => 'datePrecision',
+            'time-precision' => 'datePrecision',
+            'time_precision' => 'datePrecision',
+            '时间颗粒度' => 'datePrecision',
+            '时间精度' => 'datePrecision',
+            'sort' => 'sort',
+            '排序' => 'sort',
             'mode' => 'mode',
             '模式' => 'mode',
             'thumb' => 'thumb',
@@ -153,11 +284,65 @@ if (!function_exists('qiwiPlogFinalizePhoto')) {
         $photo['w'] = max(1, (int) $photo['w']);
         $photo['h'] = max(1, (int) $photo['h']);
 
-        list($timestamp, $label) = qiwiPlogParseDate($photo['date_raw']);
+        list($timestamp, $label, $hasTime) = qiwiPlogParseDate($photo['date_raw']);
         $photo['date_ts'] = $timestamp;
-        $photo['date_label'] = $label;
+        $photo['date_raw_label'] = $label;
+        $photo['date_has_time'] = $hasTime;
+        $photo['date_display'] = qiwiPlogNormalizeDateDisplay(isset($photo['date_display']) ? $photo['date_display'] : 'inherit', 'inherit');
+        $photo['date_precision'] = qiwiPlogNormalizeDatePrecision(isset($photo['date_precision']) ? $photo['date_precision'] : 'inherit', 'inherit');
 
         return $photo;
+    }
+}
+
+if (!function_exists('qiwiPlogSortPhotos')) {
+    function qiwiPlogSortPhotos($photos, $sort)
+    {
+        $sort = qiwiPlogNormalizeSort($sort);
+        if ($sort === 'manual') {
+            return $photos;
+        }
+
+        usort($photos, function ($a, $b) use ($sort) {
+            $timeA = isset($a['date_ts']) ? (int) $a['date_ts'] : 0;
+            $timeB = isset($b['date_ts']) ? (int) $b['date_ts'] : 0;
+            $titleA = isset($a['title']) ? (string) $a['title'] : '';
+            $titleB = isset($b['title']) ? (string) $b['title'] : '';
+            $albumA = isset($a['album']) ? (string) $a['album'] : '';
+            $albumB = isset($b['album']) ? (string) $b['album'] : '';
+            $orderA = isset($a['order']) ? (int) $a['order'] : 0;
+            $orderB = isset($b['order']) ? (int) $b['order'] : 0;
+
+            if ($sort === 'date-asc') {
+                if ($timeA !== $timeB) {
+                    return $timeA - $timeB;
+                }
+                return $orderA - $orderB;
+            }
+
+            if ($sort === 'title-asc' || $sort === 'title-desc') {
+                $result = strcasecmp($titleA, $titleB);
+                if ($result === 0) {
+                    $result = $orderA - $orderB;
+                }
+                return $sort === 'title-desc' ? -$result : $result;
+            }
+
+            if ($sort === 'album-asc' || $sort === 'album-desc') {
+                $result = strcasecmp($albumA . $titleA, $albumB . $titleB);
+                if ($result === 0) {
+                    $result = $orderA - $orderB;
+                }
+                return $sort === 'album-desc' ? -$result : $result;
+            }
+
+            if ($timeA !== $timeB) {
+                return $timeB - $timeA;
+            }
+            return $orderB - $orderA;
+        });
+
+        return $photos;
     }
 }
 
@@ -170,6 +355,9 @@ if (!function_exists('qiwiPlogParseContent')) {
             'title' => trim((string) $fallbackTitle),
             'description' => '',
             'mode' => 'grid',
+            'sort' => 'date-desc',
+            'dateDisplay' => 'show',
+            'datePrecision' => 'auto',
             'photos' => [],
         ];
 
@@ -201,6 +389,10 @@ if (!function_exists('qiwiPlogParseContent')) {
                         $current['date_raw'] = $value;
                     } elseif (in_array($name, ['title', 'desc', 'album', 'thumb', 'full'], true)) {
                         $current[$name] = $value;
+                    } elseif ($name === 'dateDisplay') {
+                        $current['date_display'] = qiwiPlogNormalizeDateDisplay($value, 'inherit');
+                    } elseif ($name === 'datePrecision') {
+                        $current['date_precision'] = qiwiPlogNormalizeDatePrecision($value, 'inherit');
                     } elseif ($name === 'src') {
                         $current['src'] = $value;
                         $current['thumb'] = $value;
@@ -211,6 +403,12 @@ if (!function_exists('qiwiPlogParseContent')) {
                 } else {
                     if ($name === 'mode') {
                         $data['mode'] = qiwiPlogNormalizeMode($value);
+                    } elseif ($name === 'sort') {
+                        $data['sort'] = qiwiPlogNormalizeSort($value);
+                    } elseif ($name === 'dateDisplay') {
+                        $data['dateDisplay'] = qiwiPlogNormalizeDateDisplay($value, 'show');
+                    } elseif ($name === 'datePrecision') {
+                        $data['datePrecision'] = qiwiPlogNormalizeDatePrecision($value, 'auto');
                     } elseif ($name === 'title') {
                         $data['title'] = $value;
                     } elseif ($name === 'desc') {
@@ -243,17 +441,16 @@ if (!function_exists('qiwiPlogParseContent')) {
             $data['photos'][] = $finalPhoto;
         }
 
-        usort($data['photos'], function ($a, $b) {
-            $timeA = isset($a['date_ts']) ? (int) $a['date_ts'] : 0;
-            $timeB = isset($b['date_ts']) ? (int) $b['date_ts'] : 0;
-            if ($timeA !== $timeB) {
-                return $timeB - $timeA;
-            }
-            return (int) $b['order'] - (int) $a['order'];
-        });
-
         $data['description'] = trim(implode("\n", $descriptionLines));
         $data['mode'] = qiwiPlogNormalizeMode($data['mode']);
+        $data['sort'] = qiwiPlogNormalizeSort($data['sort']);
+        $data['dateDisplay'] = qiwiPlogNormalizeDateDisplay($data['dateDisplay'], 'show');
+        $data['datePrecision'] = qiwiPlogNormalizeDatePrecision($data['datePrecision'], 'auto');
+        $data['photos'] = qiwiPlogSortPhotos($data['photos'], $data['sort']);
+
+        foreach ($data['photos'] as $index => $photo) {
+            $data['photos'][$index]['date_label'] = qiwiPlogFormatDateLabel($photo, $data['dateDisplay'], $data['datePrecision']);
+        }
 
         return $data;
     }
@@ -306,7 +503,7 @@ $this->need('header.php');
             <span class="plog-overlay">
                 <strong><?php echo qiwiPlogEscape($photo['title']); ?></strong>
                 <?php if ($photo['desc'] !== ''): ?><span><?php echo qiwiPlogEscape($photo['desc']); ?></span><?php endif; ?>
-                <?php if ($photo['album'] !== ''): ?><em><?php echo qiwiPlogEscape($photo['album']); ?></em><?php endif; ?>
+                <?php if ($photo['album'] !== '' || $photo['date_label'] !== ''): ?><em><?php echo qiwiPlogEscape(trim($photo['album'] . ($photo['album'] !== '' && $photo['date_label'] !== '' ? ' · ' : '') . $photo['date_label'])); ?></em><?php endif; ?>
             </span>
         </button>
         <?php endforeach; ?>
