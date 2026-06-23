@@ -7,9 +7,9 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  * Qiwi theme companion plugin.
  *
  * @package QiwiTheme
- * @author  MaxQiwi
- * @version 1.5.0
- * @link    https://www.maxqi.top/
+ * @author  Leo 里奥
+ * @version 1.5.1
+ * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 {
@@ -684,14 +684,14 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 3);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.0');
+                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.1');
                 $body = curl_exec($ch);
                 curl_close($ch);
             } else {
                 $context = stream_context_create(array(
                     'http' => array(
                         'timeout' => 3,
-                        'header' => "User-Agent: QiwiTheme/1.5.0\r\n",
+                        'header' => "User-Agent: QiwiTheme/1.5.1\r\n",
                     ),
                 ));
                 $body = @file_get_contents($url, false, $context);

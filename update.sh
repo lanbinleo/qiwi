@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TYPECHO_USR_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 THEME_PLUGIN_DIR="$SCRIPT_DIR/plugins"
 TYPECHO_PLUGIN_DIR="$TYPECHO_USR_DIR/plugins"
+OBSOLETE_COMPANION_PLUGINS=("CommentToMail")
 
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
@@ -93,6 +94,21 @@ sync_companion_plugins() {
     else
         success "Synced $synced_count companion plugin(s)."
     fi
+
+    local obsolete_plugin
+    local obsolete_target
+    for obsolete_plugin in "${OBSOLETE_COMPANION_PLUGINS[@]}"; do
+        if [ -z "$obsolete_plugin" ] || [[ "$obsolete_plugin" == *"/"* ]] || [[ "$obsolete_plugin" == *"\\"* ]]; then
+            error "Refusing to remove invalid obsolete plugin name: $obsolete_plugin"
+            exit 1
+        fi
+
+        obsolete_target="$TYPECHO_PLUGIN_DIR/$obsolete_plugin"
+        if [ -d "$obsolete_target" ]; then
+            info "Removing obsolete companion plugin: $obsolete_plugin"
+            rm -rf "$obsolete_target"
+        fi
+    done
 }
 
 current_remote="$(git remote get-url origin 2>/dev/null || true)"

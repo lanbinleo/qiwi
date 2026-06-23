@@ -605,7 +605,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
             <form id="settings-form">
                 <div class="form-group">
                     <label for="base-url">图床API地址</label>
-                    <input type="url" id="base-url" placeholder="https://p.maxqi.top/api/v1" value="https://p.maxqi.top/api/v1">
+                    <input type="url" id="base-url" placeholder="https://p.bboreo.com/api/v1" value="https://p.bboreo.com/api/v1">
                 </div>
                 <div class="form-group">
                     <label for="email">邮箱</label>
@@ -903,7 +903,7 @@ class TimemachineUploader {
             this.settings = JSON.parse(settings);
         } else {
             this.settings = {
-                baseUrl: 'https://p.maxqi.top/api/v1',
+                baseUrl: 'https://p.bboreo.com/api/v1',
                 email: '',
                 password: '',
                 token: ''

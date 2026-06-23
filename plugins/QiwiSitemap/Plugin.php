@@ -7,9 +7,9 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  * Qiwi companion sitemap and feed discovery plugin.
  *
  * @package QiwiSitemap
- * @author  MaxQiwi
- * @version 1.5.0
- * @link    https://www.maxqi.top/
+ * @author  Leo 里奥
+ * @version 1.5.1
+ * @link    https://bboreo.com/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 {
