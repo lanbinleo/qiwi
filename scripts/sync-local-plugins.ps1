@@ -1,8 +1,9 @@
 param(
     [string]$TypechoRoot = "D:\phpstudy_pro\WWW\localhost",
     [string]$PhpBin = "D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe",
-    [string[]]$Plugins = @("Geetest", "QiwiSitemap", "QiwiTheme"),
-    [string[]]$RefreshPlugins = @("QiwiTheme")
+    [string[]]$Plugins = @("Geetest", "QiwiSitemap", "QiwiTheme", "QiwiCommentMail"),
+    [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCommentMail"),
+    [string[]]$ObsoletePlugins = @("CommentToMail")
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +23,29 @@ if (!(Test-Path -LiteralPath $PhpBin)) {
 
 New-Item -ItemType Directory -Force -Path $targetRoot | Out-Null
 $resolvedTargetRoot = (Resolve-Path -LiteralPath $targetRoot).Path
+
+function Remove-ObsoletePluginCopies {
+    param([string[]]$PluginNames)
+
+    foreach ($plugin in $PluginNames) {
+        if ($plugin -match '[\\/:*?"<>|]') {
+            throw "Invalid obsolete plugin name: $plugin"
+        }
+
+        $target = Join-Path $targetRoot $plugin
+        if (!(Test-Path -LiteralPath $target)) {
+            continue
+        }
+
+        $resolvedTarget = [System.IO.Path]::GetFullPath($target)
+        if (!$resolvedTarget.StartsWith($resolvedTargetRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove outside plugin directory: $resolvedTarget"
+        }
+
+        Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
+        Write-Host "Removed obsolete local plugin: $plugin"
+    }
+}
 
 foreach ($plugin in $Plugins) {
     if ($plugin -match '[\\/:*?"<>|]') {
@@ -48,6 +72,7 @@ foreach ($plugin in $Plugins) {
 }
 
 if ($RefreshPlugins.Count -eq 0) {
+    Remove-ObsoletePluginCopies -PluginNames $ObsoletePlugins
     exit 0
 }
 
@@ -141,3 +166,5 @@ try {
         Remove-Item -LiteralPath $tempFile -Force
     }
 }
+
+Remove-ObsoletePluginCopies -PluginNames $ObsoletePlugins

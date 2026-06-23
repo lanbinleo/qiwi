@@ -4,11 +4,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
 
 /**
- * Qiwi GTest，用于用户登录、用户评论时使用极验提供的滑动验证码，适配 Qiwi 主题
+ * Qiwi GTest，用于用户登录、用户评论时使用极验提供的滑动验证码，适配 Qiwi 主题。原作者：小胖狐、饭饭、CairBin，感谢原版贡献。
  *
  * @package Qiwi GTest
- * @author 小胖狐 && 饭饭 && CairBin
- * @version 1.5.0
+ * @author Leo 里奥
+ * @version 1.5.1
+ * @link https://bboreo.com/
  * @link http://zsduo.com
  * @link https://ffis.me
  * @link https://cairbin.top

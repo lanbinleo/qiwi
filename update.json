@@ -1,12 +1,13 @@
 {
-  "version": "1.5.0",
-  "releaseDate": "2026-06-16",
+  "version": "1.5.1",
+  "releaseDate": "2026-06-23",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "新增 Plog 页面模板，支持在正文中直接写标题、描述、图片、图集、尺寸与上传日期",
-    "Plog 支持网格、瀑布流、画廊和时间流四种展示方式，并可按日期、标题、图集或手动顺序排序",
-    "Plog 日期支持显示开关和日期/时间精度控制，适配 timestamp 与多种常见日期写法",
-    "后台新增 Plog 可视化编辑器与页面模板 tab，支持结构化编辑、拖拽排序和一键复制正文模板"
+    "伴生插件作者信息统一为 Leo 里奥，Qiwi GTest 和 QiwiCommentMail 保留原作者鸣谢",
+    "新增 QiwiCommentMail 伴生插件源码，将评论邮件改为独立邮件任务队列，区分管理员通知和用户回复通知",
+    "QiwiCommentMail 支持自动处理队列、发送限速、失败重试、Resend 限流识别，并跳过博主在 Time Machine 发布的顶层动态",
+    "更新脚本会同步所有伴生插件，并移除旧的 CommentToMail 本地插件目录",
+    "公开链接和时光机图床默认地址迁移到 bboreo.com，移除旧域名默认引用"
   ]
 }
