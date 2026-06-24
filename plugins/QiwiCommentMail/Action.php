@@ -309,6 +309,7 @@ class Action extends Widget implements \Widget\ActionInterface
             $owner = $this->ownerMail((int)($comment['ownerId'] ?? 0));
             $contactme = $owner;
         }
+        $contactme = $this->mailLink($contactme);
 
         $search = [
             '{{siteTitle}}',
@@ -336,6 +337,16 @@ class Action extends Widget implements \Widget\ActionInterface
         $this->_email->subject = str_replace($search, $replace, (string)$this->cfgValue('titleForGuest', '您在 [{{title}}] 的评论有了回复'));
         $this->_email->msgHtml = str_replace($search, $replace, $this->getTemplate('guest'));
         $this->_email->altBody = "作者:" . (string)($comment['author'] ?? '') . "\r\n链接:" . (string)($comment['permalink'] ?? '') . "\r\n评论:\r\n" . (string)($comment['text'] ?? '');
+    }
+
+    private function mailLink(string $mail): string
+    {
+        $mail = trim($mail);
+        if ($mail === '') {
+            return '';
+        }
+
+        return stripos($mail, 'mailto:') === 0 ? $mail : 'mailto:' . $mail;
     }
 
     private function sendMail(): array

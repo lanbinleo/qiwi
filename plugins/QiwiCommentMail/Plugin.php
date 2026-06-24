@@ -485,20 +485,58 @@ class Plugin implements PluginInterface
             if ($data['ownerId'] <= 0 && isset($content['authorId'])) {
                 $data['ownerId'] = (int)$content['authorId'];
             }
+            if ($data['permalink'] === '' && !empty($content['permalink'])) {
+                $data['permalink'] = rtrim((string)$content['permalink'], '#') . '#comment-' . $data['coid'];
+            }
         }
+        $data['permalink'] = self::absoluteUrl($data['permalink']);
 
         return $data;
     }
 
     private static function readField($source, $field, $default = '')
     {
-        if (is_object($source) && isset($source->{$field})) {
-            return $source->{$field};
+        if (is_object($source)) {
+            if (isset($source->{$field})) {
+                return $source->{$field};
+            }
+            if ($field === 'permalink') {
+                try {
+                    $value = $source->{$field};
+                    if ($value !== null) {
+                        return $value;
+                    }
+                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
+                }
+            }
         }
         if (is_array($source) && isset($source[$field])) {
             return $source[$field];
         }
         return $default;
+    }
+
+    private static function absoluteUrl($url)
+    {
+        $url = trim((string)$url);
+        if ($url === '' || preg_match('/^(https?:)?\/\//i', $url)) {
+            return $url;
+        }
+
+        try {
+            $siteUrl = (string)Widget::widget('Widget_Options')->siteUrl;
+        } catch (\Exception $e) {
+            $siteUrl = '';
+        } catch (\Throwable $e) {
+            $siteUrl = '';
+        }
+
+        if ($siteUrl === '') {
+            return $url;
+        }
+
+        return rtrim($siteUrl, '/') . '/' . ltrim($url, '/');
     }
 
     private static function contentRow($cid)
@@ -510,10 +548,11 @@ class Plugin implements PluginInterface
 
         try {
             $db = Db::get();
-            $row = $db->fetchRow($db->select('cid', 'title', 'type', 'template', 'authorId')
-                ->from('table.contents')
-                ->where('cid = ?', $cid)
-                ->limit(1));
+            self::ensureRoutes();
+            $contents = \Widget\Base\Contents::alloc();
+            $row = $db->fetchRow($contents->select()
+                ->where('table.contents.cid = ?', $cid)
+                ->limit(1), [$contents, 'filter']);
             $cache[$cid] = $row ?: null;
             return $cache[$cid];
         } catch (\Exception $e) {
@@ -522,6 +561,22 @@ class Plugin implements PluginInterface
         } catch (\Throwable $e) {
             $cache[$cid] = null;
             return null;
+        }
+    }
+
+    private static function ensureRoutes()
+    {
+        if (\Typecho\Router::get('post') && \Typecho\Router::get('page')) {
+            return;
+        }
+
+        try {
+            $options = Widget::widget('Widget_Options');
+            if (!empty($options->routingTable)) {
+                \Typecho\Router::setRoutes($options->routingTable);
+            }
+        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
     }
 
