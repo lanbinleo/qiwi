@@ -1688,7 +1688,9 @@ html.plog-lightbox-open .qiwi-lightbox {
 .article-excerpt,
 .comment-text,
 .moment-text,
-.friend-desc {
+.friend-desc,
+.friend-feed-title,
+.friend-feed-summary {
     overflow-wrap: anywhere;
 }
 
@@ -4167,6 +4169,104 @@ body.qiwi-lightbox-open {
     margin-bottom: calc(var(--spacing-unit) * 8);
 }
 
+.friends-tabs {
+    margin-bottom: calc(var(--spacing-unit) * 8);
+}
+
+.friends-tabs-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(var(--spacing-unit) * 3);
+    margin-bottom: calc(var(--spacing-unit) * 5);
+}
+
+.friends-tab-list {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.friends-tab {
+    min-width: 84px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--t-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--transition), background var(--transition);
+}
+
+.friends-tab:hover,
+.friends-tab:focus {
+    color: var(--color-accent);
+    outline: none;
+}
+
+.friends-tab.is-active {
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.friends-tab-panel[hidden] {
+    display: none;
+}
+
+.friend-feed-pager {
+    display: none;
+    align-items: center;
+    gap: 6px;
+}
+
+.friends-tabs.is-feed-active .friend-feed-pager {
+    display: flex;
+}
+
+.friend-feed-pager button {
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--t-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.friend-feed-pager button:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.friend-feed-pager button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.friend-feed-pager span {
+    min-width: 58px;
+    color: var(--color-text-tertiary);
+    font-size: var(--t-xs);
+    text-align: center;
+}
+
+.friend-feed-pager-bottom {
+    justify-content: center;
+    margin-top: calc(var(--spacing-unit) * 5);
+}
+
 .friends-category {
     margin-bottom: calc(var(--spacing-unit) * 8);
 }
@@ -4247,6 +4347,176 @@ body.qiwi-lightbox-open {
     text-align: center;
     padding: calc(var(--spacing-unit) * 8) 0;
     color: var(--color-text-tertiary);
+}
+
+.friend-feed-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.friend-feed-item {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: calc(var(--spacing-unit) * 4);
+    padding: calc(var(--spacing-unit) * 5) 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    transform: translateZ(0);
+    transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.friend-feed-item.has-background {
+    padding: calc(var(--spacing-unit) * 6);
+    box-shadow: none;
+}
+
+.friend-feed-bg {
+    position: absolute;
+    z-index: 0;
+    inset: -1px;
+    display: block;
+    border-radius: inherit;
+    background-image: var(--friend-feed-bg);
+    background-position: center;
+    background-size: cover;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.friend-feed-item.has-background .friend-feed-bg {
+    opacity: 1;
+}
+
+.friend-feed-item.has-background::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.64), rgba(0, 0, 0, 0.4) 58%, rgba(0, 0, 0, 0.2)),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.44));
+    pointer-events: none;
+}
+
+[data-theme="light"] .friend-feed-item.has-background::before {
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.6) 58%, rgba(255, 255, 255, 0.3)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.64));
+}
+
+[data-theme="light"] .friend-feed-item.has-background {
+    box-shadow: none;
+}
+
+.friend-feed-item:first-child {
+    padding-top: calc(var(--spacing-unit) * 5);
+}
+
+.friend-feed-item.has-background:first-child {
+    padding-top: calc(var(--spacing-unit) * 6);
+}
+
+.friend-feed-item:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+[data-theme="light"] .friend-feed-item:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.friend-feed-card {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.friend-feed-content {
+    display: grid;
+    gap: calc(var(--spacing-unit) * 2);
+    min-width: 0;
+}
+
+.friend-feed-meta {
+    font-size: var(--t-xs);
+}
+
+.friend-feed-site-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+.friend-feed-site-link:hover {
+    color: var(--color-accent);
+}
+
+.friend-feed-title {
+    font-size: var(--t-md);
+    letter-spacing: 0;
+}
+
+.friend-feed-summary {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: var(--t-sm);
+    line-height: 1.72;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.friend-feed-item.has-background .friend-feed-meta,
+.friend-feed-item.has-background .friend-feed-summary {
+    color: rgba(255, 255, 255, 0.82);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.friend-feed-item.has-background .friend-feed-title,
+.friend-feed-item.has-background .article-title-link,
+.friend-feed-item.has-background .friend-feed-site-link {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.friend-feed-item.has-background .article-meta span::after {
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.friend-feed-item.has-background .article-title-link:hover,
+.friend-feed-item.has-background .friend-feed-site-link:hover {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme="light"] .friend-feed-item.has-background .friend-feed-meta,
+[data-theme="light"] .friend-feed-item.has-background .friend-feed-summary {
+    color: rgba(36, 32, 28, 0.78);
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+[data-theme="light"] .friend-feed-item.has-background .friend-feed-title,
+[data-theme="light"] .friend-feed-item.has-background .article-title-link,
+[data-theme="light"] .friend-feed-item.has-background .friend-feed-site-link {
+    color: var(--color-text-primary);
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.42);
+}
+
+[data-theme="light"] .friend-feed-item.has-background .article-meta span::after {
+    color: rgba(36, 32, 28, 0.32);
+}
+
+[data-theme="light"] .friend-feed-item.has-background .article-title-link:hover,
+[data-theme="light"] .friend-feed-item.has-background .friend-feed-site-link:hover {
+    color: var(--color-accent);
+}
+
+.friend-feed-state {
+    padding: calc(var(--spacing-unit) * 8) 0;
+    color: var(--color-text-tertiary);
+    text-align: center;
 }
 
 /* 友链申请 */
@@ -6243,6 +6513,45 @@ body.qiwi-lightbox-open {
 
     .friends-grid {
         grid-template-columns: 1fr;
+    }
+
+    .friends-tabs-head {
+        flex-direction: column;
+        gap: calc(var(--spacing-unit) * 2);
+    }
+
+    .friends-tab-list {
+        display: flex;
+        overflow-x: auto;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .friends-tab {
+        flex: 1 0 auto;
+    }
+
+    .friends-tabs.is-feed-active .friend-feed-pager-top {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .friend-feed-pager-bottom {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .friend-feed-pager span {
+        min-width: 0;
+    }
+
+    .friend-feed-item:hover {
+        transform: none;
+    }
+
+    .friend-feed-item.has-background {
+        padding: calc(var(--spacing-unit) * 5);
     }
 
     .friends-extra,
