@@ -823,6 +823,45 @@ function themeConfig($form)
     );
     $form->addInput($friendsData);
 
+    $friendFeedEnabled = new Typecho_Widget_Helper_Form_Element_Radio(
+        'friendFeedEnabled',
+        array(
+            1 => _t('启用'),
+            0 => _t('关闭')
+        ),
+        0,
+        _t('朋友圈 RSS - 前台动态'),
+        _t('启用后，友链页面会增加“动态”标签页，通过 public API 展示友站近期文章。')
+    );
+    $form->addInput($friendFeedEnabled);
+
+    $friendFeedBaseUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'friendFeedBaseUrl',
+        null,
+        null,
+        _t('朋友圈 RSS - Base URL'),
+        _t('QiwiRss 服务地址，例如 http://127.0.0.1:8080 或 https://rss.example.com。')
+    );
+    $form->addInput($friendFeedBaseUrl);
+
+    $friendFeedAdminToken = new Typecho_Widget_Helper_Form_Element_Text(
+        'friendFeedAdminToken',
+        null,
+        null,
+        _t('朋友圈 RSS - Admin Token'),
+        _t('仅用于主题后台读取和保存 QiwiRss 远端配置，前台不会输出。')
+    );
+    $form->addInput($friendFeedAdminToken);
+
+    $friendFeedLimit = new Typecho_Widget_Helper_Form_Element_Text(
+        'friendFeedLimit',
+        null,
+        '10',
+        _t('朋友圈 RSS - 每页文章数量'),
+        _t('友链页面“动态”标签页每页展示的文章数量，默认 10。')
+    );
+    $form->addInput($friendFeedLimit);
+
     // === 归档页统计配置 ===
     $bookReference = new Typecho_Widget_Helper_Form_Element_Text(
         'bookReference',

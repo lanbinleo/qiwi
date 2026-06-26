@@ -1005,6 +1005,520 @@
         return window.QIWI_ADMIN_CONFIG || {};
     }
 
+    function normalizeFriendFeedBaseUrl(value) {
+        return trim(value).replace(/\/+$/g, '');
+    }
+
+    function friendFeedEndpoint(path) {
+        var base = normalizeFriendFeedBaseUrl(getFieldValueByName('friendFeedBaseUrl'));
+        return base ? base + path : '';
+    }
+
+    function friendFeedHeaders(withAuth) {
+        var headers = {};
+        var token = trim(getFieldValueByName('friendFeedAdminToken'));
+        if (withAuth && token) headers.Authorization = 'Bearer ' + token;
+        return headers;
+    }
+
+    function friendFeedFetchJson(url, options) {
+        options = options || {};
+        options.cache = 'no-store';
+        return fetch(url, options).then(function(response) {
+            return response.text().then(function(text) {
+                var data = text ? JSON.parse(text) : {};
+                if (!response.ok) {
+                    throw new Error(data && data.error ? data.error : 'HTTP ' + response.status);
+                }
+                return data;
+            });
+        });
+    }
+
+    function initFriendFeedPanel(panel) {
+        var root = $('[data-qiwi-friend-feed]', panel);
+        if (!root || root.dataset.qiwiFriendFeedReady === '1') return;
+        root.dataset.qiwiFriendFeedReady = '1';
+
+        var baseInput = fieldByName('friendFeedBaseUrl');
+        var tokenInput = fieldByName('friendFeedAdminToken');
+        var limitInput = fieldByName('friendFeedLimit');
+        var status = $('[data-friend-feed-status]', root);
+        var summary = $('[data-friend-feed-summary]', root);
+        var remote = $('[data-friend-feed-remote]', root);
+        var feedList = $('[data-rss-feed-list]', root);
+        var logs = $('[data-rss-fetch-logs]', root);
+        var checkButton = $('[data-friend-feed-check]', root);
+        var refreshButton = $('[data-friend-feed-refresh]', root);
+        var fetchAllButton = $('[data-friend-feed-fetch-all]', root);
+        var saveButton = $('[data-friend-feed-save]', root);
+        var newForm = $('[data-rss-new-form]', root);
+        var discoverInput = $('[data-rss-discover-url]', root);
+
+        if (tokenInput) {
+            tokenInput.type = 'password';
+            tokenInput.setAttribute('autocomplete', 'current-password');
+        }
+        if (baseInput && !baseInput.getAttribute('placeholder')) {
+            baseInput.setAttribute('placeholder', 'http://127.0.0.1:8080');
+        }
+        if (limitInput) {
+            limitInput.setAttribute('inputmode', 'numeric');
+            limitInput.setAttribute('placeholder', '10');
+        }
+
+        var settingLabels = {
+            summary_max_chars: '摘要最大字符数',
+            entries_default_limit: '默认文章数量',
+            entries_max_limit: '最大文章数量',
+            default_fetch_interval_minutes: '默认抓取间隔（分钟）',
+            full_text_enabled: '抓取全文',
+            full_text_max_entries_per_feed: '每源全文文章数',
+            full_text_max_bytes_per_feed: '每源全文字节上限',
+            fetch_log_retention: '抓取日志保留条数'
+        };
+        var settingOrder = [
+            'summary_max_chars',
+            'entries_default_limit',
+            'entries_max_limit',
+            'default_fetch_interval_minutes',
+            'full_text_enabled',
+            'full_text_max_entries_per_feed',
+            'full_text_max_bytes_per_feed',
+            'fetch_log_retention'
+        ];
+
+        function setStatus(message, type) {
+            if (!status) return;
+            status.textContent = message || '';
+            status.classList.toggle('is-error', type === 'error');
+            status.classList.toggle('is-success', type === 'success');
+        }
+
+        function setBusy(isBusy) {
+            [checkButton, refreshButton, fetchAllButton, saveButton].forEach(function(button) {
+                if (button) button.disabled = isBusy;
+            });
+        }
+
+        function requireBaseUrl() {
+            if (!friendFeedEndpoint('/')) {
+                setStatus('请先填写 QiwiRss Base URL。', 'error');
+                return false;
+            }
+            if (!window.fetch) {
+                setStatus('当前浏览器不支持 fetch，无法连接 QiwiRss。', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function requireToken() {
+            if (!trim(getFieldValueByName('friendFeedAdminToken'))) {
+                setStatus('请先填写 Admin Token。', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function formatRssDate(value) {
+            if (!value) return '-';
+            var date = new Date(value);
+            if (isNaN(date.getTime())) return String(value);
+            return new Intl.DateTimeFormat('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
+        function renderSummary(info) {
+            if (!summary) return;
+            if (!info) {
+                summary.innerHTML = '';
+                return;
+            }
+            summary.innerHTML =
+                '<div><span>服务状态</span><strong>' + escapeHtml(info.status || '-') + '</strong></div>' +
+                '<div><span>RSS 源</span><strong>' + escapeHtml(info.feed_count == null ? '-' : info.feed_count) + '</strong></div>' +
+                '<div><span>文章</span><strong>' + escapeHtml(info.entry_count == null ? '-' : info.entry_count) + '</strong></div>' +
+                '<div><span>最近文章</span><strong>' + escapeHtml(formatRssDate(info.latest_entry)) + '</strong></div>';
+        }
+
+        function renderRemoteSettings(settings) {
+            if (!remote) return;
+            var rows = settingOrder.filter(function(key) {
+                return Object.prototype.hasOwnProperty.call(settings, key);
+            }).map(function(key) {
+                var value = settings[key];
+                if (key === 'full_text_enabled') {
+                    var isEnabled = value === true || value === 'true' || value === 1 || value === '1';
+                    return '<label class="qiwi-friend-feed-setting"><span>' + escapeHtml(settingLabels[key]) + '</span><select data-rss-setting="' + key + '">' +
+                        '<option value="true"' + (isEnabled ? ' selected' : '') + '>启用</option>' +
+                        '<option value="false"' + (!isEnabled ? ' selected' : '') + '>关闭</option>' +
+                    '</select></label>';
+                }
+                return '<label class="qiwi-friend-feed-setting"><span>' + escapeHtml(settingLabels[key]) + '</span><input type="number" min="0" step="1" data-rss-setting="' + key + '" value="' + escapeHtml(value) + '"></label>';
+            });
+
+            remote.innerHTML = rows.length ?
+                '<section class="qiwi-friend-feed-section"><div class="qiwi-friend-feed-section-head"><strong>远端配置</strong><span>保存后立即写入 QiwiRss。</span></div><div class="qiwi-friend-feed-settings">' + rows.join('') + '</div></section>' :
+                '<p class="qiwi-friend-feed-empty">远端没有返回可编辑配置。</p>';
+        }
+
+        function feedField(form, key) {
+            return $('[data-rss-feed-field="' + key + '"]', form);
+        }
+
+        function setFeedForm(form, data) {
+            if (!form) return;
+            ['title', 'site_url', 'feed_url', 'avatar_url', 'description', 'fetch_interval_minutes'].forEach(function(key) {
+                var input = feedField(form, key);
+                if (input) input.value = data && data[key] != null ? data[key] : (key === 'fetch_interval_minutes' ? '60' : '');
+            });
+            var enabled = feedField(form, 'enabled');
+            if (enabled) enabled.value = !data || data.enabled !== false ? 'true' : 'false';
+        }
+
+        function readFeedForm(form) {
+            var data = {};
+            ['title', 'site_url', 'feed_url', 'avatar_url', 'description', 'fetch_interval_minutes', 'enabled'].forEach(function(key) {
+                var input = feedField(form, key);
+                if (!input) return;
+                if (key === 'enabled') {
+                    data.enabled = input.value !== 'false';
+                } else if (key === 'fetch_interval_minutes') {
+                    data[key] = parseInt(input.value, 10) || 60;
+                } else {
+                    data[key] = trim(input.value);
+                }
+            });
+            return data;
+        }
+
+        function feedEditorHtml(feed) {
+            feed = feed || {};
+            return '<div class="qiwi-friend-feed-editor" data-rss-feed-form>' +
+                '<label>标题<input type="text" data-rss-feed-field="title" value="' + escapeHtml(feed.title || '') + '"></label>' +
+                '<label>站点 URL<input type="url" data-rss-feed-field="site_url" value="' + escapeHtml(feed.site_url || '') + '"></label>' +
+                '<label>RSS URL<input type="url" data-rss-feed-field="feed_url" value="' + escapeHtml(feed.feed_url || '') + '"></label>' +
+                '<label>头像 URL<input type="url" data-rss-feed-field="avatar_url" value="' + escapeHtml(feed.avatar_url || '') + '"></label>' +
+                '<label>抓取间隔（分钟）<input type="number" min="1" step="1" data-rss-feed-field="fetch_interval_minutes" value="' + escapeHtml(feed.fetch_interval_minutes || 60) + '"></label>' +
+                '<label>启用<select data-rss-feed-field="enabled"><option value="true"' + (feed.enabled === false ? '' : ' selected') + '>启用</option><option value="false"' + (feed.enabled === false ? ' selected' : '') + '>关闭</option></select></label>' +
+                '<label class="qiwi-friend-feed-wide">描述<textarea rows="2" data-rss-feed-field="description">' + escapeHtml(feed.description || '') + '</textarea></label>' +
+            '</div>';
+        }
+
+        function renderFeeds(feeds) {
+            if (!feedList) return;
+            feeds = Array.isArray(feeds) ? feeds : [];
+            if (!feeds.length) {
+                feedList.innerHTML = '<p class="qiwi-friend-feed-empty">还没有 RSS 源。</p>';
+                return;
+            }
+
+            feedList.innerHTML = feeds.map(function(feed) {
+                var statusClass = feed.status === 'ok' ? 'is-ok' : (feed.status ? 'is-error' : '');
+                var title = feed.title || '未命名 RSS 源';
+                var avatar = feed.avatar_url || 'https://gravatar.loli.net/avatar/default?s=96&d=mp';
+                return '<article class="qiwi-rss-feed-row" data-rss-feed-id="' + escapeHtml(feed.id) + '">' +
+                    '<button type="button" class="qiwi-rss-feed-summary" data-rss-action="toggle" aria-expanded="false">' +
+                        '<span class="qiwi-rss-feed-avatar"><img src="' + escapeHtml(avatar) + '" alt="' + escapeHtml(title) + '" loading="lazy" onerror="this.src=\'https://gravatar.loli.net/avatar/default?s=96&d=mp\'"></span>' +
+                        '<span class="qiwi-rss-feed-main"><strong>' + escapeHtml(title) + '</strong><em>' + escapeHtml(feed.site_url || feed.feed_url || '') + '</em></span>' +
+                        '<span class="qiwi-rss-feed-state ' + statusClass + '">' + escapeHtml(feed.enabled === false ? '关闭' : (feed.status || '启用')) + '</span>' +
+                    '</button>' +
+                    '<div class="qiwi-rss-feed-detail">' +
+                        '<div class="qiwi-rss-feed-meta">' +
+                            '<span>RSS：' + escapeHtml(feed.feed_url || '-') + '</span>' +
+                            '<span>最近成功：' + escapeHtml(formatRssDate(feed.last_success_at)) + '</span>' +
+                            '<span>最近抓取：' + escapeHtml(formatRssDate(feed.last_fetched_at)) + '</span>' +
+                            (feed.last_error ? '<span class="is-error">错误：' + escapeHtml(feed.last_error) + '</span>' : '') +
+                        '</div>' +
+                        feedEditorHtml(feed) +
+                        '<div class="qiwi-admin-toolbar qiwi-rss-feed-actions">' +
+                            '<button type="button" class="qiwi-admin-button is-primary" data-rss-action="save-feed"><i class="fa-regular fa-circle-check" aria-hidden="true"></i>保存</button>' +
+                            '<button type="button" class="qiwi-admin-button" data-rss-action="fetch-feed"><i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>立即抓取</button>' +
+                            '<button type="button" class="qiwi-admin-button is-danger" data-rss-action="delete-feed"><i class="fa-regular fa-trash-can" aria-hidden="true"></i>删除</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</article>';
+            }).join('');
+        }
+
+        function renderLogs(rows) {
+            if (!logs) return;
+            rows = Array.isArray(rows) ? rows : [];
+            if (!rows.length) {
+                logs.innerHTML = '<section class="qiwi-friend-feed-section"><div class="qiwi-friend-feed-section-head"><strong>抓取日志</strong><span>暂时没有日志。</span></div></section>';
+                return;
+            }
+
+            logs.innerHTML = '<section class="qiwi-friend-feed-section"><div class="qiwi-friend-feed-section-head"><strong>抓取日志</strong><span>最近 ' + rows.length + ' 条记录。</span></div><div class="qiwi-rss-log-list">' +
+                rows.map(function(row) {
+                    var ok = row.status === 'ok' || row.success === true;
+                    var details = row.message || row.error || row.status || '-';
+                    if (row.entries_found != null || row.entries_saved != null || row.duration_ms != null) {
+                        details += ' · 发现 ' + (row.entries_found == null ? '-' : row.entries_found) +
+                            ' · 写入 ' + (row.entries_saved == null ? '-' : row.entries_saved) +
+                            (row.duration_ms == null ? '' : ' · ' + Math.round(row.duration_ms / 1000) + 's');
+                    }
+                    return '<div class="qiwi-rss-log-row ' + (ok ? 'is-ok' : 'is-error') + '">' +
+                        '<span>' + escapeHtml(formatRssDate(row.created_at || row.fetched_at || row.time)) + '</span>' +
+                        '<strong>' + escapeHtml(row.feed_title || row.title || ('Feed #' + (row.feed_id || '-'))) + '</strong>' +
+                        '<em>' + escapeHtml(details) + '</em>' +
+                    '</div>';
+                }).join('') + '</div></section>';
+        }
+
+        function loadStatus() {
+            return friendFeedFetchJson(friendFeedEndpoint('/api/public/status')).then(function(info) {
+                renderSummary(info);
+                return info;
+            });
+        }
+
+        function loadSettings() {
+            return friendFeedFetchJson(friendFeedEndpoint('/api/admin/settings'), {
+                headers: friendFeedHeaders(true)
+            }).then(function(payload) {
+                renderRemoteSettings(payload && payload.data ? payload.data : {});
+            });
+        }
+
+        function loadFeeds() {
+            return friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds'), {
+                headers: friendFeedHeaders(true)
+            }).then(function(payload) {
+                renderFeeds(payload && payload.data ? payload.data : []);
+            });
+        }
+
+        function loadLogs() {
+            return friendFeedFetchJson(friendFeedEndpoint('/api/admin/fetch-logs?limit=20'), {
+                headers: friendFeedHeaders(true)
+            }).then(function(payload) {
+                renderLogs(payload && payload.data ? payload.data : []);
+            }).catch(function() {
+                renderLogs([]);
+            });
+        }
+
+        function loadRemoteData() {
+            if (!requireBaseUrl()) return;
+            setBusy(true);
+            setStatus('正在连接 QiwiRss...');
+            loadStatus().then(function(info) {
+                var parts = ['连接正常'];
+                if (info.feed_count != null) parts.push(info.feed_count + ' 个源');
+                if (info.entry_count != null) parts.push(info.entry_count + ' 篇文章');
+
+                if (!trim(getFieldValueByName('friendFeedAdminToken'))) {
+                    if (remote) remote.innerHTML = '<p class="qiwi-friend-feed-empty">填写 Admin Token 后可编辑远端配置和 RSS 源。</p>';
+                    if (feedList) feedList.innerHTML = '<p class="qiwi-friend-feed-empty">填写 Admin Token 后可管理 RSS 源。</p>';
+                    renderLogs([]);
+                    setStatus(parts.join('，') + '。', 'success');
+                    return null;
+                }
+
+                setStatus(parts.join('，') + '，正在读取管理数据...');
+                return Promise.all([loadSettings(), loadFeeds(), loadLogs()]).then(function() {
+                    setStatus(parts.join('，') + '。RSS 管理数据已读取。', 'success');
+                });
+            }).catch(function(error) {
+                renderSummary(null);
+                if (remote) remote.innerHTML = '<p class="qiwi-friend-feed-empty">暂未读取到远端配置。</p>';
+                if (feedList) feedList.innerHTML = '<p class="qiwi-friend-feed-empty">暂未读取到 RSS 源。</p>';
+                setStatus(error && error.message ? error.message : '连接失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function saveRemoteSettings() {
+            var payload = {};
+            if (!requireBaseUrl() || !requireToken()) return;
+
+            $all('[data-rss-setting]', remote).forEach(function(input) {
+                payload[input.getAttribute('data-rss-setting')] = input.value;
+            });
+            if (!Object.keys(payload).length) {
+                setStatus('没有可保存的远端配置。', 'error');
+                return;
+            }
+
+            setBusy(true);
+            setStatus('正在保存远端配置...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/settings'), {
+                method: 'PUT',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, friendFeedHeaders(true)),
+                body: JSON.stringify(payload)
+            }).then(function() {
+                setStatus('远端配置已保存。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '远端配置保存失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function createFeed() {
+            if (!requireBaseUrl() || !requireToken()) return;
+            var data = readFeedForm(newForm);
+            if (!data.site_url || !data.feed_url) {
+                setStatus('请填写站点 URL 和 RSS URL。', 'error');
+                return;
+            }
+
+            setBusy(true);
+            setStatus('正在添加 RSS 源...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds'), {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, friendFeedHeaders(true)),
+                body: JSON.stringify(data)
+            }).then(function() {
+                setFeedForm(newForm, {});
+                if (discoverInput) discoverInput.value = '';
+                setStatus('RSS 源已添加。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : 'RSS 源添加失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function discoverFeed() {
+            if (!requireBaseUrl() || !requireToken()) return;
+            var siteUrl = trim(discoverInput ? discoverInput.value : '');
+            if (!siteUrl) {
+                setStatus('请先填写要发现的站点 URL。', 'error');
+                return;
+            }
+
+            setBusy(true);
+            setStatus('正在发现 RSS/Atom 地址...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds/discover'), {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, friendFeedHeaders(true)),
+                body: JSON.stringify({ site_url: siteUrl })
+            }).then(function(payload) {
+                setFeedForm(newForm, payload && payload.data ? payload.data : {});
+                setStatus('已发现 RSS/Atom 地址，请检查后保存。', 'success');
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '没有发现可用 RSS/Atom 地址。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function saveFeed(row) {
+            if (!requireBaseUrl() || !requireToken() || !row) return;
+            var id = row.getAttribute('data-rss-feed-id');
+            var data = readFeedForm($('[data-rss-feed-form]', row));
+
+            setBusy(true);
+            setStatus('正在保存 RSS 源...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds/' + encodeURIComponent(id)), {
+                method: 'PUT',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, friendFeedHeaders(true)),
+                body: JSON.stringify(data)
+            }).then(function() {
+                setStatus('RSS 源已保存。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : 'RSS 源保存失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function deleteFeed(row) {
+            if (!requireBaseUrl() || !requireToken() || !row) return;
+            var id = row.getAttribute('data-rss-feed-id');
+            var titleEl = $('.qiwi-rss-feed-main strong', row);
+            var title = trim(titleEl ? titleEl.textContent : '') || '这个 RSS 源';
+            if (!window.confirm('确定删除“' + title + '”吗？关联文章也会一起删除。')) return;
+
+            setBusy(true);
+            setStatus('正在删除 RSS 源...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds/' + encodeURIComponent(id)), {
+                method: 'DELETE',
+                headers: friendFeedHeaders(true)
+            }).then(function() {
+                setStatus('RSS 源已删除。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : 'RSS 源删除失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function fetchFeed(row) {
+            if (!requireBaseUrl() || !requireToken() || !row) return;
+            var id = row.getAttribute('data-rss-feed-id');
+            setBusy(true);
+            setStatus('正在抓取 RSS 源...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/feeds/' + encodeURIComponent(id) + '/fetch'), {
+                method: 'POST',
+                headers: friendFeedHeaders(true)
+            }).then(function() {
+                setStatus('抓取请求已完成。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '抓取失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        function fetchAllFeeds() {
+            if (!requireBaseUrl() || !requireToken()) return;
+            setBusy(true);
+            setStatus('正在抓取所有启用的 RSS 源...');
+            friendFeedFetchJson(friendFeedEndpoint('/api/admin/fetch-all'), {
+                method: 'POST',
+                headers: friendFeedHeaders(true)
+            }).then(function() {
+                setStatus('全部抓取已完成。', 'success');
+                return loadRemoteData();
+            }).catch(function(error) {
+                setStatus(error && error.message ? error.message : '全部抓取失败。', 'error');
+            }).then(function() {
+                setBusy(false);
+            });
+        }
+
+        if (checkButton) checkButton.addEventListener('click', loadRemoteData);
+        if (refreshButton) refreshButton.addEventListener('click', loadRemoteData);
+        if (fetchAllButton) fetchAllButton.addEventListener('click', fetchAllFeeds);
+        if (saveButton) saveButton.addEventListener('click', saveRemoteSettings);
+
+        root.addEventListener('click', function(event) {
+            var button = event.target.closest('[data-rss-action]');
+            if (!button) return;
+            var action = button.getAttribute('data-rss-action');
+            var row = button.closest('[data-rss-feed-id]');
+
+            if (action === 'discover') discoverFeed();
+            if (action === 'create') createFeed();
+            if (action === 'save-feed') saveFeed(row);
+            if (action === 'delete-feed') deleteFeed(row);
+            if (action === 'fetch-feed') fetchFeed(row);
+            if (action === 'toggle' && row) {
+                var isOpen = !row.classList.contains('is-open');
+                row.classList.toggle('is-open', isOpen);
+                button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        });
+
+        if (normalizeFriendFeedBaseUrl(getFieldValueByName('friendFeedBaseUrl'))) {
+            loadRemoteData();
+        }
+    }
+
     function initExternalLinkStats(panel) {
         var container = $('[data-qiwi-external-stats]', panel);
         if (!container || container.dataset.qiwiStatsReady === '1') return;
@@ -1702,6 +2216,46 @@
         activate(initialTab || $('.qiwi-admin-tab.is-active', panel) || tabs[0], false);
     }
 
+    function initFriendAdminTabs(panel) {
+        var root = $('[data-qiwi-friends-admin-tabs]', panel);
+        if (!root || root.dataset.qiwiFriendsAdminTabsReady === '1') return;
+        root.dataset.qiwiFriendsAdminTabsReady = '1';
+
+        var tabs = $all('[data-friends-admin-tab]', root);
+        var panes = $all('[data-friends-admin-panel]', root);
+
+        function activate(target) {
+            tabs.forEach(function(tab) {
+                var active = tab.getAttribute('data-friends-admin-tab') === target;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                tab.setAttribute('tabindex', active ? '0' : '-1');
+            });
+            panes.forEach(function(pane) {
+                var active = pane.getAttribute('data-friends-admin-panel') === target;
+                pane.classList.toggle('is-active', active);
+                pane.hidden = !active;
+            });
+        }
+
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                activate(tab.getAttribute('data-friends-admin-tab'));
+            });
+            tab.addEventListener('keydown', function(event) {
+                if (!/^(ArrowLeft|ArrowRight)$/.test(event.key)) return;
+                event.preventDefault();
+                var index = tabs.indexOf(tab);
+                var offset = event.key === 'ArrowLeft' ? -1 : 1;
+                var next = tabs[(index + offset + tabs.length) % tabs.length];
+                activate(next.getAttribute('data-friends-admin-tab'));
+                next.focus();
+            });
+        });
+
+        activate('links');
+    }
+
     function insertAtCursor(input, before, after, placeholder) {
         if (!input) return;
         var start = input.selectionStart || 0;
@@ -1867,6 +2421,10 @@
         'aboutBio',
         'aboutAvatar',
         'friendsData',
+        'friendFeedEnabled',
+        'friendFeedBaseUrl',
+        'friendFeedAdminToken',
+        'friendFeedLimit',
         'bookReference',
         'showUpdateLog',
         'showVersionDrawer',
@@ -1897,6 +2455,9 @@
         aboutBio: '写一点关于你的简短介绍',
         aboutAvatar: '留空时使用默认头像',
         friendsData: '通过友链结构化 UI 管理，原始数据可留空',
+        friendFeedBaseUrl: '例如 http://127.0.0.1:8080',
+        friendFeedAdminToken: '前台不会输出这个 Token',
+        friendFeedLimit: '10',
         bookReference: '留空时归档页不显示书籍参考统计',
         navItems: '留空时自动显示可见独立页面',
         sidebarSocialLinks: ''
@@ -2786,10 +3347,58 @@
                     '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="about"><div class="qiwi-admin-fields" data-qiwi-about-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="friends">' +
-                        '<div class="qiwi-admin-toolbar">' +
-                            '<button type="button" class="qiwi-admin-button" data-friend-action="add-category"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i>添加分类</button>' +
+                        '<div class="qiwi-friends-admin-tabs" data-qiwi-friends-admin-tabs>' +
+                            '<div class="qiwi-friends-admin-tab-list" role="tablist" aria-label="友链管理">' +
+                                '<button type="button" class="qiwi-friends-admin-tab is-active" data-friends-admin-tab="links" role="tab" aria-selected="true"><i class="fa-solid fa-link" aria-hidden="true"></i><span>友链</span></button>' +
+                                '<button type="button" class="qiwi-friends-admin-tab" data-friends-admin-tab="rss" role="tab" aria-selected="false"><i class="fa-solid fa-rss" aria-hidden="true"></i><span>RSS 动态</span></button>' +
+                            '</div>' +
+                            '<section class="qiwi-friends-admin-panel is-active" data-friends-admin-panel="links">' +
+                                '<div class="qiwi-admin-toolbar">' +
+                                    '<button type="button" class="qiwi-admin-button" data-friend-action="add-category"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i>添加分类</button>' +
+                                '</div>' +
+                                '<div data-qiwi-friends-list></div>' +
+                            '</section>' +
+                            '<section class="qiwi-friends-admin-panel" data-friends-admin-panel="rss" hidden>' +
+                                '<section class="qiwi-friend-feed-panel" data-qiwi-friend-feed>' +
+                                    '<div class="qiwi-friend-feed-head">' +
+                                        '<strong>朋友圈 RSS</strong>' +
+                                        '<span>主题保存连接信息；远端配置和 RSS 源会直接写入 QiwiRss 服务。</span>' +
+                                    '</div>' +
+                                    '<div class="qiwi-admin-fields qiwi-friend-feed-local" data-qiwi-friend-feed-fields></div>' +
+                                    '<div class="qiwi-admin-toolbar qiwi-friend-feed-actions">' +
+                                        '<button type="button" class="qiwi-admin-button" data-friend-feed-check><i class="fa-solid fa-plug-circle-check" aria-hidden="true"></i>检查连接</button>' +
+                                        '<button type="button" class="qiwi-admin-button" data-friend-feed-refresh><i class="fa-solid fa-rotate" aria-hidden="true"></i>刷新 RSS 源</button>' +
+                                        '<button type="button" class="qiwi-admin-button" data-friend-feed-fetch-all><i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>抓取全部</button>' +
+                                        '<button type="button" class="qiwi-admin-button is-primary" data-friend-feed-save><i class="fa-regular fa-circle-check" aria-hidden="true"></i>保存远端配置</button>' +
+                                    '</div>' +
+                                    '<p class="qiwi-friend-feed-status" data-friend-feed-status></p>' +
+                                    '<div class="qiwi-friend-feed-summary" data-friend-feed-summary></div>' +
+                                    '<div class="qiwi-friend-feed-remote" data-friend-feed-remote><p class="qiwi-friend-feed-empty">填写 Base URL 后可以检查连接。</p></div>' +
+                                    '<section class="qiwi-friend-feed-create">' +
+                                        '<div class="qiwi-friend-feed-create-head">' +
+                                            '<strong>添加 RSS 源</strong>' +
+                                            '<span>可以先从站点发现 RSS/Atom 地址，再保存到 QiwiRss。</span>' +
+                                        '</div>' +
+                                        '<div class="qiwi-friend-feed-discover">' +
+                                            '<input type="url" data-rss-discover-url placeholder="https://example.com">' +
+                                            '<button type="button" class="qiwi-admin-button" data-rss-action="discover"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>发现</button>' +
+                                        '</div>' +
+                                        '<div class="qiwi-friend-feed-editor" data-rss-new-form>' +
+                                            '<label>标题<input type="text" data-rss-feed-field="title"></label>' +
+                                            '<label>站点 URL<input type="url" data-rss-feed-field="site_url"></label>' +
+                                            '<label>RSS URL<input type="url" data-rss-feed-field="feed_url"></label>' +
+                                            '<label>头像 URL<input type="url" data-rss-feed-field="avatar_url"></label>' +
+                                            '<label>抓取间隔（分钟）<input type="number" min="1" step="1" data-rss-feed-field="fetch_interval_minutes" value="60"></label>' +
+                                            '<label>启用<select data-rss-feed-field="enabled"><option value="true" selected>启用</option><option value="false">关闭</option></select></label>' +
+                                            '<label class="qiwi-friend-feed-wide">描述<textarea rows="2" data-rss-feed-field="description"></textarea></label>' +
+                                        '</div>' +
+                                        '<div class="qiwi-admin-toolbar qiwi-friend-feed-actions"><button type="button" class="qiwi-admin-button is-primary" data-rss-action="create"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加 RSS 源</button></div>' +
+                                    '</section>' +
+                                    '<div class="qiwi-friend-feed-list" data-rss-feed-list><p class="qiwi-friend-feed-empty">连接后会显示 RSS 源。</p></div>' +
+                                    '<div class="qiwi-friend-feed-logs" data-rss-fetch-logs></div>' +
+                                '</section>' +
+                            '</section>' +
                         '</div>' +
-                        '<div data-qiwi-friends-list></div>' +
                     '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="books">' +
                         '<div class="qiwi-admin-toolbar">' +
@@ -2812,6 +3421,7 @@
         moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
         moveFields(['footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
+        moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
 
         var socialStorageRow = moveField('sidebarSocialLinks', $('[data-qiwi-sidebar-social-editor]', panel));
@@ -2830,6 +3440,7 @@
         });
 
         initTabs(panel);
+        initFriendAdminTabs(panel);
         initAdminSaveButton(panel);
         initPlogTemplatePanel(panel);
         var editors = {
@@ -2839,6 +3450,7 @@
             sidebarSocial: initSidebarSocialEditor(panel, sidebarSocialTextarea)
         };
         initExternalLinkStats(panel);
+        initFriendFeedPanel(panel);
         initIpLocationTools(panel);
         initMomentLikeRecords(panel);
         initUpdatePanel($('[data-qiwi-update-panel]', panel));
