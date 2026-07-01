@@ -1053,7 +1053,7 @@ function initCommentTargetHighlight() {
 }
 
 function initArticleImages() {
-    var images = document.querySelectorAll('.article-body img');
+    var images = document.querySelectorAll('.article-body img, .article-hero, .comment-item.is-trusted-comment .comment-text img, .moment-comment.is-trusted-comment .moment-comment-text img');
     if (!images.length) return;
 
     var lightboxMedia = window.matchMedia ? window.matchMedia('(min-width: 769px)') : null;
@@ -1239,6 +1239,24 @@ function initArticleImages() {
                 openLightbox(img);
             }
         });
+    });
+}
+
+function initArticleCardThumbnails() {
+    document.querySelectorAll('.article-thumbnail-wrapper .article-thumbnail').forEach(function(img) {
+        var wrapper = img.closest('.article-thumbnail-wrapper');
+        if (!wrapper) return;
+
+        function updateOrientationClass() {
+            if (!img.naturalWidth || !img.naturalHeight) return;
+            wrapper.classList.toggle('is-portrait-thumbnail', img.naturalHeight > img.naturalWidth);
+        }
+
+        if (img.complete) {
+            updateOrientationClass();
+        } else {
+            img.addEventListener('load', updateOrientationClass, { once: true });
+        }
     });
 }
 
@@ -1449,7 +1467,7 @@ function initQiwiExternalLinks() {
 
     document.querySelectorAll('a[href]').forEach(enhanceAnchor);
 
-    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .moment-comment-text, .comment-text, .post-copyright-body, .about-bio, .friends-extra, .sidebar-announcement-body').forEach(function(scope) {
+    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .comment-item.is-trusted-comment .comment-text, .moment-comment.is-trusted-comment .moment-comment-text, .post-copyright-body, .about-bio, .friends-extra, .sidebar-announcement-body').forEach(function(scope) {
         var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
             acceptNode: function(node) {
                 return isSkippableTextParent(node.parentElement)
@@ -1462,6 +1480,330 @@ function initQiwiExternalLinks() {
             nodes.push(walker.currentNode);
         }
         nodes.forEach(autolinkTextNode);
+    });
+}
+
+function initQiwiLinkPreviews() {
+    var endpoint = <?php echo json_encode(function_exists('qiwiGetThemeActionEndpoint') ? qiwiGetThemeActionEndpoint('link-preview', $this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var siteUrl = <?php echo json_encode(rtrim((string) $this->options->siteUrl, '/') . '/', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var siteHost = '';
+    var hoverTimer = null;
+    var activeLink = null;
+    var lastEvent = null;
+    var memoryCache = Object.create(null);
+    var externalCacheKey = 'qiwi-link-preview-external-v1';
+    var externalCache = {};
+
+    try {
+        siteHost = new URL(siteUrl, window.location.href).hostname.toLowerCase().replace(/^www\./, '');
+    } catch (error) {
+        siteHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+    }
+
+    try {
+        externalCache = JSON.parse(localStorage.getItem(externalCacheKey) || '{}') || {};
+    } catch (error) {
+        externalCache = {};
+    }
+
+    function normalizeHost(host) {
+        return String(host || '').toLowerCase().replace(/^www\./, '');
+    }
+
+    function parseUrl(url) {
+        try {
+            return new URL(url, window.location.href);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function isInternalUrl(url) {
+        var parsed = parseUrl(url);
+        return parsed && (parsed.protocol === 'http:' || parsed.protocol === 'https:') && normalizeHost(parsed.hostname) === siteHost;
+    }
+
+    function isExternalUrl(url) {
+        var parsed = parseUrl(url);
+        return parsed && (parsed.protocol === 'http:' || parsed.protocol === 'https:') && normalizeHost(parsed.hostname) !== siteHost;
+    }
+
+    function displayHost(url) {
+        var parsed = parseUrl(url);
+        if (!parsed) return url;
+        return normalizeHost(parsed.hostname);
+    }
+
+    function ensureTooltip() {
+        var tooltip = document.querySelector('.qiwi-link-preview');
+        if (tooltip) return tooltip;
+
+        tooltip = document.createElement('div');
+        tooltip.className = 'qiwi-link-preview';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.innerHTML = '<div class="qiwi-link-preview-kind"></div><div class="qiwi-link-preview-title"></div><div class="qiwi-link-preview-summary"></div><div class="qiwi-link-preview-meta"></div>';
+        document.body.appendChild(tooltip);
+        return tooltip;
+    }
+
+    function positionTooltip(event) {
+        var tooltip = ensureTooltip();
+        var gap = 16;
+        var rect = tooltip.getBoundingClientRect();
+        var left = event.clientX + gap;
+        var top = event.clientY + gap;
+        var maxLeft = window.innerWidth - rect.width - gap;
+        var maxTop = window.innerHeight - rect.height - gap;
+        tooltip.style.left = Math.max(gap, Math.min(left, maxLeft)) + 'px';
+        tooltip.style.top = Math.max(gap, Math.min(top, maxTop)) + 'px';
+    }
+
+    function hidePreview() {
+        if (hoverTimer) {
+            window.clearTimeout(hoverTimer);
+            hoverTimer = null;
+        }
+        activeLink = null;
+        var tooltip = document.querySelector('.qiwi-link-preview');
+        if (tooltip) {
+            tooltip.classList.remove('is-visible', 'is-external');
+        }
+    }
+
+    function renderPreview(preview, external) {
+        if (!preview || !activeLink || !lastEvent) return;
+        var tooltip = ensureTooltip();
+        tooltip.classList.toggle('is-external', Boolean(external));
+        tooltip.querySelector('.qiwi-link-preview-kind').textContent = preview.kind || (external ? '外链' : '站内');
+        tooltip.querySelector('.qiwi-link-preview-title').textContent = preview.title || activeLink.textContent.trim() || preview.url || '';
+        tooltip.querySelector('.qiwi-link-preview-summary').textContent = preview.summary || '';
+        tooltip.querySelector('.qiwi-link-preview-meta').textContent = preview.meta || displayHost(preview.url || activeLink.href);
+        positionTooltip(lastEvent);
+        tooltip.classList.add('is-visible');
+    }
+
+    function mapInternalPreview(payload) {
+        var data = payload && payload.preview ? payload.preview : null;
+        if (!data) return null;
+        var labels = {
+            post: '文章',
+            page: '页面',
+            quote: '引用',
+            moment: '说说',
+            comment: '评论'
+        };
+        var metas = [];
+        if (data.date) metas.push(data.date);
+        if (data.type !== 'comment' && data.meta && data.meta.author) metas.push(data.meta.author);
+        if (data.meta && data.meta.source) metas.push(data.meta.source);
+        if (Array.isArray(data.metas)) {
+            data.metas.slice(0, 3).forEach(function(item) {
+                if (item && item.name) metas.push(item.name);
+            });
+        }
+        return {
+            kind: labels[data.type] || '站内',
+            title: data.title || '',
+            summary: data.summary || '',
+            meta: metas.join(' · '),
+            url: data.url || ''
+        };
+    }
+
+    function fetchInternalPreview(url) {
+        if (!endpoint) return Promise.resolve(null);
+        var key = 'internal:' + url;
+        if (memoryCache[key]) return Promise.resolve(memoryCache[key]);
+
+        var requestUrl = endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'url=' + encodeURIComponent(url);
+        return fetch(requestUrl, { credentials: 'same-origin' })
+            .then(function(response) {
+                if (!response.ok) return null;
+                return response.json();
+            })
+            .then(function(payload) {
+                var preview = mapInternalPreview(payload);
+                if (preview) {
+                    memoryCache[key] = preview;
+                }
+                return preview;
+            })
+            .catch(function() {
+                return null;
+            });
+    }
+
+    function saveExternalCache() {
+        try {
+            localStorage.setItem(externalCacheKey, JSON.stringify(externalCache));
+        } catch (error) {}
+    }
+
+    function fetchExternalPreview(url) {
+        var key = 'external:' + url;
+        var now = Date.now();
+        var cached = externalCache[key];
+        if (cached && cached.expires > now) {
+            return Promise.resolve(cached.preview);
+        }
+
+        return fetch(url, { credentials: 'omit' })
+            .then(function(response) {
+                if (!response.ok) return null;
+                return response.text();
+            })
+            .then(function(html) {
+                if (!html) return null;
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var title = doc.querySelector('title');
+                var desc = doc.querySelector('meta[name="description"], meta[property="og:description"]');
+                var preview = {
+                    kind: '外链',
+                    title: title ? title.textContent.trim() : displayHost(url),
+                    summary: desc ? desc.getAttribute('content') || '' : '',
+                    meta: displayHost(url),
+                    url: url
+                };
+                externalCache[key] = {
+                    expires: now + 7 * 24 * 60 * 60 * 1000,
+                    preview: preview
+                };
+                saveExternalCache();
+                return preview;
+            })
+            .catch(function() {
+                var preview = {
+                    kind: '外链',
+                    title: activeLink ? activeLink.textContent.trim() || displayHost(url) : displayHost(url),
+                    summary: '',
+                    meta: displayHost(url),
+                    url: url
+                };
+                externalCache[key] = {
+                    expires: now + 24 * 60 * 60 * 1000,
+                    preview: preview
+                };
+                saveExternalCache();
+                return preview;
+            });
+    }
+
+    function bindLink(link) {
+        if (!link || link.dataset.qiwiPreviewBound === '1') return;
+        var href = link.getAttribute('href') || '';
+        if (!href || href.charAt(0) === '#' || /^mailto:|^tel:/i.test(href)) return;
+        if (!isInternalUrl(href) && !isExternalUrl(href)) return;
+
+        link.dataset.qiwiPreviewBound = '1';
+        if (isExternalUrl(href)) {
+            link.classList.add('qiwi-link-preview-external');
+        }
+
+        link.addEventListener('mouseenter', function(event) {
+            activeLink = link;
+            lastEvent = event;
+            if (hoverTimer) {
+                window.clearTimeout(hoverTimer);
+            }
+            hoverTimer = window.setTimeout(function() {
+                var absoluteUrl = parseUrl(link.href).toString();
+                var request = isInternalUrl(absoluteUrl) ? fetchInternalPreview(absoluteUrl) : fetchExternalPreview(absoluteUrl);
+                request.then(function(preview) {
+                    if (activeLink !== link || !preview) return;
+                    renderPreview(preview, isExternalUrl(absoluteUrl));
+                });
+            }, 260);
+        });
+
+        link.addEventListener('mousemove', function(event) {
+            lastEvent = event;
+            var tooltip = document.querySelector('.qiwi-link-preview.is-visible');
+            if (tooltip) {
+                positionTooltip(event);
+            }
+        });
+
+        link.addEventListener('mouseleave', hidePreview);
+        link.addEventListener('focus', function(event) {
+            activeLink = link;
+            lastEvent = {
+                clientX: link.getBoundingClientRect().left,
+                clientY: link.getBoundingClientRect().bottom
+            };
+            var absoluteUrl = parseUrl(link.href).toString();
+            var request = isInternalUrl(absoluteUrl) ? fetchInternalPreview(absoluteUrl) : fetchExternalPreview(absoluteUrl);
+            request.then(function(preview) {
+                if (activeLink !== link || !preview) return;
+                renderPreview(preview, isExternalUrl(absoluteUrl));
+            });
+        });
+        link.addEventListener('blur', hidePreview);
+    }
+
+    document.querySelectorAll('.article-body a[href], .moment-text a[href], .comment-item.is-trusted-comment .comment-text a[href], .moment-comment.is-trusted-comment .moment-comment-text a[href]').forEach(bindLink);
+}
+
+function initQiwiCopyLinks() {
+    function buildUrl(value) {
+        value = String(value || '').trim();
+        if (value === '') return window.location.href;
+        if (value.charAt(0) === '#') {
+            return window.location.origin + window.location.pathname + window.location.search + value;
+        }
+
+        try {
+            return new URL(value, window.location.href).toString();
+        } catch (error) {
+            return window.location.href;
+        }
+    }
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+
+        return new Promise(function(resolve, reject) {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.top = '-1000px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+            } catch (error) {
+                reject(error);
+            } finally {
+                textarea.remove();
+            }
+        });
+    }
+
+    document.querySelectorAll('[data-qiwi-copy-link]').forEach(function(button) {
+        if (button.dataset.qiwiCopyBound === '1') return;
+        button.dataset.qiwiCopyBound = '1';
+
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var url = buildUrl(button.getAttribute('data-qiwi-copy-link'));
+            copyText(url).then(function() {
+                button.classList.add('is-copied');
+                button.setAttribute('aria-label', '已复制链接');
+                window.setTimeout(function() {
+                    button.classList.remove('is-copied');
+                    button.setAttribute('aria-label', button.classList.contains('moment-copy-link') ? '复制说说链接' : '复制评论链接');
+                }, 1500);
+            }).catch(function() {
+                button.classList.add('is-copy-failed');
+                window.setTimeout(function() {
+                    button.classList.remove('is-copy-failed');
+                }, 1500);
+            });
+        });
     });
 }
 
@@ -1561,8 +1903,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initCommentProfile();
     initCommentTargetHighlight();
     initArticleImages();
+    initArticleCardThumbnails();
     initQiwiFolds();
     initQiwiExternalLinks();
+    initQiwiLinkPreviews();
+    initQiwiCopyLinks();
     initQiwiLocalTimes();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 

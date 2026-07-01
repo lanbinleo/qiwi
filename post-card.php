@@ -65,7 +65,7 @@ $shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($
             </p>
             <?php if ($this->tags): ?>
             <div class="article-tags">
-                <?php echo qiwiRenderTermLinks($this->tags, 'tag'); ?>
+                <?php echo qiwiRenderTermLinks($this->tags, 'tag', 'stable', 4); ?>
             </div>
             <?php endif; ?>
         </div>

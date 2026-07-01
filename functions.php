@@ -1242,15 +1242,20 @@ if (!function_exists('qiwiGetCategoryTermColor')) {
 }
 
 if (!function_exists('qiwiRenderTermLinks')) {
-    function qiwiRenderTermLinks($terms, $className = '', $colorMode = 'stable')
+    function qiwiRenderTermLinks($terms, $className = '', $colorMode = 'stable', $limit = 0)
     {
         if (empty($terms) || !is_array($terms)) {
             return '';
         }
 
+        $limit = max(0, (int) $limit);
         $links = [];
         $total = count($terms);
         foreach ($terms as $index => $term) {
+            if ($limit > 0 && count($links) >= $limit) {
+                break;
+            }
+
             if ($colorMode === 'category' && function_exists('qiwiIsThreadTerm') && qiwiIsThreadTerm($term)) {
                 continue;
             }
@@ -2447,6 +2452,78 @@ if (!function_exists('qiwiGetContent')) {
         ob_start();
         $widget->content();
         return qiwiRenderShortcodes(ob_get_clean());
+    }
+}
+
+if (!function_exists('qiwiCommentSafeUrl')) {
+    function qiwiCommentSafeUrl($url)
+    {
+        $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($url === '' || preg_match('/[\x00-\x1F\x7F]/', $url)) {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $url)) {
+            return $url;
+        }
+
+        if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
+            return $url;
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('qiwiRenderPlainCommentContent')) {
+    function qiwiRenderPlainCommentContent($text)
+    {
+        $text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return nl2br($text, false);
+    }
+}
+
+if (!function_exists('qiwiRenderTrustedCommentContent')) {
+    function qiwiRenderTrustedCommentContent($text)
+    {
+        $html = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        $html = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/u', function ($matches) {
+            $url = qiwiCommentSafeUrl($matches[2]);
+            if ($url === '') {
+                return $matches[0];
+            }
+
+            $alt = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return '<img src="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" alt="' . htmlspecialchars($alt, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" class="comment-image qiwi-content-image" loading="lazy" decoding="async">';
+        }, $html);
+
+        $html = preg_replace('/`([^`]+?)`/u', '<code>$1</code>', $html);
+        $html = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/u', function ($matches) {
+            $url = qiwiCommentSafeUrl($matches[2]);
+            if ($url === '') {
+                return $matches[1];
+            }
+
+            $target = preg_match('/^https?:\/\//i', $url) ? ' target="_blank" rel="noopener noreferrer"' : '';
+            return '<a href="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '"' . $target . '>' . $matches[1] . '</a>';
+        }, $html);
+
+        return nl2br($html, false);
+    }
+}
+
+if (!function_exists('qiwiUserHasLogin')) {
+    function qiwiUserHasLogin()
+    {
+        try {
+            Typecho_Widget::widget('Widget_User')->to($user);
+            return $user && $user->hasLogin();
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 }
 
