@@ -1601,6 +1601,11 @@ html.plog-lightbox-open .qiwi-lightbox {
     border-radius: var(--r-md);
 }
 
+.article-thumbnail-wrapper.is-portrait-thumbnail {
+    height: 160px;
+    align-self: center;
+}
+
 .article-meta {
     display: flex;
     gap: var(--s-2);
@@ -1907,6 +1912,7 @@ html.plog-lightbox-open .qiwi-lightbox {
     object-fit: cover;
     margin: 0 0 var(--s-6);
     border-radius: var(--radius);
+    cursor: zoom-in;
 }
 
 /* ============================================
@@ -2501,6 +2507,128 @@ html.plog-lightbox-open .qiwi-lightbox {
 .copy-button svg {
     width: 14px;
     height: 14px;
+}
+
+.qiwi-link-preview {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 9998;
+    width: min(320px, calc(100vw - 32px));
+    padding: var(--s-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--color-surface) 94%, var(--color-bg));
+    color: var(--color-text-primary);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    visibility: hidden;
+    transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
+}
+
+.qiwi-link-preview.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    transition: opacity 160ms ease, transform 160ms ease, visibility 0s;
+}
+
+.qiwi-link-preview.is-external {
+    border-color: color-mix(in srgb, var(--qiwi-orange) 42%, var(--color-border));
+}
+
+.qiwi-link-preview-kind {
+    display: inline-flex;
+    width: max-content;
+    max-width: 100%;
+    margin-bottom: var(--s-2);
+    padding: 2px 7px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--color-accent-soft) 45%, transparent);
+    color: var(--color-accent);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.qiwi-link-preview.is-external .qiwi-link-preview-kind {
+    background: color-mix(in srgb, var(--qiwi-orange) 16%, transparent);
+    color: var(--qiwi-orange);
+}
+
+.qiwi-link-preview-title {
+    font-size: var(--t-base);
+    font-weight: 700;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.qiwi-link-preview-summary {
+    margin-top: var(--s-2);
+    color: var(--color-text-secondary);
+    font-size: var(--t-sm);
+    line-height: 1.65;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.qiwi-link-preview-meta {
+    margin-top: var(--s-3);
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.article-body a.qiwi-link-preview-external,
+.moment-text a.qiwi-link-preview-external,
+.comment-text a.qiwi-link-preview-external,
+.moment-comment-text a.qiwi-link-preview-external {
+    color: var(--qiwi-orange);
+}
+
+.qiwi-copy-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.qiwi-copy-link:hover,
+.qiwi-copy-link:focus-visible {
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+    background: color-mix(in srgb, var(--color-accent-soft) 38%, transparent);
+    outline: none;
+}
+
+.qiwi-copy-link.is-copied {
+    color: var(--qiwi-green);
+}
+
+.qiwi-copy-link.is-copy-failed {
+    color: var(--qiwi-red);
+}
+
+.comment-image,
+.moment-comment-text .comment-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: var(--s-2) 0;
+    border-radius: var(--r-md);
 }
 
 /* 代码块 */
@@ -3509,11 +3637,20 @@ body.qiwi-lightbox-open {
     background: var(--color-surface);
 }
 
+.moment-comment-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: 4px;
+    color: var(--color-text-tertiary);
+}
+
 .moment-comment-reply {
-    display: block;
+    display: inline-flex;
+    align-items: center;
     width: max-content;
     max-width: 100%;
-    margin: 4px 0 0;
+    margin: 0;
     padding: 0;
     border: 0;
     background: transparent;
@@ -3532,6 +3669,11 @@ body.qiwi-lightbox-open {
     outline: none;
     text-decoration: underline;
     text-underline-offset: 3px;
+}
+
+.moment-comment-copy-link {
+    width: 24px;
+    height: 24px;
 }
 
 .moment-reply-composer {
@@ -4787,6 +4929,24 @@ body.qiwi-lightbox-open {
 
 .comment-text p:last-child {
     margin-bottom: 0;
+}
+
+.comment-item.is-trusted-comment .comment-text a,
+.moment-comment.is-trusted-comment .moment-comment-text a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+    text-underline-offset: 3px;
+    transition: color var(--transition), text-decoration-color var(--transition);
+}
+
+.comment-item.is-trusted-comment .comment-text a:hover,
+.comment-item.is-trusted-comment .comment-text a:focus-visible,
+.moment-comment.is-trusted-comment .moment-comment-text a:hover,
+.moment-comment.is-trusted-comment .moment-comment-text a:focus-visible {
+    color: var(--color-accent);
+    text-decoration-color: currentColor;
+    outline: none;
 }
 
 .comment-reply a {
@@ -6399,6 +6559,7 @@ body.qiwi-lightbox-open {
     .article-hero {
         width: 100%;
         margin: 0 0 calc(var(--spacing-unit) * 4);
+        cursor: auto;
     }
 
     /* 移动端文章内容适配 */

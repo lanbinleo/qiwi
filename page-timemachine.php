@@ -302,6 +302,14 @@ function renderMomentCommentText($text) {
     return nl2br($text);
 }
 
+function renderTrustedMomentCommentText($text) {
+    if (function_exists('qiwiRenderTrustedCommentContent')) {
+        return qiwiRenderTrustedCommentContent($text);
+    }
+
+    return renderMomentCommentText($text);
+}
+
 function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvatar, $level = 0) {
     if (empty($repliesByParent[$parent])) {
         return;
@@ -312,10 +320,12 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
         $avatar = $isOwner ? $ownerAvatar : renderMomentAvatar(isset($reply['mail']) ? $reply['mail'] : '', $ownerAvatar, 40);
         $coid = isset($reply['coid']) ? (int) $reply['coid'] : 0;
+        $isTrustedReply = isset($reply['authorId']) && (int) $reply['authorId'] > 0;
+        $canCopyReplyLink = function_exists('qiwiUserHasLogin') ? qiwiUserHasLogin() : false;
         $isWaiting = isset($reply['status']) && (string) $reply['status'] === 'waiting';
         $created = isset($reply['created']) ? (int) $reply['created'] : 0;
         $location = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($reply) : '';
-        echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . '" id="comment-' . $coid . '">';
+        echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . ($isTrustedReply ? ' is-trusted-comment' : '') . '" id="comment-' . $coid . '">';
         echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
         echo '<div class="moment-comment-body">';
         echo '<div class="moment-comment-meta"><span class="moment-comment-author-row"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
@@ -331,8 +341,13 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
             echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
         }
         echo '</div>';
-        echo '<div class="moment-comment-text">' . renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '') . '</div>';
+        echo '<div class="moment-comment-text">' . ($isTrustedReply ? renderTrustedMomentCommentText(isset($reply['text']) ? $reply['text'] : '') : renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '')) . '</div>';
+        echo '<div class="moment-comment-actions">';
         echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
+        if ($canCopyReplyLink && $coid > 0) {
+            echo '<button type="button" class="moment-comment-copy-link qiwi-copy-link" data-qiwi-copy-link="#comment-' . $coid . '" aria-label="复制评论链接" title="复制评论链接"><i class="fa-solid fa-link" aria-hidden="true"></i></button>';
+        }
+        echo '</div>';
         renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);
         echo '</div></article>';
     }
@@ -419,6 +434,15 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                               data-qiwi-local-time
                               data-timestamp="<?php echo (int) $comment['created']; ?>"><?php echo date('Y-m-d H:i', (int) $comment['created']); ?></time>
                         <div class="moment-actions">
+                            <?php if ($this->user->hasLogin()): ?>
+                            <button type="button"
+                                    class="moment-action moment-copy-link qiwi-copy-link"
+                                    data-qiwi-copy-link="#comment-<?php echo $coid; ?>"
+                                    aria-label="复制说说链接"
+                                    title="复制说说链接">
+                                <i class="fa-solid fa-link" aria-hidden="true"></i>
+                            </button>
+                            <?php endif; ?>
                             <button type="button"
                                     class="moment-action moment-like-button<?php if ($isLiked): ?> is-active<?php endif; ?>"
                                     data-moment-like="<?php echo $coid; ?>"

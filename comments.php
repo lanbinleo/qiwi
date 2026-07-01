@@ -38,6 +38,10 @@ if (!function_exists('threadedComments')) {
         $commentCreated = isset($comments->created) ? (int) $comments->created : 0;
         $commentClasses = 'comment-item';
         $commentLevel = isset($comments->levels) ? (int) $comments->levels : 0;
+        $commentCoid = isset($comments->coid) ? (int) $comments->coid : 0;
+        $commentText = isset($comments->text) ? (string) $comments->text : '';
+        $isTrustedComment = isset($comments->authorId) && (int) $comments->authorId > 0;
+        $canCopyCommentLink = function_exists('qiwiUserHasLogin') && qiwiUserHasLogin() && $commentCoid > 0;
         $parentInfo = qiwi_get_comment_parent_info($comments);
         $commentLocation = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($comments) : '';
         $avatarUrl = function_exists('qiwiGetCommentAvatarUrl')
@@ -46,6 +50,10 @@ if (!function_exists('threadedComments')) {
 
         if ($isWaitingComment) {
             $commentClasses .= ' is-waiting';
+        }
+
+        if ($isTrustedComment) {
+            $commentClasses .= ' is-trusted-comment';
         }
 
         if ($commentLevel > 0) {
@@ -73,7 +81,7 @@ if (!function_exists('threadedComments')) {
                         </span>
                     </div>
                     <div class="comment-text">
-                        <?php $comments->content(); ?>
+                        <?php echo $isTrustedComment && function_exists('qiwiRenderTrustedCommentContent') ? qiwiRenderTrustedCommentContent($commentText) : qiwiRenderPlainCommentContent($commentText); ?>
                     </div>
                     <div class="comment-footnote">
                         <time class="comment-date"
@@ -89,6 +97,11 @@ if (!function_exists('threadedComments')) {
                         <span class="comment-reply">
                         <?php $comments->reply('回复'); ?>
                         </span>
+                        <?php if ($canCopyCommentLink): ?>
+                        <button type="button" class="comment-copy-link qiwi-copy-link" data-qiwi-copy-link="#comment-<?php echo $commentCoid; ?>" aria-label="复制评论链接" title="复制评论链接">
+                            <i class="fa-solid fa-link" aria-hidden="true"></i>
+                        </button>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
