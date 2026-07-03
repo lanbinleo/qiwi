@@ -634,20 +634,44 @@
     grid-template-columns: 130px minmax(140px, 1fr) minmax(190px, 1.2fr) minmax(260px, 1.6fr) minmax(120px, 0.8fr);
     min-width: 900px;
 }
+.qiwi-like-records-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.qiwi-like-records-block {
+    display: grid;
+    gap: 8px;
+}
+
+.qiwi-like-records-block h3 {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.qiwi-post-like-stats-row {
+    grid-template-columns: minmax(320px, 2fr) 90px 140px 120px;
+    min-width: 760px;
+}
 
 .qiwi-like-records-row strong,
 .qiwi-like-records-row em,
+.qiwi-post-like-stats-row strong,
+.qiwi-post-like-stats-row em,
 .qiwi-like-records-row code,
 .qiwi-like-muted {
     display: block;
 }
 
-.qiwi-like-records-row strong {
+.qiwi-like-records-row strong,
+.qiwi-post-like-stats-row strong {
     color: #333;
     font-weight: 700;
 }
 
 .qiwi-like-records-row em,
+.qiwi-post-like-stats-row em,
 .qiwi-like-muted {
     margin-top: 3px;
     color: #777;
@@ -2306,7 +2330,9 @@
 .qiwi-update-title,
 .qiwi-update-log-title,
 .qiwi-ip-location-tools strong,
-.qiwi-like-records-row strong {
+.qiwi-like-records-block h3,
+.qiwi-like-records-row strong,
+.qiwi-post-like-stats-row strong {
     color: var(--qiwi-admin-ink);
 }
 
@@ -2322,6 +2348,7 @@
 .qiwi-ip-location-tools p,
 .qiwi-ip-location-tools [data-ip-location-status],
 .qiwi-like-records-row em,
+.qiwi-post-like-stats-row em,
 .qiwi-like-muted,
 .qiwi-admin-fields .description,
 .qiwi-admin-panel p.description {

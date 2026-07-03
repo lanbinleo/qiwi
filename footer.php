@@ -1604,7 +1604,7 @@ function initQiwiLinkPreviews() {
         return {
             kind: labels[data.type] || '站内',
             title: data.title || '',
-            summary: data.summary || '',
+            summary: data.summary && String(data.summary).trim() !== '0' ? data.summary : '',
             meta: metas.join(' · '),
             url: data.url || ''
         };
@@ -2073,6 +2073,245 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script>
+(function() {
+    var readingDefaults = { font: 'plain', spacing: 'wide', size: 'medium' };
+    var readingLabels = {
+        font: { readable: '易读', plain: '普通' },
+        spacing: { wide: '宽', compact: '窄' },
+        size: { large: '大', medium: '中', small: '小' }
+    };
+    var readingKey = 'qiwi-article-reading-v1';
+
+    function readReadingPrefs() {
+        try {
+            var parsed = JSON.parse(localStorage.getItem(readingKey) || '{}');
+            return {
+                font: readingLabels.font[parsed.font] ? parsed.font : readingDefaults.font,
+                spacing: readingLabels.spacing[parsed.spacing] ? parsed.spacing : readingDefaults.spacing,
+                size: readingLabels.size[parsed.size] ? parsed.size : readingDefaults.size
+            };
+        } catch (error) {
+            return Object.assign({}, readingDefaults);
+        }
+    }
+
+    function saveReadingPrefs(prefs) {
+        try {
+            localStorage.setItem(readingKey, JSON.stringify(prefs));
+        } catch (error) {}
+    }
+
+    function applyReadingPrefs(prefs) {
+        document.documentElement.setAttribute('data-qiwi-reading-font', prefs.font);
+        document.documentElement.setAttribute('data-qiwi-reading-spacing', prefs.spacing);
+        document.documentElement.setAttribute('data-qiwi-reading-size', prefs.size);
+
+        document.querySelectorAll('[data-reading-control]').forEach(function(control) {
+            ['font', 'spacing', 'size'].forEach(function(group) {
+                var label = control.querySelector('[data-reading-label="' + group + '"]');
+                if (label) label.textContent = readingLabels[group][prefs[group]] || '';
+                control.querySelectorAll('[data-reading-option="' + group + '"]').forEach(function(button) {
+                    var active = button.getAttribute('data-reading-value') === prefs[group];
+                    button.classList.toggle('is-active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+            });
+        });
+    }
+
+    var readingPrefs = readReadingPrefs();
+    applyReadingPrefs(readingPrefs);
+
+    document.querySelectorAll('[data-reading-control]').forEach(function(control) {
+        var trigger = control.querySelector('[data-reading-trigger]');
+        if (trigger) {
+            trigger.addEventListener('click', function(event) {
+                event.stopPropagation();
+                var open = !control.classList.contains('is-open');
+                document.querySelectorAll('[data-reading-control].is-open').forEach(function(item) {
+                    if (item !== control) {
+                        item.classList.remove('is-open');
+                        var itemTrigger = item.querySelector('[data-reading-trigger]');
+                        if (itemTrigger) itemTrigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                control.classList.toggle('is-open', open);
+                trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        }
+
+        control.querySelectorAll('[data-reading-option]').forEach(function(button) {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation();
+                var option = button.getAttribute('data-reading-option');
+                var value = button.getAttribute('data-reading-value');
+                if (!readingLabels[option] || !readingLabels[option][value]) return;
+                readingPrefs[option] = value;
+                saveReadingPrefs(readingPrefs);
+                applyReadingPrefs(readingPrefs);
+            });
+        });
+    });
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('[data-reading-control].is-open').forEach(function(control) {
+            control.classList.remove('is-open');
+            var trigger = control.querySelector('[data-reading-trigger]');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key !== 'Escape') return;
+        document.querySelectorAll('[data-reading-control].is-open').forEach(function(control) {
+            control.classList.remove('is-open');
+            var trigger = control.querySelector('[data-reading-trigger]');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    var confettiLoader = null;
+    function loadConfetti() {
+        if (window.confetti) return Promise.resolve(window.confetti);
+        if (confettiLoader) return confettiLoader;
+        confettiLoader = new Promise(function(resolve, reject) {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+            script.async = true;
+            script.onload = function() { resolve(window.confetti); };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        return confettiLoader;
+    }
+
+    function likeConfettiOrigin(target) {
+        var width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        var height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        var origin = {
+            x: width / 2,
+            y: height * 0.72
+        };
+
+        if (target && typeof target.getBoundingClientRect === 'function') {
+            var rect = target.getBoundingClientRect();
+            if (rect.width || rect.height) {
+                origin.x = rect.left + rect.width / 2;
+                origin.y = rect.top + rect.height / 2;
+            }
+        }
+
+        return {
+            x: width > 0 ? Math.min(1, Math.max(0, origin.x / width)) : 0.5,
+            y: height > 0 ? Math.min(1, Math.max(0, origin.y / height)) : 0.72,
+            px: origin.x,
+            py: origin.y
+        };
+    }
+
+    function fallbackConfetti(target) {
+        var origin = likeConfettiOrigin(target);
+        var layer = document.createElement('div');
+        layer.className = 'qiwi-confetti-fallback';
+        var colors = ['#d95f76', '#f0b35d', '#5fbf8f', '#58a6d6', '#9b7bd9'];
+        for (var i = 0; i < 30; i += 1) {
+            var piece = document.createElement('span');
+            piece.className = 'qiwi-confetti-piece';
+            piece.style.left = origin.px.toFixed(0) + 'px';
+            piece.style.top = origin.py.toFixed(0) + 'px';
+            piece.style.setProperty('--qiwi-confetti-color', colors[i % colors.length]);
+            piece.style.setProperty('--qiwi-confetti-x', (Math.random() * 260 - 130).toFixed(0) + 'px');
+            piece.style.setProperty('--qiwi-confetti-y', (Math.random() * 220 - 170).toFixed(0) + 'px');
+            piece.style.setProperty('--qiwi-confetti-rotate', (Math.random() * 520 - 260).toFixed(0) + 'deg');
+            piece.style.animationDelay = (Math.random() * 80).toFixed(0) + 'ms';
+            layer.appendChild(piece);
+        }
+        document.body.appendChild(layer);
+        setTimeout(function() {
+            layer.remove();
+        }, 1000);
+    }
+
+    function celebrateLike(target) {
+        var origin = likeConfettiOrigin(target);
+        loadConfetti().then(function(confetti) {
+            if (!confetti) {
+                fallbackConfetti(target);
+                return;
+            }
+            confetti({ particleCount: 72, spread: 68, origin: { x: origin.x, y: origin.y }, scalar: 0.9 });
+        }).catch(function() {
+            fallbackConfetti(target);
+        });
+    }
+    document.querySelectorAll('[data-post-like]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var endpoint = button.getAttribute('data-like-endpoint') || '';
+            var cid = button.getAttribute('data-post-id') || '';
+            if (button.classList.contains('is-liked')) {
+                celebrateLike(button);
+                return;
+            }
+            if (!endpoint || !cid || button.dataset.likeBusy === '1') return;
+
+            button.dataset.likeBusy = '1';
+            button.setAttribute('aria-busy', 'true');
+            var form = new URLSearchParams();
+            form.append('cid', cid);
+
+            fetch(endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: form.toString()
+            }).then(function(response) {
+                if (!response.ok) throw new Error('Like request failed');
+                return response.json();
+            }).then(function(data) {
+                if (!data || !data.success) throw new Error('Like rejected');
+                var count = button.querySelector('[data-like-count]');
+                var label = button.querySelector('[data-like-label]');
+                var icon = button.querySelector('[data-like-icon]');
+                button.classList.add('is-liked', 'has-count');
+                button.setAttribute('aria-pressed', 'true');
+                if (count) {
+                    count.textContent = String(data.count || 0);
+                    count.hidden = false;
+                }
+                if (label) label.textContent = '已喜欢';
+                if (icon) {
+                    icon.classList.remove('fa-regular');
+                    icon.classList.add('fa-solid');
+                }
+                var reactions = button.closest('.post-reactions');
+                var support = reactions ? reactions.querySelector('[data-post-support]') : null;
+                if (support) support.hidden = false;
+                celebrateLike(button);
+            }).catch(function() {
+            }).finally(function() {
+                button.dataset.likeBusy = '0';
+                button.removeAttribute('aria-busy');
+            });
+        });
+    });
+
+    document.querySelectorAll('.post-support').forEach(function(wrap) {
+        var button = wrap.querySelector('.post-support-button');
+        if (!button) return;
+        ['mouseenter', 'focusin'].forEach(function(eventName) {
+            wrap.addEventListener(eventName, function() {
+                button.setAttribute('aria-expanded', 'true');
+            });
+        });
+        ['mouseleave', 'focusout'].forEach(function(eventName) {
+            wrap.addEventListener(eventName, function() {
+                button.setAttribute('aria-expanded', 'false');
+            });
+        });
+    });
+})();
+</script>
 <!-- Custom JavaScript -->
 <?php if ($this->options->customJS): ?>
 <script type="text/javascript">

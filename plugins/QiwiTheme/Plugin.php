@@ -8,13 +8,14 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 1.5.5
+ * @version 1.5.6
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 {
     const TABLE = 'qiwi_threads';
     const MOMENT_LIKE_TABLE = 'qiwi_moment_likes';
+    const POST_LIKE_TABLE = 'qiwi_post_likes';
     const IP_LOCATION_TABLE = 'qiwi_ip_locations';
     const SETTINGS_PANEL = 'QiwiTheme/page/settings.php';
 
@@ -23,6 +24,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         self::installTable();
         self::installExternalLinkTable();
         self::installMomentLikeTable();
+        self::installPostLikeTable();
         self::installIpLocationTable();
         Helper::removeAction('qiwi-thread-tools');
         Helper::removeRoute('qiwi_theme_goto_route');
@@ -33,7 +35,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'cacheCommentIpLocation');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、主题设置面板入口、说说点赞、IP 归属地与外链点击统计已准备好。');
+        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
     }
 
     public static function deactivate()
@@ -48,7 +50,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、说说点赞、IP 归属地与外链点击统计。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、说说点赞、文章点赞、IP 归属地与外链点击统计。'));
         $form->addInput($info);
     }
 
@@ -201,6 +203,12 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         return $db->getPrefix() . self::MOMENT_LIKE_TABLE;
     }
 
+    public static function postLikeTableName()
+    {
+        $db = Typecho_Db::get();
+        return $db->getPrefix() . self::POST_LIKE_TABLE;
+    }
+
     public static function ipLocationTableName()
     {
         $db = Typecho_Db::get();
@@ -294,6 +302,52 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 
             $db->query($sql);
             self::migrateMomentLikeTable($adapter, $table);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function installPostLikeTable()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $table = self::postLikeTableName();
+            $adapter = strtolower(get_class($db->getAdapter()));
+
+            if (strpos($adapter, 'sqlite') !== false) {
+                $sql = 'CREATE TABLE IF NOT EXISTS "' . $table . '" (
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "cid" INTEGER NOT NULL,
+                    "identity_hash" varchar(64) NOT NULL,
+                    "identity_type" varchar(16) NOT NULL DEFAULT "cookie",
+                    "user_id" INTEGER NOT NULL DEFAULT 0,
+                    "author" varchar(200) NOT NULL DEFAULT "",
+                    "mail_hash" varchar(64) NOT NULL DEFAULT "",
+                    "created" INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE ("cid", "identity_hash")
+                )';
+            } else {
+                $sql = 'CREATE TABLE IF NOT EXISTS `' . $table . '` (
+                    `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+                    `cid` int(10) unsigned NOT NULL,
+                    `identity_hash` varchar(64) NOT NULL,
+                    `identity_type` varchar(16) NOT NULL DEFAULT "cookie",
+                    `user_id` int(10) unsigned NOT NULL DEFAULT 0,
+                    `author` varchar(200) NOT NULL DEFAULT "",
+                    `mail_hash` varchar(64) NOT NULL DEFAULT "",
+                    `created` int(10) unsigned NOT NULL DEFAULT 0,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `cid_identity` (`cid`, `identity_hash`),
+                    KEY `cid` (`cid`),
+                    KEY `mail_hash` (`mail_hash`),
+                    KEY `created` (`created`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+            }
+
+            $db->query($sql);
             return true;
         } catch (Exception $e) {
             return false;
@@ -703,14 +757,14 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 3);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.5');
+                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.6');
                 $body = curl_exec($ch);
                 curl_close($ch);
             } else {
                 $context = stream_context_create(array(
                     'http' => array(
                         'timeout' => 3,
-                        'header' => "User-Agent: QiwiTheme/1.5.5\r\n",
+                        'header' => "User-Agent: QiwiTheme/1.5.6\r\n",
                     ),
                 ));
                 $body = @file_get_contents($url, false, $context);
@@ -1040,6 +1094,312 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return array();
         } catch (Throwable $e) {
             return array();
+        }
+    }
+
+    public static function postLikeCounts(array $cids)
+    {
+        $ids = array();
+        foreach ($cids as $cid) {
+            $cid = (int) $cid;
+            if ($cid > 0) {
+                $ids[$cid] = 0;
+            }
+        }
+
+        if (empty($ids) || !self::installPostLikeTable()) {
+            return $ids;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('cid', 'COUNT(id) AS likes')
+                ->from(self::postLikeTableName())
+                ->where('cid IN (' . implode(',', array_keys($ids)) . ')')
+                ->group('cid'));
+
+            foreach ($rows as $row) {
+                $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                if ($cid > 0 && isset($ids[$cid])) {
+                    $ids[$cid] = isset($row['likes']) ? (int) $row['likes'] : 0;
+                }
+            }
+        } catch (Exception $e) {
+            return $ids;
+        } catch (Throwable $e) {
+            return $ids;
+        }
+
+        return $ids;
+    }
+
+    public static function getPostLikeRecords($limit = 100)
+    {
+        $limit = max(1, min(200, (int) $limit));
+        if (!self::installPostLikeTable()) {
+            return array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('id', 'cid', 'identity_hash', 'identity_type', 'user_id', 'author', 'mail_hash', 'created')
+                ->from(self::postLikeTableName())
+                ->order('created', Typecho_Db::SORT_DESC)
+                ->limit($limit));
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        if (empty($rows)) {
+            return array();
+        }
+
+        $cids = array();
+        $mailHashes = array();
+        foreach ($rows as $row) {
+            $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+            if ($cid > 0) {
+                $cids[$cid] = true;
+            }
+
+            $mailHash = isset($row['mail_hash']) ? trim((string) $row['mail_hash']) : '';
+            if ($mailHash !== '') {
+                $mailHashes[$mailHash] = true;
+            }
+        }
+
+        $posts = self::postLikePostMap(array_keys($cids));
+        $matches = self::momentLikeCommentMatches(array_keys($mailHashes));
+        $records = array();
+
+        foreach ($rows as $row) {
+            $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+            $mailHash = isset($row['mail_hash']) ? trim((string) $row['mail_hash']) : '';
+            $records[] = array(
+                'id' => isset($row['id']) ? (int) $row['id'] : 0,
+                'cid' => $cid,
+                'identityType' => isset($row['identity_type']) && $row['identity_type'] !== '' ? (string) $row['identity_type'] : 'cookie',
+                'userId' => isset($row['user_id']) ? (int) $row['user_id'] : 0,
+                'author' => isset($row['author']) ? (string) $row['author'] : '',
+                'mailHash' => $mailHash,
+                'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                'createdText' => !empty($row['created']) ? date('Y-m-d H:i', (int) $row['created']) : '',
+                'post' => isset($posts[$cid]) ? $posts[$cid] : array(),
+                'matches' => isset($matches[$mailHash]) ? $matches[$mailHash] : array(),
+            );
+        }
+
+        return $records;
+    }
+
+    public static function getPostLikeArticleStats($limit = 100)
+    {
+        $limit = max(1, min(300, (int) $limit));
+        if (!self::installPostLikeTable()) {
+            return array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('cid', 'COUNT(id) AS likes', 'MAX(created) AS last_created')
+                ->from(self::postLikeTableName())
+                ->group('cid')
+                ->order('likes', Typecho_Db::SORT_DESC)
+                ->order('last_created', Typecho_Db::SORT_DESC)
+                ->limit($limit));
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        if (empty($rows)) {
+            return array();
+        }
+
+        $cids = array();
+        foreach ($rows as $row) {
+            $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+            if ($cid > 0) {
+                $cids[$cid] = true;
+            }
+        }
+
+        $posts = self::postLikePostMap(array_keys($cids));
+        $items = array();
+        foreach ($rows as $row) {
+            $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+            $lastCreated = isset($row['last_created']) ? (int) $row['last_created'] : 0;
+            $items[] = array(
+                'cid' => $cid,
+                'likes' => isset($row['likes']) ? (int) $row['likes'] : 0,
+                'lastLiked' => $lastCreated,
+                'lastLikedText' => $lastCreated > 0 ? date('Y-m-d H:i', $lastCreated) : '',
+                'post' => isset($posts[$cid]) ? $posts[$cid] : array(),
+            );
+        }
+
+        return $items;
+    }
+
+    private static function postLikePostMap(array $cids)
+    {
+        $ids = array();
+        foreach ($cids as $cid) {
+            $cid = (int) $cid;
+            if ($cid > 0) {
+                $ids[$cid] = true;
+            }
+        }
+
+        if (empty($ids)) {
+            return array();
+        }
+
+        $map = array();
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('cid', 'title', 'slug', 'created', 'type', 'status')
+                ->from('table.contents')
+                ->where('cid IN (' . implode(',', array_keys($ids)) . ')'));
+            foreach ($rows as $row) {
+                $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                if ($cid <= 0) {
+                    continue;
+                }
+
+                $map[$cid] = array(
+                    'cid' => $cid,
+                    'title' => isset($row['title']) ? (string) $row['title'] : '',
+                    'slug' => isset($row['slug']) ? (string) $row['slug'] : '',
+                    'type' => isset($row['type']) ? (string) $row['type'] : '',
+                    'status' => isset($row['status']) ? (string) $row['status'] : '',
+                    'created' => isset($row['created']) ? (int) $row['created'] : 0,
+                    'permalink' => self::postLikePermalink($row),
+                );
+            }
+        } catch (Exception $e) {
+            return $map;
+        } catch (Throwable $e) {
+            return $map;
+        }
+
+        return $map;
+    }
+
+    private static function postLikePermalink($row)
+    {
+        try {
+            if (!is_array($row) || !class_exists('Typecho_Router') || !class_exists('Typecho_Common')) {
+                return '';
+            }
+
+            $type = isset($row['type']) ? (string) $row['type'] : 'post';
+            $route = $type === 'page' ? 'page' : 'post';
+            if (Typecho_Router::get($route) === null) {
+                return '';
+            }
+
+            if (isset($row['slug'])) {
+                $row['slug'] = rawurlencode($row['slug']);
+            }
+
+            $date = new Typecho_Date(isset($row['created']) ? (int) $row['created'] : 0);
+            $row['date'] = $date;
+            $row['year'] = $date->year;
+            $row['month'] = $date->month;
+            $row['day'] = $date->day;
+
+            $options = Helper::options();
+            return Typecho_Common::url(Typecho_Router::url($route, $row), $options->index);
+        } catch (Exception $e) {
+            return '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+    public static function currentPostLikeIdentityHash()
+    {
+        try {
+            Typecho_Widget::widget('Widget_User')->to($user);
+            if ($user && $user->hasLogin()) {
+                $mailHash = self::momentMailHash(isset($user->mail) ? $user->mail : '');
+                if ($mailHash !== '') {
+                    return sha1('mail:' . $mailHash);
+                }
+
+                return sha1('user:' . (int) $user->uid);
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        $value = isset($_COOKIE['qiwi_post_like_id']) ? preg_replace('/[^a-zA-Z0-9]/', '', (string) $_COOKIE['qiwi_post_like_id']) : '';
+        return $value !== '' && strlen($value) >= 20 ? sha1('visitor:' . $value) : '';
+    }
+
+    public static function hasPostLiked($cid, $identityHash = '')
+    {
+        $cid = (int) $cid;
+        $identityHash = trim((string) $identityHash);
+        if ($cid <= 0 || $identityHash === '' || !self::installPostLikeTable()) {
+            return false;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('id')
+                ->from(self::postLikeTableName())
+                ->where('cid = ?', $cid)
+                ->where('identity_hash = ?', $identityHash)
+                ->limit(1));
+
+            return !empty($row);
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function addPostLike($cid, $identity)
+    {
+        $cid = (int) $cid;
+        if (!is_array($identity)) {
+            $identity = array('identity_hash' => trim((string) $identity));
+        }
+
+        $identityHash = isset($identity['identity_hash']) ? trim((string) $identity['identity_hash']) : '';
+        if ($cid <= 0 || $identityHash === '' || !self::installPostLikeTable()) {
+            return array('liked' => false, 'count' => 0, 'created' => false);
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $table = self::postLikeTableName();
+            $alreadyLiked = self::hasPostLiked($cid, $identityHash);
+            if (!$alreadyLiked) {
+                $db->query($db->insert($table)->rows(array(
+                    'cid' => $cid,
+                    'identity_hash' => $identityHash,
+                    'identity_type' => isset($identity['identity_type']) ? substr((string) $identity['identity_type'], 0, 16) : 'cookie',
+                    'user_id' => isset($identity['user_id']) ? max(0, (int) $identity['user_id']) : 0,
+                    'author' => isset($identity['author']) ? substr(trim((string) $identity['author']), 0, 200) : '',
+                    'mail_hash' => isset($identity['mail_hash']) ? substr(trim((string) $identity['mail_hash']), 0, 64) : '',
+                    'created' => time(),
+                )));
+            }
+
+            $counts = self::postLikeCounts(array($cid));
+            return array('liked' => true, 'count' => isset($counts[$cid]) ? (int) $counts[$cid] : 0, 'created' => !$alreadyLiked);
+        } catch (Exception $e) {
+            $counts = self::postLikeCounts(array($cid));
+            return array('liked' => self::hasPostLiked($cid, $identityHash), 'count' => isset($counts[$cid]) ? (int) $counts[$cid] : 0, 'created' => false);
+        } catch (Throwable $e) {
+            $counts = self::postLikeCounts(array($cid));
+            return array('liked' => self::hasPostLiked($cid, $identityHash), 'count' => isset($counts[$cid]) ? (int) $counts[$cid] : 0, 'created' => false);
         }
     }
 
