@@ -12,7 +12,7 @@ use \Typecho\Widget\Helper\Form\Element\{Password, Text, Radio, Checkbox, Textar
  *
  * @package QiwiCommentMail
  * @author  Leo 里奥
- * @version 1.5.8
+ * @version 1.5.9
  * @link https://bboreo.com/
  * @LastEditDate 20260623
  */
@@ -843,7 +843,7 @@ class Plugin implements PluginInterface
         if (!$socket) return;
 
         stream_set_timeout($socket, 1);
-        $request = "GET {$target} HTTP/1.1\r\nHost: {$hostHeader}\r\nUser-Agent: QiwiCommentMail/1.5.8\r\nConnection: close\r\n\r\n";
+        $request = "GET {$target} HTTP/1.1\r\nHost: {$hostHeader}\r\nUser-Agent: QiwiCommentMail/1.5.9\r\nConnection: close\r\n\r\n";
         $written = 0;
         $length = strlen($request);
         while ($written < $length) {

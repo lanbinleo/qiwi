@@ -1,9 +1,9 @@
 {
-  "version": "1.5.8",
+  "version": "1.5.9",
   "releaseDate": "2026-07-03",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "恢复本地字体文件为 /assets/fonts 路径，避免字体请求依赖 /usr/themes 路径；生产环境可单独将 /assets/fonts/ 映射到主题字体目录"
+    "回退主题与伴生插件内容到 1.5.6 发布状态，撤回 1.5.7 和 1.5.8 的字体路径调整"
   ]
 }
