@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 1.5.6
+ * @version 1.5.7
  * @link https://bboreo.com
  */
 

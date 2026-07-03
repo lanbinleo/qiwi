@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  Leo 里奥
- * @version 1.5.6
+ * @version 1.5.7
  * @link    https://bboreo.com/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
