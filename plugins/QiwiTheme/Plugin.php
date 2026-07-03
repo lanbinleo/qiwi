@@ -68,10 +68,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 
         Typecho_Widget::widget('Widget_Options')->to($options);
         Typecho_Widget::widget('Widget_Security')->to($security);
-        $theme = isset($options->theme) ? $options->theme : 'qiwi';
-        $themeBase = rtrim($options->siteUrl, '/') . '/usr/themes/' . rawurlencode($theme) . '/';
-        $css = htmlspecialchars($themeBase . 'assets/css/admin-config.css', ENT_QUOTES, 'UTF-8');
-        $js = htmlspecialchars($themeBase . 'assets/js/admin-config.js', ENT_QUOTES, 'UTF-8');
+        $assetBase = rtrim($options->siteUrl, '/') . '/assets/';
+        $css = htmlspecialchars($assetBase . 'css/admin-config.css', ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars($assetBase . 'js/admin-config.js', ENT_QUOTES, 'UTF-8');
         $fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
         $mid = isset($_GET['mid']) ? (int) $_GET['mid'] : 0;
         $config = array(

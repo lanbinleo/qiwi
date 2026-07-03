@@ -1959,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- 一言打字机效果 -->
 <?php if ($this->options->enableHitokoto == 1): ?>
-<script src="<?php $this->options->themeUrl('assets/js/hitokoto.js'); ?>"></script>
+<script src="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/hitokoto.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
 <?php endif; ?>
 
 <!-- Code highlighting with theme support -->

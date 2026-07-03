@@ -184,7 +184,7 @@ $qiwiStyleAsset = 'assets/css/style.css' . ($qiwiStyleVersion ? '?v=' . $qiwiSty
     <title><?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="<?php $this->options->themeUrl($qiwiStyleAsset); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiStyleAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <?php if ($qiwiUseFontAwesome): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>

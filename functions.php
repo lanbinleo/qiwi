@@ -250,6 +250,27 @@ if (!function_exists('qiwiGetThemeAssetUrl')) {
     }
 }
 
+if (!function_exists('qiwiGetMappedAssetUrl')) {
+    function qiwiGetMappedAssetUrl($path)
+    {
+        $path = ltrim((string) $path, '/');
+        $options = null;
+
+        if (class_exists('\Widget\Options')) {
+            \Widget\Options::alloc()->to($options);
+        } elseif (class_exists('Widget_Options')) {
+            Widget_Options::alloc()->to($options);
+        }
+
+        $base = '';
+        if (!empty($options) && isset($options->siteUrl)) {
+            $base = rtrim((string) $options->siteUrl, '/');
+        }
+
+        return ($base !== '' ? $base : '') . '/' . $path;
+    }
+}
+
 if (!function_exists('qiwiShellQuote')) {
     function qiwiShellQuote($value)
     {
@@ -363,8 +384,8 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
     {
         $adminConfigCssVersion = file_exists(__DIR__ . '/assets/css/admin-config.css') ? filemtime(__DIR__ . '/assets/css/admin-config.css') : time();
         $adminConfigJsVersion = file_exists(__DIR__ . '/assets/js/admin-config.js') ? filemtime(__DIR__ . '/assets/js/admin-config.js') : time();
-        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-config.css') . '?v=' . $adminConfigCssVersion, ENT_QUOTES, 'UTF-8');
-        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-config.js') . '?v=' . $adminConfigJsVersion, ENT_QUOTES, 'UTF-8');
+        $css = htmlspecialchars(qiwiGetMappedAssetUrl('assets/css/admin-config.css') . '?v=' . $adminConfigCssVersion, ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/admin-config.js') . '?v=' . $adminConfigJsVersion, ENT_QUOTES, 'UTF-8');
         $fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
         $metadata = qiwiGetLocalUpdateMetadata();
         $config = [
@@ -532,8 +553,8 @@ if (!function_exists('qiwiAdminEditorShortcodeAssets')) {
     {
         $cssVersion = is_readable(__DIR__ . '/assets/css/admin-editor.css') ? filemtime(__DIR__ . '/assets/css/admin-editor.css') : time();
         $jsVersion = is_readable(__DIR__ . '/assets/js/admin-editor.js') ? filemtime(__DIR__ . '/assets/js/admin-editor.js') : time();
-        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-editor.css') . '?v=' . $cssVersion, ENT_QUOTES, 'UTF-8');
-        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-editor.js') . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8');
+        $css = htmlspecialchars(qiwiGetMappedAssetUrl('assets/css/admin-editor.css') . '?v=' . $cssVersion, ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/admin-editor.js') . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8');
 
         return '<link rel="stylesheet" href="' . $css . '"><script defer src="' . $js . '"></script>';
     }
