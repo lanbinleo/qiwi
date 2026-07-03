@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 1.5.7
+ * @version 1.5.8
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -757,14 +757,14 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 3);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.7');
+                curl_setopt($ch, CURLOPT_USERAGENT, 'QiwiTheme/1.5.8');
                 $body = curl_exec($ch);
                 curl_close($ch);
             } else {
                 $context = stream_context_create(array(
                     'http' => array(
                         'timeout' => 3,
-                        'header' => "User-Agent: QiwiTheme/1.5.7\r\n",
+                        'header' => "User-Agent: QiwiTheme/1.5.8\r\n",
                     ),
                 ));
                 $body = @file_get_contents($url, false, $context);
