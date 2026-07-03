@@ -1,6 +1,6 @@
 # Qiwi Typecho Theme
 
-Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.4.7`。主题以阅读体验为核心，提供响应式布局、昼夜模式、文章目录、友链页、归档统计、时光机说说、内容短代码和可视化后台配置。
+Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.4`。主题以阅读体验为核心，提供响应式布局、昼夜模式、文章目录、友链页、归档统计、时光机说说、内容短代码和可视化后台配置。
 
 ![Qiwi 主题截图](docs/screenshot3.png)
 
@@ -23,9 +23,11 @@ Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.4.7`。
 
 ## 环境要求
 
-- Typecho `1.2.x`
+- Typecho `1.2.x` / `1.3.0`
 - PHP 版本以当前 Typecho 站点可运行为准
 - 主题无前端构建步骤，上传后即可使用
+
+Qiwi `v1.5.4` 已适配 Typecho `1.3.0`。Typecho 1.3 会把 `routingTable`、`actionTable`、`panelTable` 和插件/主题配置从 PHP serialize 转为 JSON，主题和 `QiwiTheme` 伴生插件已经兼容这两种存储格式。
 
 可选能力：
 
@@ -116,6 +118,23 @@ bash update.sh
 
 如果 Typecho 根目录与主题目录存在 Docker、挂载目录等路径差异，可在后台更新设置里手动指定根目录。
 
+## 服务器部署
+
+推荐先在本地完成版本发布，再到服务器更新主题和伴生插件。
+
+1. 发布新版本到仓库 `main`，并创建对应的版本标签。
+2. 在服务器确认站点文件和数据库已经备份。
+3. 进入线上主题目录，运行更新脚本：
+
+```bash
+cd '/opt/1panel/apps/typecho/typecho/data/usr/themes/qiwi'
+bash update.sh
+```
+
+`update.sh` 会拉取当前分支的最新代码，并把主题内置的伴生插件同步到 Typecho 的 `usr/plugins` 目录，包括 `Geetest`、`QiwiCommentMail`、`QiwiSitemap` 和 `QiwiTheme`。
+
+如果同时升级 Typecho 核心，例如从 `1.2.1` 升级到 `1.3.0`，需要先备份数据库和完整站点目录，再替换 Typecho 核心文件并执行 Typecho 的数据库升级流程。核心升级完成后，再运行上面的 `update.sh`，确保主题和伴生插件版本一致。
+
 ## 文章与页面字段
 
 文章字段：
@@ -137,7 +156,7 @@ bash update.sh
 
 ## Markdown 短代码
 
-Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v1.4.7` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
+Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v1.5.4` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
 
 ### 彩色文字
 
