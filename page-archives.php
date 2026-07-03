@@ -84,7 +84,7 @@ if ($this->options->bookReference) {
             $bookName = $parts[0];
             $bookWords = intval($parts[1]);
             if ($bookWords > 0) {
-                $bookEquivalent = round($totalWords / $bookWords, 2);
+                $bookEquivalent = number_format($totalWords / $bookWords, 2, '.', '');
                 $books[] = [
                     'name' => $bookName,
                     'words' => $bookWords,

@@ -114,7 +114,7 @@ $eventShort = [
             </div>
             <?php if ($current == 'index') : ?>
                 <div class="typecho-edit-theme">
-                    <div class="col-mb-12 col-tb-8 col-9 content">
+                    <div class="col-mb-12 content">
                         <?php Widget::widget('TypechoPlugin\QiwiCommentMail\Console')->testMailForm()->render(); ?>
                     </div>
                 </div>
@@ -391,7 +391,7 @@ $eventShort = [
                 Widget::widget('TypechoPlugin\QiwiCommentMail\Console')->to($files);
             ?>
                 <div class="typecho-edit-theme">
-                    <div class="col-mb-12 col-tb-8 col-9 content">
+                    <div class="col-mb-12 content">
                         <form method="post" name="theme" id="theme" action="<?php echo htmlspecialchars($actionUrl('editTheme'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>">
                             <label for="content" class="sr-only"><?php _e('编辑源码'); ?></label>
                             <textarea name="content" id="content" class="w-100 mono" <?php if (!$files->currentIsWriteable()) echo 'readonly'; ?>><?php echo $files->currentContent(); ?></textarea>
@@ -405,7 +405,7 @@ $eventShort = [
                             </p>
                         </form>
                     </div>
-                    <ul class="col-mb-12 col-tb-4 col-3">
+                    <ul class="col-mb-12">
                         <li><strong>模板文件</strong></li>
                         <?php while ($files->next()) : ?>
                             <li <?php if ($files->current) echo "class='current'"; ?>>

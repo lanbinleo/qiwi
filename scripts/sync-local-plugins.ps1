@@ -1,6 +1,6 @@
 param(
     [string]$TypechoRoot = "D:\phpstudy_pro\WWW\localhost",
-    [string]$PhpBin = "D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe",
+    [string]$PhpBin = "D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe",
     [string[]]$Plugins = @("Geetest", "QiwiSitemap", "QiwiTheme", "QiwiCommentMail"),
     [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCommentMail"),
     [string[]]$ObsoletePlugins = @("CommentToMail")
@@ -19,6 +19,17 @@ if (!(Test-Path -LiteralPath $sourceRoot)) {
 
 if (!(Test-Path -LiteralPath $PhpBin)) {
     throw "PHP binary not found: $PhpBin"
+}
+
+$phpRuntimeArgs = @("-n")
+$phpExtensionDir = Join-Path (Split-Path -Parent $PhpBin) "ext"
+if (Test-Path -LiteralPath $phpExtensionDir) {
+    $phpRuntimeArgs += @("-d", "extension_dir=$phpExtensionDir")
+    foreach ($extension in @("pdo_mysql", "mbstring")) {
+        if (Test-Path -LiteralPath (Join-Path $phpExtensionDir "php_$extension.dll")) {
+            $phpRuntimeArgs += @("-d", "extension=$extension")
+        }
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $targetRoot | Out-Null
@@ -157,7 +168,7 @@ if (!empty($row)) {
 $tempFile = Join-Path $env:TEMP ("qiwi-refresh-plugins-" + [System.Guid]::NewGuid().ToString("N") + ".php")
 try {
     Set-Content -LiteralPath $tempFile -Value $helper -Encoding ASCII
-    & $PhpBin $tempFile $TypechoRoot @RefreshPlugins
+    & $PhpBin @phpRuntimeArgs $tempFile $TypechoRoot @RefreshPlugins
     if ($LASTEXITCODE -ne 0) {
         throw "Plugin registration refresh failed with exit code $LASTEXITCODE"
     }

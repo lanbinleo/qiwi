@@ -1,6 +1,6 @@
 # Qiwi Typecho Theme
 
-Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.4`。主题以阅读体验为核心，提供响应式布局、昼夜模式、文章目录、友链页、归档统计、时光机说说、内容短代码和可视化后台配置。
+Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.5`。主题以阅读体验为核心，提供响应式布局、昼夜模式、文章目录、友链页、归档统计、时光机说说、内容短代码和可视化后台配置。
 
 ![Qiwi 主题截图](docs/screenshot3.png)
 
@@ -27,7 +27,7 @@ Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.4`。
 - PHP 版本以当前 Typecho 站点可运行为准
 - 主题无前端构建步骤，上传后即可使用
 
-Qiwi `v1.5.4` 已适配 Typecho `1.3.0`。Typecho 1.3 会把 `routingTable`、`actionTable`、`panelTable` 和插件/主题配置从 PHP serialize 转为 JSON，主题和 `QiwiTheme` 伴生插件已经兼容这两种存储格式。
+Qiwi `v1.5.5` 已适配 Typecho `1.3.0`。Typecho 1.3 会把 `routingTable`、`actionTable`、`panelTable` 和插件/主题配置从 PHP serialize 转为 JSON，主题和 `QiwiTheme` 伴生插件已经兼容这两种存储格式。
 
 可选能力：
 
@@ -156,7 +156,7 @@ bash update.sh
 
 ## Markdown 短代码
 
-Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v1.5.4` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
+Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v1.5.5` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
 
 ### 彩色文字
 

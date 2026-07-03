@@ -3266,6 +3266,11 @@
         if (!navRow) return;
 
         document.body.classList.add('qiwi-admin-config-page');
+        var mainColumn = navRow.closest('.col-mb-12');
+        if (mainColumn) {
+            mainColumn.classList.remove('col-tb-8', 'col-tb-offset-2');
+            mainColumn.classList.add('col-tb-12', 'qiwi-admin-config-column');
+        }
 
         var panel = document.createElement('div');
         panel.className = 'qiwi-admin-panel';

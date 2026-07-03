@@ -1810,7 +1810,7 @@
     }
 }
 
-.qiwi-admin-config-page .typecho-page-main > .col-mb-12.col-tb-8.col-tb-offset-2 {
+.qiwi-admin-config-page .typecho-page-main > .qiwi-admin-config-column {
     float: none;
     width: min(100%, 1180px);
     margin-left: auto;
@@ -2247,7 +2247,7 @@
     margin-bottom: 18px;
 }
 
-.qiwi-admin-config-page .typecho-page-main > .col-mb-12.col-tb-8.col-tb-offset-2 {
+.qiwi-admin-config-page .typecho-page-main > .qiwi-admin-config-column {
     width: min(100%, 1280px);
 }
 
