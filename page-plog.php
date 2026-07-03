@@ -14,6 +14,49 @@ if (!function_exists('qiwiPlogEscape')) {
     }
 }
 
+if (!function_exists('qiwiPlogHtmlAttr')) {
+    function qiwiPlogHtmlAttr($html, $name)
+    {
+        $name = preg_quote((string) $name, '/');
+        if (preg_match('/\b' . $name . '\s*=\s*(["\'])(.*?)\1/isu', (string) $html, $matches)) {
+            return html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        if (preg_match('/\b' . $name . '\s*=\s*([^\s>]+)/isu', (string) $html, $matches)) {
+            return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('qiwiPlogNormalizeRawContent')) {
+    function qiwiPlogNormalizeRawContent($raw)
+    {
+        $raw = html_entity_decode((string) $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $raw = preg_replace('/^\xEF\xBB\xBF/u', '', $raw);
+        $raw = preg_replace('/<!--\s*markdown\s*-->/iu', '', $raw);
+        $raw = preg_replace('/<br\s*\/?>/iu', "\n", $raw);
+        $raw = preg_replace('/<h1\b[^>]*>([\s\S]*?)<\/h1>/iu', "\n# $1\n", $raw);
+        $raw = preg_replace('/<h2\b[^>]*>([\s\S]*?)<\/h2>/iu', "\n## $1\n", $raw);
+        $raw = preg_replace_callback('/<img\b[^>]*>/iu', function ($matches) {
+            $src = qiwiPlogHtmlAttr($matches[0], 'src');
+            if ($src === '') {
+                return '';
+            }
+
+            $alt = qiwiPlogHtmlAttr($matches[0], 'alt');
+            return "\n![" . str_replace(["\r", "\n", ']'], [' ', ' ', ''], $alt) . "](" . $src . ")\n";
+        }, $raw);
+        $raw = preg_replace('/<\/p>\s*<p\b[^>]*>/iu', "\n\n", $raw);
+        $raw = preg_replace('/<\/?(?:p|div|section|article)\b[^>]*>/iu', "\n", $raw);
+        $raw = strip_tags($raw);
+        $raw = preg_replace("/\n{3,}/u", "\n\n", $raw);
+
+        return trim($raw);
+    }
+}
+
 if (!function_exists('qiwiPlogParseDate')) {
     function qiwiPlogParseDate($value)
     {
@@ -349,6 +392,7 @@ if (!function_exists('qiwiPlogSortPhotos')) {
 if (!function_exists('qiwiPlogParseContent')) {
     function qiwiPlogParseContent($raw, $fallbackTitle)
     {
+        $raw = qiwiPlogNormalizeRawContent($raw);
         $raw = str_replace(["\r\n", "\r"], "\n", (string) $raw);
         $lines = explode("\n", $raw);
         $data = [

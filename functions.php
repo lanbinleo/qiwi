@@ -147,25 +147,28 @@ if (!function_exists('qiwiShouldRenderLatex')) {
 if (!function_exists('qiwiGetRawContentForDetection')) {
     function qiwiGetRawContentForDetection($widget)
     {
-        foreach (['content', 'text'] as $property) {
-            if (isset($widget->{$property}) && trim((string) $widget->{$property}) !== '') {
-                return (string) $widget->{$property};
-            }
-        }
-
         if (!empty($widget) && isset($widget->cid)) {
             $cid = (int) $widget->cid;
             if ($cid > 0) {
-                $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
-                $prefix = $db->getPrefix();
-                $row = $db->fetchRow($db->select('text')
-                    ->from($prefix . 'contents')
-                    ->where('cid = ?', $cid)
-                    ->limit(1));
+                try {
+                    $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+                    $prefix = $db->getPrefix();
+                    $row = $db->fetchRow($db->select('text')
+                        ->from($prefix . 'contents')
+                        ->where('cid = ?', $cid)
+                        ->limit(1));
 
-                if (!empty($row['text'])) {
-                    return (string) $row['text'];
+                    if (!empty($row['text'])) {
+                        return (string) $row['text'];
+                    }
+                } catch (\Throwable $e) {
                 }
+            }
+        }
+
+        foreach (['text', 'content'] as $property) {
+            if (isset($widget->{$property}) && trim((string) $widget->{$property}) !== '') {
+                return (string) $widget->{$property};
             }
         }
 
