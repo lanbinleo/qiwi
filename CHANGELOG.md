@@ -1,5 +1,11 @@
 # Qiwi Theme Changelog
 
+## [1.5.6] - 2026-07-03
+- 文章页新增本地霞鹜文楷屏幕字体和阅读偏好控制，默认使用普通字体、宽间距和中字号，并保留本地持久化设置。
+- 优化文章点赞体验，点赞礼花从按钮位置单次出现，支持作者按钮会在点赞后显示。
+- 后台点赞记录同时展示说说和文章点赞明细，并新增文章点赞 tab 查看每篇文章点赞数量。
+- 后台增强资源加入文件版本参数，避免浏览器缓存导致点赞记录等新数据不刷新。
+
 ## [1.5.5] - 2026-07-03
 - 优化 Typecho 1.3 后台中的 Qiwi 主题设置页宽度，移除旧的窄列布局限制。
 - 调整 `QiwiCommentMail` 控制台为全宽显示，避免测试表单和模板编辑区过窄。
@@ -334,4 +340,3 @@ This is the first stable release of the Qiwi theme for Typecho, transitioning fr
 - Search is basic; advanced search not implemented yet.
 
 This release establishes Qiwi as a robust, feature-complete theme for Typecho users seeking a modern dark interface.
-

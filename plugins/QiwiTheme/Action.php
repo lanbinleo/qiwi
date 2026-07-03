@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isGotoRequest() || $this->isMomentLikeRequest() || $this->isExternalLinkRequest() || $this->isLinkPreviewRequest()) {
+        if ($this->isGotoRequest() || $this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isLinkPreviewRequest()) {
             return;
         }
 
@@ -31,6 +31,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->on($this->request->is('do=save-thread'))->saveThread();
         $this->on($this->request->is('do=posts'))->posts();
         $this->on($this->request->is('do=moment-like'))->momentLike();
+        $this->on($this->request->is('do=post-like'))->postLike();
         $this->on($this->request->is('do=rebuild-ip-locations'))->rebuildIpLocations();
         $this->json(array('success' => false, 'message' => 'Unknown action'), 404);
     }
@@ -189,6 +190,27 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             'success' => true,
             'coid' => $coid,
             'liked' => !empty($result['liked']),
+            'count' => isset($result['count']) ? (int) $result['count'] : 0,
+        ));
+    }
+
+    public function postLike()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        $cid = (int) $this->request->get('cid', 0);
+        if (!$this->isPublicPost($cid)) {
+            $this->json(array('success' => false, 'message' => 'Post not found'), 404);
+        }
+
+        $result = QiwiTheme_Plugin::addPostLike($cid, $this->postLikeIdentity());
+        $this->json(array(
+            'success' => true,
+            'cid' => $cid,
+            'liked' => !empty($result['liked']),
+            'created' => !empty($result['created']),
             'count' => isset($result['count']) ? (int) $result['count'] : 0,
         ));
     }
@@ -490,8 +512,8 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 
     private function contentSummary($cid, $text)
     {
-        $custom = $this->fieldValue((int) $cid, 'excerpt');
-        $summary = $custom !== '' ? $custom : $text;
+        $custom = trim((string) $this->fieldValue((int) $cid, 'excerpt'));
+        $summary = ($custom !== '' && $custom !== '0') ? $custom : $text;
         return $this->plainSummary($summary, 120);
     }
 
@@ -782,6 +804,29 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         return array_slice($metas, 0, 4);
     }
 
+    private function isPublicPost($cid)
+    {
+        $cid = (int) $cid;
+        if ($cid <= 0) {
+            return false;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('cid')
+                ->from('table.contents')
+                ->where('cid = ?', $cid)
+                ->where('type = ?', 'post')
+                ->where('status = ?', 'publish')
+                ->limit(1));
+
+            return !empty($row);
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
     private function isPublicMoment($coid)
     {
         $coid = (int) $coid;
@@ -812,6 +857,50 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
     }
 
+    private function postLikeIdentity()
+    {
+        try {
+            Typecho_Widget::widget('Widget_User')->to($user);
+            if ($user && $user->hasLogin()) {
+                $userMailHash = QiwiTheme_Plugin::momentMailHash(isset($user->mail) ? $user->mail : '');
+                if ($userMailHash !== '') {
+                    return array(
+                        'identity_hash' => sha1('mail:' . $userMailHash),
+                        'identity_type' => 'mail',
+                        'user_id' => (int) $user->uid,
+                        'author' => isset($user->screenName) ? (string) $user->screenName : '',
+                        'mail_hash' => $userMailHash,
+                    );
+                }
+
+                return array(
+                    'identity_hash' => sha1('user:' . (int) $user->uid),
+                    'identity_type' => 'user',
+                    'user_id' => (int) $user->uid,
+                    'author' => isset($user->screenName) ? (string) $user->screenName : '',
+                    'mail_hash' => '',
+                );
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        $cookieName = 'qiwi_post_like_id';
+        $value = isset($_COOKIE[$cookieName]) ? preg_replace('/[^a-zA-Z0-9]/', '', (string) $_COOKIE[$cookieName]) : '';
+        if ($value === '' || strlen($value) < 20) {
+            $value = $this->randomLikeIdentity();
+            $this->setMomentLikeCookie($cookieName, $value);
+            $_COOKIE[$cookieName] = $value;
+        }
+
+        return array(
+            'identity_hash' => sha1('visitor:' . $value),
+            'identity_type' => 'cookie',
+            'user_id' => 0,
+            'author' => '',
+            'mail_hash' => '',
+        );
+    }
     private function momentLikeIdentity()
     {
         $author = trim((string) $this->request->get('author', ''));
@@ -920,6 +1009,10 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         return $this->request && $this->request->is('do=moment-like');
     }
 
+    private function isPostLikeRequest()
+    {
+        return $this->request && $this->request->is('do=post-like');
+    }
     private function isExternalLinkRequest()
     {
         return $this->request && $this->request->is('do=external-link');

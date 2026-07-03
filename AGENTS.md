@@ -67,14 +67,6 @@ When publishing a new Qiwi version, use a controlled release workflow:
 5. Run the verification checks again after the release metadata is updated.
 6. Review the final diff, commit with a Conventional Commits message, push the release branch, and open a pull request into the target stable branch.
 7. Merge the pull request only after the checks and diff are acceptable. After merging, create and publish the GitHub Release using the same version number and release notes.
-8. After the release is available on `main`, update the production server from the theme directory so the theme and companion plugins are deployed together:
-
-```bash
-cd '/opt/1panel/apps/typecho/typecho/data/usr/themes/qiwi'
-bash update.sh
-```
-
-The script pulls the current branch and syncs `plugins/*` into Typecho's `usr/plugins` directory. Run it after core upgrades too, for example after moving Typecho from `1.2.1` to `1.3.0`, so `QiwiTheme` reads Typecho 1.3 JSON option tables correctly.
 
 ## Theme Configuration Rules
 

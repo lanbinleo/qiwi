@@ -361,8 +361,10 @@ if (!function_exists('qiwiGetAdminEditingContentType')) {
 if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
     function qiwiAdminConfigEnhancerAssets()
     {
-        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-config.css'), ENT_QUOTES, 'UTF-8');
-        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-config.js'), ENT_QUOTES, 'UTF-8');
+        $adminConfigCssVersion = file_exists(__DIR__ . '/assets/css/admin-config.css') ? filemtime(__DIR__ . '/assets/css/admin-config.css') : time();
+        $adminConfigJsVersion = file_exists(__DIR__ . '/assets/js/admin-config.js') ? filemtime(__DIR__ . '/assets/js/admin-config.js') : time();
+        $css = htmlspecialchars(qiwiGetThemeAssetUrl('assets/css/admin-config.css') . '?v=' . $adminConfigCssVersion, ENT_QUOTES, 'UTF-8');
+        $js = htmlspecialchars(qiwiGetThemeAssetUrl('assets/js/admin-config.js') . '?v=' . $adminConfigJsVersion, ENT_QUOTES, 'UTF-8');
         $fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
         $metadata = qiwiGetLocalUpdateMetadata();
         $config = [
@@ -377,6 +379,8 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'showUpdateLog' => (string) qiwiGetThemeOptionSetting('showUpdateLog', '1') === '0' ? '0' : '1',
             'externalLinkStats' => function_exists('qiwiGetExternalLinkStats') ? qiwiGetExternalLinkStats(30) : [],
             'momentLikeRecords' => function_exists('qiwiGetMomentLikeRecords') ? qiwiGetMomentLikeRecords(100) : [],
+            'postLikeRecords' => function_exists('qiwiGetPostLikeRecords') ? qiwiGetPostLikeRecords(100) : [],
+            'postLikeArticleStats' => function_exists('qiwiGetPostLikeArticleStats') ? qiwiGetPostLikeArticleStats(100) : [],
             'ipLocationRebuildEndpoint' => qiwiGetThemeActionEndpoint('rebuild-ip-locations'),
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
@@ -428,6 +432,29 @@ if (!function_exists('qiwiGetMomentLikeRecords')) {
     {
         if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getMomentLikeRecords')) {
             return QiwiTheme_Plugin::getMomentLikeRecords($limit);
+        }
+
+        return [];
+    }
+}
+
+
+if (!function_exists('qiwiGetPostLikeRecords')) {
+    function qiwiGetPostLikeRecords($limit = 100)
+    {
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getPostLikeRecords')) {
+            return QiwiTheme_Plugin::getPostLikeRecords($limit);
+        }
+
+        return [];
+    }
+}
+
+if (!function_exists('qiwiGetPostLikeArticleStats')) {
+    function qiwiGetPostLikeArticleStats($limit = 100)
+    {
+        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'getPostLikeArticleStats')) {
+            return QiwiTheme_Plugin::getPostLikeArticleStats($limit);
         }
 
         return [];
@@ -831,6 +858,45 @@ function themeConfig($form)
     $form->addInput($footerInfo);
     $form->addInput($defaultCopyrightLicense->multiMode());
     $form->addInput($defaultCopyrightInfo);
+    $postSupportEnabled = new Typecho_Widget_Helper_Form_Element_Radio(
+        'postSupportEnabled',
+        array(
+            1 => _t('启用'),
+            0 => _t('关闭')
+        ),
+        0,
+        _t('文章 - 支持作者按钮'),
+        _t('启用后，文章点赞按钮右侧会显示“支持作者”，悬浮展示收款二维码和说明文字。')
+    );
+
+    $postSupportQrUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'postSupportQrUrl',
+        null,
+        null,
+        _t('文章 - 支持作者二维码'),
+        _t('填写收款二维码图片 URL；为空时不会显示支持作者按钮。')
+    );
+
+    $postSupportTopText = new Typecho_Widget_Helper_Form_Element_Text(
+        'postSupportTopText',
+        null,
+        '请我喝一杯咖啡吧',
+        _t('文章 - 支持作者上方文案'),
+        _t('显示在二维码上方。')
+    );
+
+    $postSupportBottomText = new Typecho_Widget_Helper_Form_Element_Text(
+        'postSupportBottomText',
+        null,
+        '或者评论一下分享你的感受',
+        _t('文章 - 支持作者下方文案'),
+        _t('显示在二维码下方。')
+    );
+
+    $form->addInput($postSupportEnabled->multiMode());
+    $form->addInput($postSupportQrUrl);
+    $form->addInput($postSupportTopText);
+    $form->addInput($postSupportBottomText);
 
     // === 友链配置 ===
     $friendsData = new Typecho_Widget_Helper_Form_Element_Textarea(
