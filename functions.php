@@ -289,6 +289,27 @@ if (!function_exists('qiwiGetThemeOptionSetting')) {
     }
 }
 
+if (!function_exists('qiwiDecodeTypechoTableOption')) {
+    function qiwiDecodeTypechoTableOption($value)
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $decoded = @unserialize($value);
+        return is_array($decoded) ? $decoded : [];
+    }
+}
+
 if (!function_exists('qiwiGetThemeRelativeDirFromTypechoRoot')) {
     function qiwiGetThemeRelativeDirFromTypechoRoot()
     {
@@ -431,8 +452,7 @@ if (!function_exists('qiwiGetExternalLinkGotoBase')) {
 
             $actionTable = [];
             if (isset($options->actionTable)) {
-                $actionTable = @unserialize($options->actionTable);
-                $actionTable = is_array($actionTable) ? $actionTable : [];
+                $actionTable = qiwiDecodeTypechoTableOption($options->actionTable);
             }
 
             if (isset($actionTable['qiwi-theme']) && $actionTable['qiwi-theme'] === 'QiwiTheme_Action') {
@@ -463,8 +483,7 @@ if (!function_exists('qiwiGetThemeActionEndpoint')) {
 
             $actionTable = [];
             if (isset($options->actionTable)) {
-                $actionTable = @unserialize($options->actionTable);
-                $actionTable = is_array($actionTable) ? $actionTable : [];
+                $actionTable = qiwiDecodeTypechoTableOption($options->actionTable);
             }
 
             if (!isset($actionTable['qiwi-theme']) || $actionTable['qiwi-theme'] !== 'QiwiTheme_Action') {
