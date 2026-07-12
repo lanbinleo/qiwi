@@ -48,6 +48,10 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
             <?php endif; ?>
         </header>
 
+        <?php if ($qiwiShowToc): ?>
+        <nav class="article-toc" aria-label="页面目录"></nav>
+        <?php endif; ?>
+
         <!-- 友链列表 -->
         <?php if ($friendFeedReady): ?>
         <div class="friends-tabs" data-friends-tabs>
@@ -135,13 +139,12 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
             var activeTabKey = 'qiwi:friends-active-tab:' + window.location.pathname;
             var feedPageKey = 'qiwi:friends-feed-page:' + window.location.pathname + ':' + configSafeKey(<?php echo json_encode($friendFeedBaseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
             var pageSize = <?php echo (int) $friendFeedLimit; ?>;
+            if (list) {
+                list.style.setProperty('--friend-feed-min-height', Math.max(240, Math.min(pageSize, 8) * 48) + 'px');
+            }
             var currentPage = readStoredPage();
             var isLoadingFeed = false;
             var hasNextPage = true;
-            var randomImageEndpoints = [
-                'https://bing.biturl.top/?resolution=1920&format=json&index=random&mkt=zh-CN',
-                'https://bingw.jasonzeng.dev/?index=random&resolution=1920x1080&format=json'
-            ];
             var config = {
                 baseUrl: <?php echo json_encode($friendFeedBaseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
                 limit: pageSize
@@ -247,93 +250,6 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                 }
             }
 
-            function safeImageUrl(value) {
-                var url = safeHttpUrl(value);
-                if (url === '#') return '#';
-                if (/\.(?:avif|bmp|gif|jpe?g|png|webp)(?:[?#]|$)/i.test(url)) return url;
-                if (/\/th\?/i.test(url)) return url;
-                return '#';
-            }
-
-            function cssUrl(value) {
-                return String(value || '').replace(/["\\\r\n]/g, function(char) {
-                    return '\\' + char;
-                });
-            }
-
-            function setFeedBackground(item, url) {
-                if (!item || !url || url === '#') return;
-                item.style.setProperty('--friend-feed-bg', 'url("' + cssUrl(url) + '")');
-                item.classList.add('has-background');
-            }
-
-            function fallbackImageCacheKey(entry) {
-                return 'qiwi:friend-feed-bg:' + String((entry && (entry.id || entry.url)) || '').slice(0, 160);
-            }
-
-            function readCachedFallbackImage(key) {
-                if (!key) return '';
-                try {
-                    return localStorage.getItem(key) || '';
-                } catch (error) {
-                    return '';
-                }
-            }
-
-            function writeCachedFallbackImage(key, url) {
-                if (!key || !url || url === '#') return;
-                try {
-                    localStorage.setItem(key, url);
-                } catch (error) {}
-            }
-
-            function fetchRandomImage(index) {
-                index = index || 0;
-                var endpoint = randomImageEndpoints[index];
-                if (!endpoint || !window.fetch) return Promise.reject(new Error('no image api'));
-
-                return fetch(endpoint, { cache: 'no-store' })
-                    .then(function(response) {
-                        if (!response.ok) throw new Error('HTTP ' + response.status);
-                        return response.json();
-                    })
-                    .then(function(data) {
-                        var url = safeImageUrl(data && (data.url || data.image || data.image_url));
-                        if (url === '#') throw new Error('empty image url');
-                        return url;
-                    })
-                    .catch(function(error) {
-                        if (index + 1 < randomImageEndpoints.length) {
-                            return fetchRandomImage(index + 1);
-                        }
-                        throw error;
-                    });
-            }
-
-            function resolveFallbackBackground(item) {
-                if (!item) return;
-                var cacheKey = item.getAttribute('data-feed-fallback-key') || '';
-                var cached = safeImageUrl(readCachedFallbackImage(cacheKey));
-                if (cached !== '#') {
-                    setFeedBackground(item, cached);
-                    return;
-                }
-
-                fetchRandomImage(0)
-                    .then(function(url) {
-                        writeCachedFallbackImage(cacheKey, url);
-                        setFeedBackground(item, url);
-                    })
-                    .catch(function() {});
-            }
-
-            function applyFeedBackgrounds() {
-                Array.prototype.slice.call(list.querySelectorAll('[data-feed-bg]')).forEach(function(item) {
-                    setFeedBackground(item, item.getAttribute('data-feed-bg'));
-                });
-                Array.prototype.slice.call(list.querySelectorAll('[data-feed-fallback-bg]')).forEach(resolveFallbackBackground);
-            }
-
             function renderEntries(entries) {
                 if (!list) return;
                 if (!entries.length) {
@@ -347,25 +263,14 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                     var time = formatDate(entry.published_at || entry.fetched_at);
                     var url = safeHttpUrl(entry.url);
                     var siteUrl = safeHttpUrl(entry.feed_site_url);
-                    var imageUrl = safeImageUrl(entry.image_url);
-                    var hasImage = imageUrl !== '#';
-                    var fallbackKey = fallbackImageCacheKey(entry);
-                    return '<li class="friend-feed-item" ' + (hasImage ? 'data-feed-bg="' + escapeHtml(imageUrl) + '"' : 'data-feed-fallback-bg="1" data-feed-fallback-key="' + escapeHtml(fallbackKey) + '"') + '>' +
-                        '<span class="friend-feed-bg" aria-hidden="true"></span>' +
+                    return '<li class="friend-feed-item">' +
                         '<article class="friend-feed-card">' +
-                            '<div class="friend-feed-content">' +
-                            '<div class="article-meta friend-feed-meta">' +
-                                (time ? '<span>' + escapeHtml(time) + '</span>' : '') +
-                                (author && author !== site ? '<span>' + escapeHtml(author) + '</span>' : '') +
-                                '<span><a class="friend-feed-site-link" href="' + escapeHtml(siteUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(site) + '</a></span>' +
-                            '</div>' +
-                            '<h2 class="article-title friend-feed-title"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" class="article-title-link">' + escapeHtml(entry.title || '未命名文章') + '</a></h2>' +
-                            '<p class="article-excerpt friend-feed-summary">' + escapeHtml(entry.summary || '这篇文章暂时没有摘要。') + '</p>' +
-                            '</div>' +
+                            '<a class="friend-feed-site-link" href="' + escapeHtml(siteUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(author && author !== site ? author : site) + '</a>' +
+                            '<h2 class="friend-feed-title"><a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(entry.title || '未命名文章') + '</a></h2>' +
+                            (time ? '<time>' + escapeHtml(time) + '</time>' : '<span></span>') +
                         '</article>' +
                     '</li>';
                 }).join('');
-                applyFeedBackgrounds();
             }
 
             function loadFeed(page, shouldScroll) {
@@ -379,7 +284,7 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                 currentPage = page;
                 writeStoredPage(currentPage);
                 updatePager();
-                list.innerHTML = '<li class="friend-feed-state">正在读取最近文章...</li>';
+                list.classList.add('is-loading');
                 var endpoint = config.baseUrl.replace(/\/+$/g, '') + '/api/public/entries?limit=' + encodeURIComponent(pageSize) + '&offset=' + encodeURIComponent((currentPage - 1) * pageSize);
                 fetch(endpoint, { cache: 'no-store' })
                     .then(function(response) {
@@ -398,6 +303,7 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                     })
                     .then(function() {
                         isLoadingFeed = false;
+                        list.classList.remove('is-loading');
                         updatePager();
                     });
             }
@@ -485,21 +391,14 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                 <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
                     <?php qiwiRenderCaptcha(); ?>
-                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                 </div>
                 <?php endif; ?>
-                <br>
 
                 <button type="submit" class="submit-button" id="sub_btn">提交申请</button>
             </form>
         </div>
         <?php endif; ?>
     </div>
-
-    <?php if ($qiwiShowToc): ?>
-    <!-- 页面目录 -->
-    <nav class="article-toc" aria-label="页面目录"></nav>
-    <?php endif; ?>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

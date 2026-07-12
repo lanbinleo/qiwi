@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>子夜集 · V2 设计稿</title>
+<style>
+/* ============ 设计令牌 · 子夜集 ============ */
+/* 暗色：中性锌灰纸面 + 焦糖墨（对齐 QIWI 体系） */
+:root {
+  --bg: #18181b;
+  --grid-line: rgba(228, 228, 231, 0.028);
+  --text: #c8c8cd;
+  --heading: #e4e4e7;
+  --muted: #90909a;
+  --accent: #d4c4b0;
+  --accent-strong: #e0ad7d;
+  --surface: #1f1f22;
+  --border: #3f3f46;
+  --border-soft: rgba(63, 63, 70, 0.55);
+  --mark: rgba(222, 208, 127, 0.2);
+  --seal: #b3402e;
+  --seal-text: #f3e4cd;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --radius: 4px;
+  --serif: "Noto Serif SC", "Songti SC", STSong, "SimSun", serif;
+  --hand: "Kaiti SC", STKaiti, KaiTi, "Noto Serif SC", serif;
+}
+/* 日间 · 暖白纸 */
+html.light {
+  --bg: #fafaf9;
+  --grid-line: rgba(63, 63, 70, 0.045);
+  --text: #3f3f46;
+  --heading: #27272a;
+  --muted: #71717a;
+  --accent: #8b7355;
+  --accent-strong: #bf6b2f;
+  --surface: #ffffff;
+  --border: #d4d4d6;
+  --border-soft: #e4e4e7;
+  --mark: rgba(157, 130, 8, 0.17);
+  --seal: #b3402e;
+  --seal-text: #f6ead6;
+  --shadow: 0 1px 0 rgba(90, 70, 40, 0.05);
+}
+:root { --pencil: #8b7355; }
+html.light { --pencil: #a19483; }
+
+/* ============ 基础 ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 14px 14px;
+  color: var(--text);
+  min-height: 100vh;
+  transition: background-color .4s ease, color .4s ease;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+button { font-family: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+img { display: block; max-width: 100%; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ============ 布局 ============ */
+.shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 640px);
+  justify-content: center;
+  gap: 56px;
+  padding: 96px 32px 120px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* ============ 侧栏导航 ============ */
+.side {
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-right: 8px;
+}
+.nav { display: flex; flex-direction: column; gap: 40px; align-items: flex-end; }
+.nav a {
+  font-size: 1.05rem;
+  letter-spacing: 6px;
+  color: var(--text);
+  padding: 3px 6px 3px 12px;
+  border-bottom: 1px solid transparent;
+  transition: all .25s ease;
+}
+.nav a:hover { border-bottom-color: var(--border); }
+.nav a.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-bottom-color: transparent;
+}
+.side-tools { margin-top: auto; padding: 24px 6px; }
+.theme-btn { color: var(--muted); transition: color .25s; padding: 6px; }
+.theme-btn:hover { color: var(--accent); }
+.theme-btn svg { width: 20px; height: 20px; }
+.side-logo { padding-right: 6px; text-align: right; }
+.side-logo .ava {
+  width: 46px; height: 46px; border-radius: 50%;
+  display: block; margin: 0 0 14px auto;
+  border: 1px solid var(--border);
+  filter: saturate(.9);
+  transition: transform .5s cubic-bezier(.22, .61, .36, 1), filter .3s ease;
+}
+.side-logo .ava:hover { transform: rotate(-8deg) scale(1.06); filter: saturate(1); }
+.side-logo .zh {
+  font-family: var(--serif);
+  font-size: 1.7rem; letter-spacing: 12px; margin-right: -12px;
+  color: var(--heading); font-weight: 600; opacity: .92;
+}
+.side-logo .en {
+  font-size: .58rem; letter-spacing: 4px; color: var(--muted);
+  opacity: .65; margin-top: 8px;
+}
+.side-logo .tagline {
+  font-size: .6rem; letter-spacing: 3px; color: var(--accent);
+  opacity: .75; margin-top: 8px;
+}
+
+/* ============ 主内容 ============ */
+.main { min-width: 0; }
+.page { display: none; }
+.page.current { display: block; }
+
+/* 页面切换：陷下去 / 浮上来 */
+@keyframes sinkOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(28px); }
+}
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page.leaving  { animation: sinkOut .28s ease-in forwards; }
+.page.entering { animation: riseIn .42s cubic-bezier(.2,.7,.3,1) forwards; }
+
+/* ============ 通用文本 ============ */
+.page-label {
+  font-size: .72rem; letter-spacing: 4px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.page-title { font-family: var(--serif); font-size: 1.55rem; color: var(--heading); font-weight: 600; letter-spacing: 3px; margin-bottom: 8px; }
+.page-sub { color: var(--muted); font-size: .9rem; letter-spacing: 2px; margin-bottom: 48px; }
+
+.prose p {
+  font-weight: 400;
+  font-size: 0.96rem;
+  letter-spacing: 2px;
+  line-height: 2em;
+  text-align: justify;
+  margin: 0 0 2em;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  color: color-mix(in srgb, var(--text) 92%, var(--muted));
+}
+
+/* ============ 首页文章列表 ============ */
+.post-item { padding: 24px 0; border-bottom: 1px dashed var(--border-soft); }
+.post-item:first-child { padding-top: 0; }
+.post-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.post-title {
+  font-family: var(--serif);
+  font-size: 1.18rem; font-weight: 600; color: var(--heading);
+  letter-spacing: 2px; border-bottom: 1px solid var(--border);
+  padding-bottom: 3px; transition: color .2s, border-color .2s;
+}
+.post-title:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.post-cat { font-size: .8rem; color: var(--muted); letter-spacing: 2px; }
+.post-cat::before { content: "· "; }
+.pin-tag {
+  font-size: .68rem; letter-spacing: 2px; color: var(--bg);
+  background: var(--accent); padding: 2px 8px; border-radius: 2px;
+  opacity: .85;
+}
+.post-excerpt {
+  font-size: 0.96rem; letter-spacing: 2px; line-height: 2em;
+  text-align: justify; word-break: break-all;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.post-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; font-size: .82rem; color: var(--muted); letter-spacing: 1px;
+}
+.read-more {
+  color: var(--accent); letter-spacing: 2px; font-size: .85rem;
+  border-bottom: 1px solid transparent; padding-bottom: 2px;
+  transition: color .25s ease, border-color .25s ease;
+}
+.read-more:hover { color: var(--accent-strong); border-bottom-color: var(--accent-strong); }
+
+/* 最近一条说说入口 */
+.latest-moment {
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 28px;
+  display: flex; gap: 10px; align-items: center;
+  font-size: .86rem; letter-spacing: 1.5px; color: var(--muted);
+}
+.latest-moment b { color: var(--text); font-weight: 500; }
+.latest-moment a { flex-shrink: 0; margin-left: auto; font-size: .8rem; }
+.latest-moment .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: .6; flex-shrink: 0; }
+
+/* 分页 */
+.pager { display: flex; justify-content: center; gap: 14px; padding-top: 48px; align-items: center; }
+.pager button {
+  min-width: 32px; height: 32px; border-radius: var(--radius);
+  color: var(--muted); font-size: .85rem; border: 1px solid transparent;
+  transition: all .2s;
+}
+.pager button:hover { border-color: var(--border); color: var(--text); }
+.pager button.on { border-color: var(--accent); color: var(--accent); }
+
+/* ============ 文章页 ============ */
+.back-link {
+  font-size: .82rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 40px; display: inline-block;
+  transition: color .25s ease;
+}
+.back-link:hover { color: var(--accent); }
+
+/* 文章头图 */
+.article-hero {
+  margin: 26px 0 34px; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border-soft); cursor: zoom-in;
+  position: relative;
+}
+.article-hero img {
+  display: block; width: 100%; max-height: 320px; object-fit: cover;
+  filter: saturate(.92);
+  transition: transform .6s cubic-bezier(.22, .61, .36, 1), filter .4s ease;
+}
+.article-hero:hover img { transform: scale(1.02); filter: saturate(1); }
+.article-hero figcaption {
+  position: absolute; right: 10px; bottom: 8px;
+  font-size: .7rem; letter-spacing: 1.5px; color: rgba(255, 255, 255, .85);
+  background: rgba(0, 0, 0, .35); padding: 2px 10px; border-radius: 2px;
+  backdrop-filter: blur(4px);
+}
+.article-title { font-family: var(--serif); font-size: 1.5rem; color: var(--heading); font-weight: 600; letter-spacing: 3px; line-height: 1.7; text-wrap: balance; }
+.article-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  margin: 18px 0 12px; font-size: .8rem; color: var(--muted); letter-spacing: 1.5px;
+}
+.aa-btn {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 2px 10px; font-size: .78rem; color: var(--muted); letter-spacing: 1px;
+  transition: all .2s;
+}
+.aa-btn:hover, .aa-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.aa-panel {
+  display: none; border: 1px solid var(--border-soft); background: var(--surface);
+  border-radius: var(--radius); padding: 14px 18px; margin: 12px 0 8px;
+  font-size: .8rem; letter-spacing: 1px; color: var(--muted);
+}
+.aa-panel.open { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+.aa-group { display: flex; align-items: center; gap: 8px; }
+.aa-group button {
+  border: 1px solid var(--border-soft); border-radius: 2px; padding: 1px 8px;
+  font-size: .78rem; color: var(--muted); transition: all .2s;
+}
+.aa-group button.on { border-color: var(--accent); color: var(--accent); }
+
+/* 目录 */
+.toc {
+  border-left: 2px solid var(--border-soft);
+  padding: 4px 0 4px 18px; margin: 36px 0;
+  font-size: .82rem; letter-spacing: 1.5px;
+}
+.toc-label { color: var(--muted); font-size: .72rem; letter-spacing: 3px; margin-bottom: 10px; }
+.toc a { display: block; color: var(--muted); padding: 4px 0; transition: color .2s; }
+.toc a:hover { color: var(--accent); }
+.toc a.lv2 { padding-left: 18px; }
+.toc a.now { color: var(--accent); }
+
+.prose h2 {
+  font-size: 1.12rem; color: var(--heading); letter-spacing: 2px;
+  margin: 2.6em 0 1.4em; padding-left: 12px;
+  border-left: 3px solid var(--accent); line-height: 1.6;
+}
+.prose blockquote {
+  border-left: 3px solid var(--border);
+  padding: 4px 0 4px 18px; margin: 0 0 2em;
+  color: var(--muted); font-size: .92rem; letter-spacing: 2px; line-height: 2em;
+}
+.prose mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 2px; }
+.prose figure { margin: 0 0 2em; }
+.prose figure img { border-radius: var(--radius); border: 1px solid var(--border-soft); cursor: zoom-in; }
+.prose figcaption { text-align: center; font-size: .78rem; color: var(--muted); letter-spacing: 2px; margin-top: 10px; }
+
+/* 代码块 */
+.codeblock { position: relative; margin: 0 0 2em; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.codeblock-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 14px; border-bottom: 1px dashed var(--border-soft);
+  font-size: .72rem; letter-spacing: 2px; color: var(--muted);
+}
+.codeblock-bar button { font-size: .72rem; letter-spacing: 1px; color: var(--muted); transition: color .2s; }
+.codeblock-bar button:hover { color: var(--accent); }
+.codeblock pre { padding: 16px 18px; overflow-x: auto; }
+.codeblock code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .82rem; line-height: 1.8; color: var(--text); }
+
+/* Callout */
+.callout {
+  border: 1px solid var(--border-soft); border-left: 3px solid var(--accent);
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px 18px; margin: 0 0 2em;
+  font-size: .88rem; letter-spacing: 2px; line-height: 2em; color: var(--text);
+}
+.callout b { color: var(--heading); font-weight: 600; letter-spacing: 2px; }
+
+/* 点赞 */
+.like-row { display: flex; justify-content: center; padding: 48px 0 12px; }
+.like-btn {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 8px 22px; color: var(--muted); font-size: .88rem; letter-spacing: 2px;
+  transition: all .25s;
+}
+.like-btn:hover { border-color: var(--accent); color: var(--accent); }
+.like-btn.liked { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+.like-btn svg { width: 16px; height: 16px; }
+
+/* 铅笔批注旁白 */
+.side-note {
+  font-family: var(--hand);
+  font-size: .84rem; color: var(--pencil); letter-spacing: 1.5px; line-height: 1.9;
+  border-left: 2px dashed var(--border); padding: 2px 0 2px 14px;
+  margin: -0.8em 0 2em;
+}
+.side-note::before { content: "批注 — "; font-size: .7em; letter-spacing: 2px; opacity: .65; }
+@media (min-width: 1200px) {
+  .side-note {
+    float: right; width: 138px; margin: 4px -158px 12px 20px;
+    border-left: none; border-top: 1px dashed var(--border);
+    padding: 8px 0 0; font-size: .78rem; transform: rotate(.6deg);
+  }
+}
+
+/* 落款：手写签名 + 印章 */
+.sign-off {
+  display: flex; justify-content: flex-end; align-items: center; gap: 16px;
+  margin-top: 8px; clear: both;
+}
+.sign-off .hand {
+  font-family: var(--hand); font-size: 1.02rem; color: var(--muted);
+  letter-spacing: 4px;
+}
+.sign-off .hand small { display: block; font-size: .7rem; letter-spacing: 2px; opacity: .7; margin-top: 4px; text-align: right; }
+.seal {
+  width: 46px; height: 46px; flex-shrink: 0;
+  background: var(--seal); color: var(--seal-text);
+  border-radius: 3px; transform: rotate(-3.5deg);
+  display: grid; grid-template-columns: 1fr 1fr; place-items: center;
+  padding: 5px; gap: 1px;
+  font-family: var(--serif); font-size: .78rem; font-weight: 600; line-height: 1;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, .28);
+  opacity: .92;
+}
+
+/* 版权附注 */
+.copyright-note {
+  margin-top: 36px; padding-top: 20px; border-top: 1px dashed var(--border-soft);
+  font-size: .76rem; color: var(--muted); letter-spacing: 1.5px; line-height: 2;
+}
+.tags { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.tags a { font-size: .78rem; color: var(--muted); letter-spacing: 1px; }
+.tags a::before { content: "#"; opacity: .6; }
+.tags a:hover { color: var(--accent); }
+
+/* 上一篇/下一篇 */
+.prev-next {
+  display: flex; justify-content: space-between; gap: 24px;
+  margin: 40px 0; padding: 20px 0; border-top: 1px dashed var(--border-soft);
+  border-bottom: 1px dashed var(--border-soft);
+  font-size: .84rem; letter-spacing: 1.5px;
+}
+.prev-next span { color: var(--muted); display: block; font-size: .72rem; margin-bottom: 6px; letter-spacing: 2px; }
+.prev-next a { color: var(--text); }
+.prev-next a:hover { color: var(--accent); }
+.prev-next .next { text-align: right; }
+
+/* ============ 评论 ============ */
+.comment-box {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); margin-bottom: 40px; overflow: hidden;
+}
+.comment-box input, .comment-box textarea {
+  width: 100%; border: none; background: transparent; color: var(--text);
+  font-family: inherit; font-size: .88rem; letter-spacing: 1.5px; outline: none;
+  padding: 12px 16px; resize: vertical;
+}
+.comment-box input { border-bottom: 1px dashed var(--border-soft); }
+.comment-box textarea { min-height: 96px; line-height: 1.9; }
+.comment-box ::placeholder { color: var(--muted); opacity: .7; }
+.comment-box-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; border-top: 1px dashed var(--border-soft);
+}
+.comment-box-bar .left, .comment-box-bar .right { display: flex; gap: 6px; align-items: center; }
+.icon-btn { color: var(--muted); padding: 6px; border-radius: var(--radius); transition: color .2s; }
+.icon-btn:hover { color: var(--accent); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+.comment-count { display: flex; align-items: center; gap: 8px; font-size: .92rem; letter-spacing: 2px; color: var(--heading); margin-bottom: 32px; }
+.comment-count svg { width: 17px; height: 17px; color: var(--muted); }
+.comment { display: flex; gap: 14px; padding: 20px 0; }
+.comment.reply { margin-left: 46px; border-left: 2px solid var(--border-soft); padding-left: 18px; }
+.avatar { width: 38px; height: 38px; border-radius: var(--radius); border: 1px solid var(--border-soft); flex-shrink: 0; background: #fff; }
+.comment-body { min-width: 0; flex: 1; }
+.comment-head { display: flex; align-items: center; gap: 8px; font-size: .86rem; letter-spacing: 1px; }
+.comment-head .name { color: var(--accent); font-weight: 500; }
+.comment-head .time { color: var(--muted); font-size: .76rem; }
+.comment-head .owner {
+  font-size: .62rem; color: var(--bg); background: var(--accent); opacity: .8;
+  padding: 1px 6px; border-radius: 2px; letter-spacing: 1px;
+}
+.comment-head .to { color: var(--muted); font-size: .78rem; }
+.comment-text { font-size: .9rem; letter-spacing: 1.5px; line-height: 2em; margin: 8px 0; color: var(--text); }
+.comment-acts { display: flex; gap: 18px; font-size: .76rem; color: var(--muted); letter-spacing: 1px; }
+.comment-acts button { color: var(--muted); font-size: .76rem; letter-spacing: 1px; transition: color .2s; }
+.comment-acts button:hover { color: var(--accent); }
+.comment.pending .comment-text { opacity: .6; }
+.pending-tag { font-size: .68rem; color: var(--muted); border: 1px dashed var(--border); padding: 1px 6px; border-radius: 2px; }
+
+/* ============ 动态（说说） ============ */
+.moment { display: flex; gap: 14px; padding: 32px 0; border-bottom: 1px dashed var(--border-soft); }
+.moment-body { flex: 1; min-width: 0; }
+.moment-text { font-size: .92rem; letter-spacing: 2px; line-height: 2em; margin: 10px 0 14px; text-align: justify; }
+.moment-photos { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.moment-photos img {
+  width: 132px; height: 132px; object-fit: cover;
+  border-radius: var(--radius); border: 1px solid var(--border-soft); cursor: zoom-in;
+}
+.moment-photos img.tall { width: 176px; height: 220px; }
+
+/* ============ 记录页 ============ */
+.section-h {
+  font-size: .78rem; letter-spacing: 4px; color: var(--muted);
+  margin: 56px 0 24px; display: flex; align-items: center; gap: 14px;
+}
+.section-h::after { content: ""; flex: 1; border-top: 1px dashed var(--border-soft); }
+/* 里程统计（稿纸账目风：无卡片，虚线行距） */
+.milestone {
+  margin-bottom: 52px;
+  font-size: .9rem; letter-spacing: 1.5px; line-height: 2;
+}
+.milestone p {
+  margin: 0; padding: 9px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+}
+.milestone p:first-child { border-top: 1px dashed var(--border-soft); }
+.milestone b {
+  font-family: var(--serif);
+  font-size: 1.3rem; font-weight: 600; color: var(--heading);
+  padding: 0 3px 1px; margin: 0 2px;
+  border-bottom: 2px solid var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 图集瀑布流 */
+.gallery-grid { columns: 2; column-gap: 14px; }
+.gallery-grid figure { margin: 0 0 14px; break-inside: avoid; }
+.gallery-grid img {
+  display: block; width: 100%; border-radius: var(--radius);
+  border: 1px solid var(--border-soft); cursor: zoom-in;
+  filter: saturate(.92);
+  transition: filter .3s ease, opacity .3s ease;
+}
+.gallery-grid img:hover { filter: saturate(1); opacity: .92; }
+.gallery-grid figcaption { font-size: .74rem; color: var(--muted); letter-spacing: 1.5px; margin-top: 8px; }
+
+/* 说说的嵌套评论 */
+.moment-replies {
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.m-reply { display: flex; gap: 10px; }
+.m-reply .avatar.sm { width: 28px; height: 28px; }
+.m-reply p { font-size: .86rem; letter-spacing: 1.5px; line-height: 1.9; margin-top: 4px; text-align: justify; }
+
+.stats-row { display: flex; gap: 40px; flex-wrap: wrap; margin-bottom: 8px; }
+.stat b { display: block; font-size: 1.35rem; color: var(--heading); font-weight: 600; letter-spacing: 1px; }
+.stat span { font-size: .76rem; color: var(--muted); letter-spacing: 2px; }
+.year-h { font-size: 1.05rem; color: var(--heading); letter-spacing: 2px; margin: 32px 0 8px; }
+.year-h small { color: var(--muted); font-size: .76rem; letter-spacing: 1px; margin-left: 10px; font-weight: 400; }
+.arch-item {
+  display: flex; gap: 20px; align-items: baseline; padding: 9px 0;
+  font-size: .9rem; letter-spacing: 1.5px;
+}
+.arch-item time { color: var(--muted); font-size: .78rem; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.arch-item a { color: var(--text); }
+.arch-item a:hover { color: var(--accent); }
+.plog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.plog-grid figure { margin: 0; }
+.plog-grid img {
+  width: 100%; aspect-ratio: 1; object-fit: cover;
+  border-radius: var(--radius); border: 1px solid var(--border-soft); cursor: zoom-in;
+}
+.plog-grid figcaption { font-size: .74rem; color: var(--muted); letter-spacing: 1.5px; margin-top: 8px; }
+
+/* ============ 邻居页 ============ */
+.friend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.friend {
+  display: flex; gap: 12px; align-items: center;
+  border: 1px solid var(--border-soft); border-radius: var(--radius);
+  background: var(--surface); padding: 14px 16px; transition: border-color .2s;
+}
+.friend:hover { border-color: var(--border); }
+.friend img { width: 40px; height: 40px; border-radius: var(--radius); }
+.friend .initial {
+  width: 40px; height: 40px; border-radius: var(--radius); flex-shrink: 0;
+  display: grid; place-items: center; background: var(--accent); color: var(--bg);
+  font-size: 1rem; opacity: .8;
+}
+.friend b { display: block; font-size: .88rem; color: var(--text); font-weight: 500; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend span { font-size: .74rem; color: var(--muted); letter-spacing: 1px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend > div { min-width: 0; }
+.feed-item { display: flex; gap: 16px; align-items: baseline; padding: 10px 0; font-size: .86rem; letter-spacing: 1.5px; border-bottom: 1px dashed var(--border-soft); }
+.feed-item .who { color: var(--muted); font-size: .78rem; flex-shrink: 0; width: 72px; }
+.feed-item a { color: var(--text); }
+.feed-item a:hover { color: var(--accent); }
+.feed-item time { margin-left: auto; color: var(--muted); font-size: .74rem; flex-shrink: 0; }
+
+.apply-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.apply-form .full { grid-column: 1 / -1; }
+.apply-form label { display: block; font-size: .74rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+.apply-form input, .apply-form textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius); padding: 10px 14px; color: var(--text);
+  font-family: inherit; font-size: .86rem; letter-spacing: 1px; outline: none;
+  transition: border-color .2s;
+}
+.apply-form input:focus, .apply-form textarea:focus { border-color: var(--accent); }
+.submit-btn {
+  border: 1px solid var(--accent); color: var(--accent);
+  border-radius: var(--radius); padding: 9px 28px; font-size: .86rem; letter-spacing: 3px;
+  transition: all .25s;
+}
+.submit-btn:hover { background: var(--accent); color: var(--bg); }
+
+/* ============ 关于页 ============ */
+.about-head { display: flex; gap: 20px; align-items: center; margin-bottom: 40px; }
+.about-head img { width: 72px; height: 72px; border-radius: var(--radius); border: 1px solid var(--border-soft); background: #fff; }
+.about-head h1 { font-size: 1.3rem; color: var(--heading); letter-spacing: 3px; }
+.about-head p { font-size: .84rem; color: var(--muted); letter-spacing: 2px; margin-top: 8px; }
+.project-tabs { display: flex; gap: 8px; margin-bottom: -1px; position: relative; z-index: 1; }
+.project-tabs button {
+  border: 1px solid var(--border-soft); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 7px 18px; font-size: .82rem; letter-spacing: 2px; color: var(--muted);
+  background: transparent; transition: all .2s;
+}
+.project-tabs button.on { border-color: var(--border); border-bottom-color: var(--bg); color: var(--accent); background: var(--surface); }
+.project-panel {
+  border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius);
+  background: var(--surface); padding: 20px 24px;
+  font-size: .88rem; letter-spacing: 1.5px; line-height: 2;
+}
+.project-panel b { color: var(--accent); font-weight: 500; }
+.project-panel .desc { color: var(--text); margin: 6px 0; }
+.project-panel .link { font-size: .82rem; color: var(--muted); }
+.project-panel .link a { border-bottom: 1px dashed var(--border); }
+.social-row { display: flex; gap: 24px; margin-top: 8px; font-size: .84rem; letter-spacing: 2px; }
+.social-row a { color: var(--muted); transition: color .2s; }
+.social-row a:hover { color: var(--accent); }
+
+/* ============ 灯箱 ============ */
+.lightbox {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  place-items: center; padding: 40px; cursor: zoom-out;
+}
+.lightbox.open { display: grid; animation: riseIn .3s ease; }
+.lightbox img { max-height: 82vh; max-width: 100%; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(30,45,80,.25); }
+.lightbox .hint { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); font-size: .74rem; letter-spacing: 3px; color: var(--muted); }
+
+/* ============ 页脚 · 电台收播 ============ */
+.site-foot {
+  margin-top: 110px; padding-bottom: 8px;
+  font-size: .76rem; color: var(--muted); letter-spacing: 1.5px; line-height: 2.1;
+}
+/* 调频刻度线代替横线分隔，呼应侧栏站标 */
+.site-foot .foot-freq {
+  position: relative; height: 9px; width: 180px; margin: 0 0 22px;
+  border-top: 1px solid var(--border);
+  background-image: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 9px);
+  background-size: 100% 5px; background-repeat: no-repeat;
+  opacity: .8;
+}
+.site-foot .foot-freq::after {
+  content: ""; position: absolute; top: -4px; left: 38%;
+  width: 1px; height: 12px; background: var(--accent-strong);
+  box-shadow: 0 0 6px var(--accent-strong);
+}
+.site-foot .foot-cols {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 24px; flex-wrap: wrap;
+}
+.site-foot .foot-right { text-align: right; }
+.site-foot .motto { font-family: var(--hand); font-size: .95rem; color: var(--text); letter-spacing: 3px; margin-bottom: 6px; }
+.site-foot a { color: var(--muted); text-decoration: none; transition: color .25s ease; }
+.site-foot a:hover { color: var(--accent-strong); }
+.site-foot .dot { margin: 0 8px; opacity: .45; }
+.site-foot .foot-links { opacity: .85; }
+@media (max-width: 640px) {
+  .site-foot .foot-cols { flex-direction: column; align-items: flex-start; }
+  .site-foot .foot-right { text-align: left; }
+}
+
+/* ============ 返回顶部（带滚动进度环） ============ */
+.to-top {
+  position: fixed; right: 34px; bottom: 40px; z-index: 60;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg); border: none; cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--muted);
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity .3s, transform .3s, visibility .3s, color .2s;
+}
+.to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.to-top:hover { color: var(--accent-strong); }
+.to-top svg.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.to-top svg.ring .track { stroke: var(--border-soft); }
+.to-top svg.ring .bar { stroke: var(--accent-strong); transition: stroke-dashoffset .15s linear; }
+.to-top svg.arrow { width: 16px; height: 16px; }
+
+/* ============ 移动端 ============ */
+.mobile-bar { display: none; }
+.mobile-nav { display: none; }
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding: 84px 24px 96px; gap: 0; }
+  .side { display: none; }
+  .mobile-bar {
+    display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    justify-content: space-between; align-items: center;
+    padding: 14px 20px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .mobile-bar .logo { font-family: var(--serif); font-weight: 600; font-size: 1rem; letter-spacing: 6px; color: var(--heading); }
+  .mobile-nav {
+    position: fixed; top: 53px; left: 0; right: 0; z-index: 49;
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-soft);
+    display: none; flex-direction: column; padding: 12px 0;
+  }
+  .mobile-nav.open { display: flex; animation: riseIn .25s ease; }
+  .mobile-nav a { padding: 13px 28px; letter-spacing: 5px; font-size: .95rem; color: var(--text); }
+  .mobile-nav a.active { color: var(--accent); font-weight: 600; }
+  .friend-grid, .apply-form { grid-template-columns: 1fr; }
+  .plog-grid { grid-template-columns: 1fr 1fr; }
+  .gallery-grid { columns: 1; }
+  .moment-photos img { width: 104px; height: 104px; }
+  .moment-photos img.tall { width: 140px; height: 176px; }
+}
+
+/* 字号档位（阅读偏好） */
+.prose.size-s p, .prose.size-s blockquote { font-size: .88rem; }
+.prose.size-l p, .prose.size-l blockquote { font-size: 1.05rem; }
+.prose.loose p { line-height: 2.4em; }
+</style>
+</head>
+<body>
+
+<!-- 移动端顶栏 -->
+<header class="mobile-bar">
+  <span class="logo">子夜集</span>
+  <div style="display:flex; gap:4px;">
+    <button class="icon-btn" id="mThemeBtn" aria-label="切换深浅模式">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button class="icon-btn" id="mMenuBtn" aria-label="打开菜单" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</header>
+<nav class="mobile-nav" id="mobileNav" aria-label="移动端导航">
+    <a href="#" data-nav="home" class="active">首页</a>
+    <a href="#" data-nav="moments">最近</a>
+    <a href="#" data-nav="neighbors">邻居</a>
+    <a href="#" data-nav="about">关于</a>
+    <a href="#" data-nav="archive">归档</a>
+    <a href="#" data-nav="gallery">图集</a>
+</nav>
+
+<div class="shell">
+
+  <!-- ============ 侧栏 ============ -->
+  <aside class="side">
+    <nav class="nav" aria-label="主导航">
+    <a href="#" data-nav="home" class="active">首页</a>
+    <a href="#" data-nav="moments">最近</a>
+    <a href="#" data-nav="neighbors">邻居</a>
+    <a href="#" data-nav="about">关于</a>
+    <a href="#" data-nav="archive">归档</a>
+    <a href="#" data-nav="gallery">图集</a>
+    </nav>
+    <div class="side-tools">
+      <button class="theme-btn" id="themeBtn" aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      </button>
+    </div>
+    <div class="side-logo">
+      <img class="ava" src="design-assets/leo-avatar.png" alt="里奥的头像" />
+      <div class="zh">子夜集</div>
+      <div class="en">ZIYE ANTHOLOGY</div>
+      <div class="tagline">向内求索 · ON AIR</div>
+    </div>
+  </aside>
+
+  <!-- ============ 主区域 ============ -->
+  <main class="main">
+
+    <!-- ======== 首页 ======== -->
+    <section class="page current" id="page-home">
+      <div class="latest-moment">
+        <span class="dot" aria-hidden="true"></span>
+        <span><b>最近说：</b>橘子不是唯一的水果，就像这世间没有唯一的答案</span>
+        <a href="#" data-nav="moments">更多动态 →</a>
+      </div>
+
+      <article class="post-item">
+        <div class="post-head">
+          <span class="pin-tag">置顶</span>
+          <a href="#" class="post-title" data-nav="article">写在主题 V2 上线时</a>
+          <span class="post-cat">日常</span>
+        </div>
+        <p class="post-excerpt">折腾了小半个月，博客的第二版主题总算是收拾出来了。这次的想法很简单：把不必要的东西都拿掉，只留下文字本身。没有轮播，没有仪表盘一样的统计数字，也没有满屏的卡片和阴影。窄窄的一栏，暖褐的夜色，读起来像深夜里收听一档只属于自己的电台……</p>
+        <div class="post-foot">
+          <span>2026-07-02 / 3.1K 阅读</span>
+          <a href="#" class="read-more" data-nav="article">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="post-item">
+        <div class="post-head">
+          <a href="#" class="post-title" data-nav="article">降温</a>
+          <span class="post-cat">日常</span>
+        </div>
+        <p class="post-excerpt">从五月底开始，这边的天气变得异常燥热，一连几个高温预警接踵而至，不得不打开了空调换来一丝凉意。我以为只是太阳大了些，晒进来屋里所以又闷又热，毕竟现在住顶楼，傍晚洗完衣服拉开落地窗的时候，一股热浪扑面而来，晾个衣服的功夫，刚洗完凉水澡的我感觉又开始冒汗……</p>
+        <div class="post-foot">
+          <span>2026-06-08 / 1.2K 阅读</span>
+          <a href="#" class="read-more" data-nav="article">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="post-item">
+        <div class="post-head">
+          <a href="#" class="post-title" data-nav="article">深夜小零食</a>
+          <span class="post-cat">日常</span>
+        </div>
+        <p class="post-excerpt">最近经常在晚上 Vibe Coding，天才程序员动不动就熬到大半夜，有时候肚子饿了又不想煮面吃，就打算买些零食解解馋。你说巧不巧，在刷视频的时候就是这么巧刷到了铺天盖地的零食广告（很奇怪，在我有想买零食这个想法之前从来没刷到吃的广告），遥遥领先，于是没忍住买了 50 根辣条解馋……</p>
+        <div class="post-foot">
+          <span>2026-05-18 / 1.6K 阅读</span>
+          <a href="#" class="read-more" data-nav="article">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="post-item">
+        <div class="post-head">
+          <a href="#" class="post-title" data-nav="article">那封被遗忘在角落的情书</a>
+          <span class="post-cat">日常</span>
+        </div>
+        <p class="post-excerpt">我从没想到会在行李箱里找到它。一个平常的周末下午，我翻找了一下初中用的行李箱，可能是放了很久的原因，边角已经磨得发白了。当我拉开内衬上一个几乎被遗忘的小口袋时，一个被折好的白色纸条滑出来掉到了地上……</p>
+        <div class="post-foot">
+          <span>2026-05-07 / 2.4K 阅读</span>
+          <a href="#" class="read-more" data-nav="article">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="post-item">
+        <div class="post-head">
+          <a href="#" class="post-title" data-nav="article">时光清浅，清明纪事</a>
+          <span class="post-cat">日常</span>
+        </div>
+        <p class="post-excerpt">一年一度清明如期而至，今年还是老样子高速免费，驱车百三十里路程提前一天赶回老家，用时 3 个小时，然后得知发小比我提前一晚出发，开了整整 6 个小时，属实铁腚无疑。回来途中，老爸坐在副驾驶，依旧打开了他的手机导航，随着一声声"前方 150 米驶入匝道"的提示音……</p>
+        <div class="post-foot">
+          <span>2026-04-05 / 2.3K 阅读</span>
+          <a href="#" class="read-more" data-nav="article">阅读全文</a>
+        </div>
+      </article>
+
+      <nav class="pager" aria-label="分页">
+        <button class="on" aria-current="page">1</button>
+        <button>2</button>
+        <button>3</button>
+        <button aria-label="下一页">→</button>
+      </nav>
+    </section>
+
+    <!-- ======== 文章详情 ======== -->
+    <section class="page" id="page-article">
+      <a href="#" class="back-link" data-nav="home">← 返回首页</a>
+
+      <h1 class="article-title">写在主题 V2 上线时</h1>
+      <div class="article-meta">
+        <span>2026-07-02</span>
+        <span>日常</span>
+        <span>约 2,400 字 · 6 分钟</span>
+        <button class="aa-btn" id="aaBtn" aria-expanded="false">Aa 阅读偏好</button>
+      </div>
+      <div class="aa-panel" id="aaPanel">
+        <div class="aa-group">字号
+          <button data-size="s">小</button>
+          <button data-size="m" class="on">中</button>
+          <button data-size="l">大</button>
+        </div>
+        <div class="aa-group">行距
+          <button data-line="normal" class="on">默认</button>
+          <button data-line="loose">宽松</button>
+        </div>
+        <div class="aa-group"><button id="aaReset">恢复默认</button></div>
+      </div>
+
+      <figure class="article-hero">
+        <img class="zoomable" src="design-assets/photo-sunset.png" alt="小城黄昏的天空" />
+        <figcaption>摄于子夜前的黄昏</figcaption>
+      </figure>
+
+      <nav class="toc" aria-label="文章目录">
+        <div class="toc-label">目 录</div>
+        <a href="#" class="now">为什么要重做</a>
+        <a href="#">留下的与拿掉的</a>
+        <a href="#" class="lv2">正文排版</a>
+        <a href="#">一点技术备忘</a>
+      </nav>
+
+      <div class="prose" id="prose">
+        <h2>为什么要重做</h2>
+        <p>老主题陪了我三年，功能堆得越来越多：悬浮预览、打字机一言、自动轮播的即刻条、点赞礼花……每一个单独看都挺有趣，放在一起就成了打断阅读的噪音。这次重做，我给自己定了一条规矩：<mark>任何元素，如果它不能让文字更好读，就不配出现在页面上</mark>。</p>
+        <blockquote>好的界面像一张干净的书桌——东西不多，但每一样都放在你伸手就能够到的地方。</blockquote>
+        <aside class="side-note">大部分文章都是夜里写的，索性把夜色定成了默认。</aside>
+        <p>于是有了现在这个版本：窄栏、暖褐的夜色、一盏琥珀色的灯。导航竖排在左侧，像书脊上的签条；正文两端对齐，字间距放宽，行高两倍，读长文章时眼睛不容易累。日间模式也一并画好了，是一张晒过太阳的暖纸，白天来串门的朋友可以自己拧开台灯。</p>
+
+        <h2>留下的与拿掉的</h2>
+        <p>点赞留下了。它符合这种私人博客的气质：读者看完后可以轻轻表达喜欢，又不必专门组织一段评论。评论、说说、图集、友链、归档这些核心内容也都在，只是视觉上都退到了文字后面。</p>
+        <figure>
+          <img src="design-assets/photo-sunset.png" alt="小城屋顶上的黄昏天空" class="zoomable" />
+          <figcaption>写主题的那几个傍晚，天色都很好</figcaption>
+        </figure>
+        <div class="callout"><b>备注：</b>链接悬浮预览在 V2 中默认取消。它在桌面端偶尔有用，但会打断阅读、遮挡窄栏内容；移动端也没有 hover。站内链接保留清晰的标题，评论与说说继续提供复制链接。</div>
+
+        <h2>一点技术备忘</h2>
+        <p>页面切换用的是异步请求，旧页面先"陷下去"，新页面再从下方浮上来，整个过程不到半秒，既保留了单页应用的流畅，又不至于喧宾夺主。核心逻辑大概是这样：</p>
+        <div class="codeblock">
+          <div class="codeblock-bar"><span>JavaScript</span><button data-copy>复制代码</button></div>
+          <pre><code>function goto(next) {
+  current.classList.add('leaving');      // 旧页陷下去
+  setTimeout(() => {
+    current.classList.remove('current', 'leaving');
+    next.classList.add('current', 'entering');  // 新页浮上来
+  }, 280);
+}</code></pre>
+        </div>
+        <aside class="side-note">写这段的时候是凌晨一点四十，电台里在放老歌。</aside>
+        <p>字体没有引入任何外部资源，直接使用系统字族；背景的方格纸纹理也只是两条一像素的渐变线，加起来不到一百字节。整个主题最重的部分，是这些絮絮叨叨的文字本身。</p>
+      </div>
+
+      <div class="sign-off">
+        <div class="hand">里奥 记于子夜<small>丙午年 夏至后五日</small></div>
+        <div class="seal" role="img" aria-label="里奥之印"><span>之</span><span>里</span><span>印</span><span>奥</span></div>
+      </div>
+
+      <div class="like-row">
+        <button class="like-btn" id="likeBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7.5-4.6-9.8-9A5.5 5.5 0 0 1 12 6.3 5.5 5.5 0 0 1 21.8 12c-2.3 4.4-9.8 9-9.8 9z"/></svg>
+          <span id="likeText">喜欢 · 36</span>
+        </button>
+      </div>
+
+      <div class="tags">
+        <a href="#">博客</a><a href="#">主题设计</a><a href="#">Typecho</a>
+      </div>
+
+      <p class="copyright-note">本文采用 CC BY-NC-SA 4.0 协议，转载请注明出处；谢绝任何形式的 AI 训练用途。</p>
+
+      <nav class="prev-next" aria-label="相邻文章">
+        <div><span>上一篇</span><a href="#" data-nav="home">降温</a></div>
+        <div class="next"><span>下一篇</span><a href="#" data-nav="home">没有更多了</a></div>
+      </nav>
+
+      <!-- 评论 -->
+      <div class="comment-box">
+        <input type="text" placeholder="游客评论 · 昵称（已记住身份可跳过）" aria-label="昵称" />
+        <textarea placeholder="写下你的想法…" aria-label="评论内容"></textarea>
+        <div class="comment-box-bar">
+          <div class="left">
+            <button class="icon-btn" aria-label="插入表情"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 10h.01M15 10h.01"/></svg></button>
+            <span style="font-size:.72rem;color:var(--muted);letter-spacing:1px;">提交前需通过验证码</span>
+          </div>
+          <div class="right">
+            <button class="icon-btn" aria-label="设置评论身份"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg></button>
+            <button class="icon-btn" aria-label="发送评论"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="comment-count">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.3 8.9 8.9 0 0 1-3.8-.8L3 20l1.2-4.3a8 8 0 0 1-1.2-4.2A8.4 8.4 0 0 1 11.5 3.2 8.4 8.4 0 0 1 21 11.5z"/></svg>
+        评论 · 4
+      </div>
+
+      <div class="comment">
+        <img class="avatar" src="design-assets/avatar.png" alt="" />
+        <div class="comment-body">
+          <div class="comment-head"><span class="name">Leo</span><span class="time">12 分钟前</span></div>
+          <p class="comment-text">好漂亮的主题！！好喜欢这种简约大方的感觉～我感觉我又有动力捣鼓我的博客了</p>
+          <div class="comment-acts"><button>点赞 (2)</button><button>回复</button><button>复制链接</button></div>
+        </div>
+      </div>
+      <div class="comment reply">
+        <img class="avatar" src="design-assets/leo-avatar.png" alt="" />
+        <div class="comment-body">
+          <div class="comment-head"><span class="name">里奥</span><span class="owner">博主</span><span class="to">回复 Leo</span><span class="time">10 分钟前</span></div>
+          <p class="comment-text">什么！你想干什么！</p>
+          <div class="comment-acts"><button>点赞 (0)</button><button>回复</button></div>
+        </div>
+      </div>
+      <div class="comment">
+        <img class="avatar" src="design-assets/avatar.png" alt="" />
+        <div class="comment-body">
+          <div class="comment-head"><span class="name">Pnnk</span><span class="time">1 天前</span></div>
+          <p class="comment-text">这次的主题更好看了…夜间模式的动效好舒服</p>
+          <div class="comment-acts"><button>点赞 (1)</button><button>回复</button><button>复制链接</button></div>
+        </div>
+      </div>
+      <div class="comment pending">
+        <img class="avatar" src="design-assets/avatar.png" alt="" />
+        <div class="comment-body">
+          <div class="comment-head"><span class="name">路过的访客</span><span class="time">刚刚</span><span class="pending-tag">待审核</span></div>
+          <p class="comment-text">你的评论正在等待博主审核，通过后将对所有人可见。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== 最近（动态/说说） ======== -->
+    <section class="page" id="page-moments">
+      <div class="page-label">QUICK THOUGHTS</div>
+      <h1 class="page-title">动态</h1>
+      <p class="page-sub">片语收朝暮，小念也成诗</p>
+
+      <div class="moment">
+        <img class="avatar" src="design-assets/leo-avatar.png" alt="里奥的头像" />
+        <div class="moment-body">
+          <div class="comment-head"><span class="name">里奥</span><span class="time">2 个月前</span></div>
+          <p class="moment-text">事实告诉我们，一个外卖人千万不要心血来潮想自己做饭吃，不然会出现很可怕的事情！</p>
+          <div class="moment-photos">
+            <img src="design-assets/photo-desk.png" alt="深夜书桌一角" class="zoomable tall" />
+          </div>
+          <div class="comment-acts"><button>点赞 (5)</button><button>评论 (2)</button><button>复制链接</button></div>
+          <div class="moment-replies">
+            <div class="m-reply">
+              <img class="avatar sm" src="design-assets/avatar.png" alt="" />
+              <div>
+                <div class="comment-head"><span class="name">Pnnk</span><span class="time">2026-07-03 12:54 · 广州</span></div>
+                <p>哈哈哈哈到底做了什么菜，评论区想看看成品</p>
+              </div>
+            </div>
+            <div class="m-reply">
+              <img class="avatar sm" src="design-assets/leo-avatar.png" alt="" />
+              <div>
+                <div class="comment-head"><span class="name">里奥</span><span class="badge">博主</span><span class="time">2026-07-03 13:02 · 新加坡</span></div>
+                <p>成品已经进垃圾桶了，没有留下任何证据</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="moment">
+        <img class="avatar" src="design-assets/leo-avatar.png" alt="里奥的头像" />
+        <div class="moment-body">
+          <div class="comment-head"><span class="name">里奥</span><span class="time">3 个月前</span></div>
+          <p class="moment-text">图1：老家的房子里面入住了一窝燕子，只看到了一只大的，不知道有没有小燕子，这也是继前几年来了一窝蜜蜂后的第二种小动物来到家里面了。<br /><br />图2：扫墓路上看到的一群牛牛，想起小时候我们家也有两只黄牛，剩下小黄牛后还喜欢趴在小牛背上，不过那时候怕摔下来不敢骑。</p>
+          <div class="moment-photos">
+            <img src="design-assets/photo-nest.png" alt="屋檐下的燕巢" class="zoomable" />
+            <img src="design-assets/photo-cows.png" alt="山坡上吃草的牛群" class="zoomable" />
+          </div>
+          <div class="comment-acts"><button>点赞 (8)</button><button>评论 (3)</button><button>复制链接</button></div>
+        </div>
+      </div>
+
+      <div class="moment">
+        <img class="avatar" src="design-assets/leo-avatar.png" alt="里奥的头像" />
+        <div class="moment-body">
+          <div class="comment-head"><span class="name">里奥</span><span class="time">3 个月前</span></div>
+          <p class="moment-text">橘子不是唯一的水果，就像这世间没有唯一的答案。</p>
+          <div class="comment-acts"><button>点赞 (12)</button><button>评论 (4)</button><button>复制链接</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== 归档（里程 + 时间线） ======== -->
+    <section class="page" id="page-archive">
+      <div class="page-label">ARCHIVE</div>
+      <h1 class="page-title">归档</h1>
+      <p class="page-sub">时间会把字句酿成回忆</p>
+
+      <div class="milestone">
+        <p>已写作 <b>1,316</b> 天</p>
+        <p>共 <b>120,283</b> 字</p>
+        <p>相当于 <b>0.57</b> 本 刘慈欣的《球状闪电》</p>
+        <p>距离下一个里程碑（150,000 字）还有 <b>29,717</b> 字</p>
+        <p>除了文章外，还写了 89 条说说，共 <b>7,906</b> 字</p>
+      </div>
+
+      <h2 class="year-h">2026 <small>12 篇</small></h2>
+      <div class="arch-item"><time>07-02</time><a href="#" data-nav="article">写在主题 V2 上线时</a></div>
+      <div class="arch-item"><time>06-08</time><a href="#" data-nav="article">降温</a></div>
+      <div class="arch-item"><time>05-18</time><a href="#" data-nav="article">深夜小零食</a></div>
+      <div class="arch-item"><time>05-07</time><a href="#" data-nav="article">那封被遗忘在角落的情书</a></div>
+      <div class="arch-item"><time>04-05</time><a href="#" data-nav="article">时光清浅，清明纪事</a></div>
+      <h2 class="year-h">2025 <small>31 篇</small></h2>
+      <div class="arch-item"><time>12-31</time><a href="#" data-nav="article">二〇二五年终总结</a></div>
+      <div class="arch-item"><time>11-16</time><a href="#" data-nav="article">一次颇有遗憾的长沙之旅</a></div>
+      <div class="arch-item"><time>09-02</time><a href="#" data-nav="article">妈妈住了很久的地方</a></div>
+    </section>
+
+    <!-- ======== 图集 ======== -->
+    <section class="page" id="page-gallery">
+      <div class="page-label">PLOG</div>
+      <h1 class="page-title">图集</h1>
+      <p class="page-sub">快门收集的子夜与黄昏</p>
+
+      <div class="gallery-grid">
+        <figure><img src="design-assets/photo-city.png" alt="屋顶上看到的城市夜景" class="zoomable" /><figcaption>子夜 · 2026-07</figcaption></figure>
+        <figure><img src="design-assets/photo-sunset.png" alt="小城屋顶上的黄昏" class="zoomable" /><figcaption>黄昏 · 2026-06</figcaption></figure>
+        <figure><img src="design-assets/photo-shop.png" alt="深夜亮着灯的便利店" class="zoomable" /><figcaption>24 时便利店 · 2026-05</figcaption></figure>
+        <figure><img src="design-assets/photo-cows.png" alt="山坡上的牛群" class="zoomable" /><figcaption>牛牛 · 2026-04</figcaption></figure>
+        <figure><img src="design-assets/photo-nest.png" alt="屋檐下的燕巢" class="zoomable" /><figcaption>新住户 · 2026-04</figcaption></figure>
+        <figure><img src="design-assets/photo-desk.png" alt="深夜书桌一角" class="zoomable" /><figcaption>写作现场 · 2026-03</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ======== 邻居（友链） ======== -->
+    <section class="page" id="page-neighbors">
+      <div class="page-label">NEIGHBORS</div>
+      <h1 class="page-title">邻居</h1>
+      <p class="page-sub">隔着屏幕串门的朋友们</p>
+
+      <div class="section-h">常 来 常 往</div>
+      <div class="friend-grid">
+        <a href="#" class="friend"><span class="initial">L</span><div><b>Leo 的小站</b><span>记录生活与代码的日常</span></div></a>
+        <a href="#" class="friend"><span class="initial">P</span><div><b>Pnnk</b><span>摄影、旅行与一点点哲学</span></div></a>
+        <a href="#" class="friend"><span class="initial">柒</span><div><b>柒月流火</b><span>一个写字的人</span></div></a>
+        <a href="#" class="friend"><span class="initial">风</span><div><b>风起于青萍之末的很长很长的站名</b><span>前端 / 设计 / 独立开发</span></div></a>
+      </div>
+
+      <div class="section-h">朋 友 近 况</div>
+      <div class="feed-item"><span class="who">Leo</span><a href="#">用 Rust 重写了我的 RSS 阅读器</a><time>2 天前</time></div>
+      <div class="feed-item"><span class="who">Pnnk</span><a href="#">六月胶片集：南方的雨季</a><time>5 天前</time></div>
+      <div class="feed-item"><span class="who">柒月流火</span><a href="#">读《夜航西飞》</a><time>1 周前</time></div>
+
+      <div class="section-h">申 请 友 链</div>
+      <form class="apply-form" onsubmit="return false;">
+        <div><label for="f-name">站点名称</label><input id="f-name" type="text" placeholder="子夜集" /></div>
+        <div><label for="f-url">站点地址</label><input id="f-url" type="url" placeholder="https://" /></div>
+        <div><label for="f-avatar">头像链接</label><input id="f-avatar" type="url" placeholder="https://…/avatar.png" /></div>
+        <div><label for="f-mail">联系邮箱</label><input id="f-mail" type="email" placeholder="用于互链通知" /></div>
+        <div class="full"><label for="f-desc">一句话介绍</label><textarea id="f-desc" rows="2" placeholder="介绍一下你的小站"></textarea></div>
+        <div class="full" style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:.74rem;color:var(--muted);letter-spacing:1px;">提交后进入待审核状态，通过后会收到邮件通知</span>
+          <button class="submit-btn" type="submit">提 交</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ======== 关于 ======== -->
+    <section class="page" id="page-about">
+      <div class="about-head">
+        <img src="design-assets/leo-avatar.png" alt="里奥的头像" />
+        <div>
+          <h1>里奥 / Leo</h1>
+          <p>写字的、写歌的、写代码的、做交易的</p>
+        </div>
+      </div>
+
+      <div class="prose">
+        <blockquote>金黄色的树林里分出两条路，可惜我们不能同时去涉足。</blockquote>
+        <p>你好，欢迎来到小屋，请坐。我是里奥，你也可以叫我蓝冰。这是我的第四个博客——从 typecho 到 Halo，再到 Hexo，兜兜转转又回到了 typecho。写作对我来说是向内求索的过程，我担心自己正在失去对生活的感知力，所以想把更多观察写下来。</p>
+        <p>我喜欢博客这种形式：深度、自主和真实。这也是我人生哲学的三个关键词。在这里没有算法，没有点赞量的压力，有的是纯粹的分享和对话——和过去的自己对话，和未来的自己对话，和你们，我的朋友们，对话。</p>
+        <p>如果你愿意读一读我的小文章，亦或者愿意评论一二、讨论交流，我真的会无比高兴。谢谢你愿意来！玩得开心！</p>
+      </div>
+
+      <div class="section-h">我 的 项 目</div>
+      <div class="project-tabs" role="tablist">
+        <button class="on" role="tab" aria-selected="true" data-tab="0">图库</button>
+        <button role="tab" aria-selected="false" data-tab="1">海报</button>
+        <button role="tab" aria-selected="false" data-tab="2">备份</button>
+      </div>
+      <div class="project-panel" id="projectPanel">
+        <b>TEMediaFolder</b>
+        <p class="desc">一个支持本地、腾讯 COS、阿里云 OSS 和兰空图床的 Typecho 图片预览插件。</p>
+        <p class="link">项目地址：<a href="#">github.com/senyu/TEMediaFolder</a></p>
+      </div>
+
+      <div class="section-h">找 到 我</div>
+      <div class="social-row">
+        <a href="#">GitHub</a><a href="#">RSS 订阅</a><a href="#">邮箱</a><a href="#">开往 →</a>
+      </div>
+
+      <div class="section-h">留 言</div>
+      <div class="comment-box">
+        <input type="text" placeholder="游客评论 · 昵称" aria-label="昵称" />
+        <textarea placeholder="写下你的想法…" aria-label="留言内容"></textarea>
+        <div class="comment-box-bar">
+          <div class="left">
+            <button class="icon-btn" aria-label="插入表情"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 10h.01M15 10h.01"/></svg></button>
+          </div>
+          <div class="right">
+            <button class="icon-btn" aria-label="设置评论身份"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg></button>
+            <button class="icon-btn" aria-label="发送留言"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-foot">
+      <div class="foot-freq" aria-hidden="true"></div>
+      <div class="foot-cols">
+        <div class="foot-left">
+          <div class="motto">向内求索，向外生长</div>
+          <div>© 2018–2026 里奥 的子夜集 · 由 Typecho 强力驱动</div>
+          <div class="foot-links">
+            <a href="#">茶ICP备2025090181号</a><span class="dot">·</span><a href="#">萌ICP备20251068号</a>
+          </div>
+        </div>
+        <div class="foot-right">
+          <div class="foot-links">
+            <a href="#">十年之约</a><span class="dot">·</span><a href="#">博友圈</a><span class="dot">·</span><a href="#">个站商店</a>
+          </div>
+          <div class="foot-links">
+            <a href="#">RSS</a><span class="dot">·</span><a href="#" data-nav="archive">归档</a><span class="dot">·</span><a href="#">管理</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+</div>
+
+<!-- 返回顶部 -->
+<button class="to-top" id="toTop" aria-label="返回顶部">
+  <svg class="ring" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+    <circle class="track" cx="22" cy="22" r="20" stroke-width="1.5"/>
+    <circle class="bar" cx="22" cy="22" r="20" stroke-width="1.5" stroke-linecap="round"
+      stroke-dasharray="125.66" stroke-dashoffset="125.66"/>
+  </svg>
+  <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <path d="M12 19V5M5 12l7-7 7 7"/>
+  </svg>
+</button>
+
+<!-- 灯箱 -->
+<div class="lightbox" id="lightbox" role="dialog" aria-label="图片预览">
+  <img src="/placeholder.svg" alt="放大预览的图片" id="lightboxImg" />
+  <span class="hint">点击任意处关闭</span>
+</div>
+
+<script>
+/* ---------- 页面切换：陷下去 / 浮上来 ---------- */
+var switching = false;
+function goto(name) {
+  var next = document.getElementById('page-' + name);
+  var current = document.querySelector('.page.current');
+  if (!next || next === current || switching) return;
+  switching = true;
+  // 更新导航状态
+  document.querySelectorAll('[data-nav]').forEach(function (a) {
+    a.classList.toggle('active', a.getAttribute('data-nav') === name && a.closest('.nav, .mobile-nav'));
+  });
+  document.getElementById('mobileNav').classList.remove('open');
+  current.classList.add('leaving');
+  setTimeout(function () {
+    current.classList.remove('current', 'leaving');
+    next.classList.add('current', 'entering');
+    window.scrollTo({ top: 0 });
+    setTimeout(function () {
+      next.classList.remove('entering');
+      switching = false;
+    }, 430);
+  }, 280);
+}
+document.addEventListener('click', function (e) {
+  var link = e.target.closest('[data-nav]');
+  if (link) { e.preventDefault(); goto(link.getAttribute('data-nav')); }
+});
+
+/* ---------- 返回顶部：滚动进度环 ---------- */
+var toTop = document.getElementById('toTop');
+var ringBar = toTop.querySelector('.bar');
+var RING_LEN = 125.66;
+function updateToTop() {
+  var top = window.scrollY || document.documentElement.scrollTop;
+  var max = document.documentElement.scrollHeight - window.innerHeight;
+  var progress = max > 0 ? Math.min(top / max, 1) : 0;
+  ringBar.style.strokeDashoffset = String(RING_LEN * (1 - progress));
+  toTop.classList.toggle('show', top > 300);
+}
+window.addEventListener('scroll', updateToTop, { passive: true });
+window.addEventListener('resize', updateToTop);
+updateToTop();
+toTop.addEventListener('click', function () {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+/* ---------- 深浅模式 ---------- */
+function toggleTheme() { document.documentElement.classList.toggle('light'); }
+document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+document.getElementById('mThemeBtn').addEventListener('click', toggleTheme);
+
+/* ---------- 移动端菜单 ---------- */
+var mMenuBtn = document.getElementById('mMenuBtn');
+mMenuBtn.addEventListener('click', function () {
+  var nav = document.getElementById('mobileNav');
+  var open = nav.classList.toggle('open');
+  mMenuBtn.setAttribute('aria-expanded', open);
+});
+
+/* ---------- 灯箱 ---------- */
+var lightbox = document.getElementById('lightbox');
+var lightboxImg = document.getElementById('lightboxImg');
+document.addEventListener('click', function (e) {
+  if (e.target.classList && e.target.classList.contains('zoomable')) {
+    lightboxImg.src = e.target.src;
+    lightboxImg.alt = e.target.alt || '放大预览的图片';
+    lightbox.classList.add('open');
+  }
+});
+lightbox.addEventListener('click', function () { lightbox.classList.remove('open'); });
+
+/* ---------- 文章点赞 ---------- */
+var likeBtn = document.getElementById('likeBtn');
+var liked = false;
+likeBtn.addEventListener('click', function () {
+  liked = !liked;
+  likeBtn.classList.toggle('liked', liked);
+  document.getElementById('likeText').textContent = liked ? '喜欢 · 37' : '喜欢 · 36';
+});
+
+/* ---------- 阅读偏好 Aa ---------- */
+var aaBtn = document.getElementById('aaBtn');
+var aaPanel = document.getElementById('aaPanel');
+var prose = document.getElementById('prose');
+aaBtn.addEventListener('click', function () {
+  var open = aaPanel.classList.toggle('open');
+  aaBtn.setAttribute('aria-expanded', open);
+});
+aaPanel.addEventListener('click', function (e) {
+  var b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.size) {
+    prose.classList.remove('size-s', 'size-l');
+    if (b.dataset.size !== 'm') prose.classList.add('size-' + b.dataset.size);
+    b.parentElement.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+  }
+  if (b.dataset.line) {
+    prose.classList.toggle('loose', b.dataset.line === 'loose');
+    b.parentElement.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+  }
+  if (b.id === 'aaReset') {
+    prose.classList.remove('size-s', 'size-l', 'loose');
+    aaPanel.querySelectorAll('.aa-group button').forEach(function (x) {
+      x.classList.toggle('on', x.dataset.size === 'm' || x.dataset.line === 'normal');
+    });
+  }
+});
+
+/* ---------- 代码复制 ---------- */
+document.querySelectorAll('[data-copy]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var code = btn.closest('.codeblock').querySelector('code').textContent;
+    navigator.clipboard && navigator.clipboard.writeText(code);
+    btn.textContent = '已复制 ✓';
+    setTimeout(function () { btn.textContent = '复制代码'; }, 1600);
+  });
+});
+
+/* ---------- 关于页项目 Tab ---------- */
+var projects = [
+  { name: 'TEMediaFolder', desc: '一个支持本地、腾讯 COS、阿里云 OSS 和兰空图床的 Typecho 图片预览插件。', link: 'github.com/senyu/TEMediaFolder' },
+  { name: 'PosterCraft', desc: '把文章一键生成分享海报的小工具，支持自定义模板与二维码。', link: 'github.com/senyu/PosterCraft' },
+  { name: 'TypeBackup', desc: '定时备份 Typecho 数据库与附件到对象存储，睡个安稳觉。', link: 'github.com/senyu/TypeBackup' }
+];
+document.querySelectorAll('.project-tabs button').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.project-tabs button').forEach(function (x) {
+      x.classList.remove('on'); x.setAttribute('aria-selected', 'false');
+    });
+    tab.classList.add('on'); tab.setAttribute('aria-selected', 'true');
+    var p = projects[+tab.dataset.tab];
+    document.getElementById('projectPanel').innerHTML =
+      '<b>' + p.name + '</b><p class="desc">' + p.desc + '</p><p class="link">项目地址：<a href="#">' + p.link + '</a></p>';
+  });
+});
+</script>
+</body>
+</html>

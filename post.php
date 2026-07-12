@@ -103,12 +103,16 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
             <img src="<?php echo htmlspecialchars($thumbnail, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->title(); ?>" class="article-hero" loading="eager" fetchpriority="high" decoding="async" width="1200" height="675">
             <?php endif; ?>
 
+            <?php if ($qiwiShowToc): ?>
+            <nav class="article-toc" aria-label="文章目录"></nav>
+            <?php endif; ?>
+
             <!-- 文章内容 -->
             <div class="article-body" itemprop="articleBody">
                 <?php qiwiContent($this); ?>
             </div>
 
-            <section class="post-reactions" aria-label="文章反馈">
+            <section class="post-reactions<?php if ($qiwiPostLiked): ?> is-liked<?php endif; ?>" aria-label="文章反馈">
                 <button
                     type="button"
                     class="post-like-button<?php if ($qiwiPostLiked): ?> is-liked has-count<?php endif; ?>"
@@ -122,7 +126,7 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                 </button>
 
                 <?php if ($qiwiPostSupportVisible): ?>
-                <div class="post-support" data-post-support<?php if (!$qiwiPostLiked): ?> hidden<?php endif; ?>>
+                <div class="post-support" data-post-support>
                     <button type="button" class="post-support-button" aria-haspopup="true" aria-expanded="false">
                         <i class="fa-solid fa-mug-hot" aria-hidden="true"></i>
                         <span>支持作者</span>
@@ -140,9 +144,11 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
             <section class="post-endnote" aria-label="文章附注">
                 <?php if ($qiwiCopyrightHtml !== ''): ?>
                 <div class="post-copyright">
-                    <div class="post-endnote-label">Copyright</div>
-                    <div class="post-copyright-body">
-                        <?php echo $qiwiCopyrightHtml; ?>
+                    <div class="post-copyright-sheet">
+                        <div class="post-endnote-label">Copyright</div>
+                        <div class="post-copyright-body">
+                            <?php echo $qiwiCopyrightHtml; ?>
+                        </div>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -194,10 +200,6 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
         <?php endif; ?>
     </div>
 
-    <?php if ($qiwiShowToc): ?>
-    <!-- 文章目录 -->
-    <nav class="article-toc" aria-label="文章目录"></nav>
-    <?php endif; ?>
 </div>
 
 <?php $this->need('footer.php'); ?>

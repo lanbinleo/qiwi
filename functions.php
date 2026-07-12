@@ -28,22 +28,57 @@ if (!function_exists('qiwiGetFieldValue')) {
     }
 }
 
+if (!function_exists('qiwiGetCaptchaProvider')) {
+    function qiwiGetCaptchaProvider()
+    {
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            $activated = isset($options->plugins['activated']) && is_array($options->plugins['activated'])
+                ? $options->plugins['activated']
+                : array();
+
+            if (!empty($activated['QiwiCap'])
+                && class_exists('QiwiCap_Plugin')
+                && method_exists('QiwiCap_Plugin', 'commentCaptchaRender')) {
+                return 'QiwiCap';
+            }
+
+            if (!empty($activated['Geetest'])
+                && class_exists('Geetest_Plugin')
+                && method_exists('Geetest_Plugin', 'commentCaptchaRender')) {
+                return 'Geetest';
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return '';
+    }
+}
+
 if (!function_exists('qiwiCanRenderCaptcha')) {
     function qiwiCanRenderCaptcha()
     {
-        if (!class_exists('Geetest_Plugin') || !method_exists('Geetest_Plugin', 'commentCaptchaRender')) {
+        $provider = qiwiGetCaptchaProvider();
+        if ($provider === 'QiwiCap') {
+            try {
+                return method_exists('QiwiCap_Plugin', 'canRenderCommentCaptcha')
+                    ? QiwiCap_Plugin::canRenderCommentCaptcha()
+                    : true;
+            } catch (Exception $e) {
+                return false;
+            } catch (Throwable $e) {
+                return false;
+            }
+        }
+
+        if ($provider !== 'Geetest') {
             return false;
         }
 
         try {
-            $options = Typecho_Widget::widget('Widget_Options');
-            if (empty($options->plugins['activated']['Geetest'])) {
-                return false;
-            }
-
             $pluginOptions = Helper::options()->plugin('Geetest');
-            $enabledPages = isset($pluginOptions->isOpenGeetestPage) ? $pluginOptions->isOpenGeetestPage : [];
-
+            $enabledPages = isset($pluginOptions->isOpenGeetestPage) ? $pluginOptions->isOpenGeetestPage : array();
             return is_array($enabledPages) && in_array('typechoComment', $enabledPages, true);
         } catch (Exception $e) {
             return false;
@@ -56,11 +91,16 @@ if (!function_exists('qiwiCanRenderCaptcha')) {
 if (!function_exists('qiwiRenderCaptcha')) {
     function qiwiRenderCaptcha()
     {
-        if (!qiwiCanRenderCaptcha()) {
+        $provider = qiwiGetCaptchaProvider();
+        if ($provider === '' || !qiwiCanRenderCaptcha()) {
             return false;
         }
 
         try {
+            if ($provider === 'QiwiCap') {
+                return QiwiCap_Plugin::commentCaptchaRender() !== false;
+            }
+
             Geetest_Plugin::commentCaptchaRender();
             return true;
         } catch (Exception $e) {
@@ -575,7 +615,34 @@ function themeConfig($form)
 
     $form->addInput($logoUrl);
 
-    // Captcha Script 是否安装 Qiwi GTest 插件并启用；单选题
+    $v2EnglishTitle = new Typecho_Widget_Helper_Form_Element_Text(
+        'v2EnglishTitle',
+        null,
+        'QIWI JOURNAL',
+        _t('V2 侧栏 - 英文站名'),
+        _t('显示在中文站名下方，例如 QIWI JOURNAL。')
+    );
+    $form->addInput($v2EnglishTitle);
+
+    $v2SidebarSlogan = new Typecho_Widget_Helper_Form_Element_Text(
+        'v2SidebarSlogan',
+        null,
+        '向内求索 · ON AIR',
+        _t('V2 侧栏 - Slogan'),
+        _t('显示在侧栏站标底部的短句。')
+    );
+    $form->addInput($v2SidebarSlogan);
+
+    $v2FooterMotto = new Typecho_Widget_Helper_Form_Element_Text(
+        'v2FooterMotto',
+        null,
+        '向内求索，向外生长',
+        _t('V2 页脚 - Motto'),
+        _t('显示在页脚 Frequency 下方。')
+    );
+    $form->addInput($v2FooterMotto);
+
+    // 验证码由 Qiwi CAP 或兼容的 Qiwi GTest 伴生插件提供。
     $enabledCaptcha = new Typecho_Widget_Helper_Form_Element_Radio(
         'enabledCaptcha',
         array(
@@ -584,7 +651,7 @@ function themeConfig($form)
         ),
         '0',
         _t('启用验证码'),
-        _t('如果你已经安装并启用了 Qiwi GTest 插件，可以选择启用验证码功能。')
+        _t('安装并配置 Qiwi CAP（推荐）或 Qiwi GTest 后启用。两个验证码插件不能同时运行。')
     );
 
     $form->addInput($enabledCaptcha);
@@ -681,7 +748,7 @@ function themeConfig($form)
               0 => _t('关闭')),
         1,
         _t('开往（Travellings）'),
-        _t('在顶部导航栏显示"开往"链接，默认启用')
+        _t('在 V2 页脚显示“开往”链接，默认启用。')
     );
     $form->addInput($enableTravellings);
 
@@ -751,94 +818,6 @@ function themeConfig($form)
         _t('侧边栏展示的最新说说数量，建议 3-6 条。')
     );
     $form->addInput($sidebarMomentCount);
-
-    $homeHeroEyebrow = new Typecho_Widget_Helper_Form_Element_Text(
-        'homeHeroEyebrow',
-        null,
-        '写作 · 技术 · 生活 · 随笔',
-        _t('首页 Hero - 小字标签'),
-        _t('显示在首页大标题上方，建议用短词并以 · 分隔。')
-    );
-    $form->addInput($homeHeroEyebrow);
-
-    $homeHeroLines = new Typecho_Widget_Helper_Form_Element_Textarea(
-        'homeHeroLines',
-        null,
-        "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]",
-        _t('首页 Hero - 轮播句子'),
-        _t('每行一句。支持 [caramel]文字[/caramel]、[red]、[orange]、[yellow]、[green]、[cyan]、[blue]、[purple] 标注高亮。')
-    );
-    $form->addInput($homeHeroLines);
-
-    $homeHeroQuote = new Typecho_Widget_Helper_Form_Element_Textarea(
-        'homeHeroQuote',
-        null,
-        null,
-        _t('首页 Hero - 简短说明'),
-        _t('显示在首页 Hero 大标题下方。留空时兼容旧版“关于页面简介”。')
-    );
-    $form->addInput($homeHeroQuote);
-
-    $homeHeroSwitchInterval = new Typecho_Widget_Helper_Form_Element_Text(
-        'homeHeroSwitchInterval',
-        null,
-        '5200',
-        _t('首页 Hero - 文字切换时间'),
-        _t('单位毫秒。建议 3500-9000，例如 5200。')
-    );
-    $form->addInput($homeHeroSwitchInterval);
-
-    $homeHeroTypingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
-        'homeHeroTypingSpeed',
-        null,
-        '92',
-        _t('首页 Hero - 打字速度'),
-        _t('单位毫秒，每个字符出现的间隔。仅打字机模式生效，建议 60-160。')
-    );
-    $form->addInput($homeHeroTypingSpeed);
-
-    $homeHeroDeletingSpeed = new Typecho_Widget_Helper_Form_Element_Text(
-        'homeHeroDeletingSpeed',
-        null,
-        '24',
-        _t('首页 Hero - 删除速度'),
-        _t('单位毫秒，每个字符删除的间隔。仅打字机模式生效，建议 15-80。')
-    );
-    $form->addInput($homeHeroDeletingSpeed);
-
-    $homeHeroTypingPause = new Typecho_Widget_Helper_Form_Element_Text(
-        'homeHeroTypingPause',
-        null,
-        '220',
-        _t('首页 Hero - 空白停顿'),
-        _t('单位毫秒。删除完上一句后，空一小会儿再打出下一句。仅打字机模式生效。')
-    );
-    $form->addInput($homeHeroTypingPause);
-
-    $homeHeroAnimation = new Typecho_Widget_Helper_Form_Element_Radio(
-        'homeHeroAnimation',
-        array(
-            'fade' => _t('淡入淡出'),
-            'typewriter' => _t('打字机（先快速删除，再打出）'),
-        ),
-        'fade',
-        _t('首页 Hero - 切换方式'),
-        _t('打字机模式会先较快删除上一句，再逐字打出下一句；动效关闭偏好下会自动停用切换。')
-    );
-    $form->addInput($homeHeroAnimation);
-
-    $homeHeroHitokotoMode = new Typecho_Widget_Helper_Form_Element_Radio(
-        'homeHeroHitokotoMode',
-        array(
-            'list' => _t('列表轮播'),
-            'loop-hitokoto' => _t('列表循环，并隔条插入一言'),
-            'hitokoto-after-list' => _t('列表播完一遍后切换为一言'),
-        ),
-        'list',
-        _t('首页 Hero - 一言模式'),
-        _t('一言来自 hitokoto 接口；接口失败时会继续显示本地列表。')
-    );
-    $form->addInput($homeHeroHitokotoMode);
 
     // 关于页面信息
     $aboutBio = new Typecho_Widget_Helper_Form_Element_Text('aboutBio', null, null, _t('关于页面 - 简介'), _t('在这里填写你的简介，将显示在关于页面的个人信息卡片中'));
@@ -2584,11 +2563,58 @@ if (!function_exists('qiwiCommentSafeUrl')) {
     }
 }
 
+if (!function_exists('qiwiRenderCommentParagraphs')) {
+    function qiwiRenderCommentParagraphs($html)
+    {
+        $html = trim(str_replace(["\r\n", "\r"], "\n", (string) $html));
+        if ($html === '') {
+            return '';
+        }
+
+        $paragraphs = preg_split('/[ \t]*\n+[ \t]*/u', $html, -1, PREG_SPLIT_NO_EMPTY);
+        return '<p>' . implode('</p><p>', $paragraphs) . '</p>';
+    }
+}
+
+if (!function_exists('qiwiGetCommentStickerPacks')) {
+    function qiwiGetCommentStickerPacks()
+    {
+        return array(
+            'heo' => array(
+                'id' => 'heo',
+                'label' => 'Heo',
+                'source' => 'https://cdn.jsdelivr.net/npm/sticker-heo@2022.7.5/twikoo.json',
+                'assetBase' => 'https://cdn.jsdelivr.net/npm/sticker-heo@2022.7.5/Sticker-100/',
+                'extension' => '.png',
+            ),
+        );
+    }
+}
+
+if (!function_exists('qiwiRenderCommentStickers')) {
+    function qiwiRenderCommentStickers($html)
+    {
+        $packs = qiwiGetCommentStickerPacks();
+
+        return preg_replace_callback('/\[sticker:([a-z0-9_-]+)\/([^\]\r\n]{1,80})\]/iu', function ($matches) use ($packs) {
+            $packId = strtolower($matches[1]);
+            $name = trim(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if (!isset($packs[$packId]) || $name === '' || preg_match('~[\x00-\x1F\x7F/\\\\]~u', $name)) {
+                return $matches[0];
+            }
+
+            $pack = $packs[$packId];
+            $url = $pack['assetBase'] . rawurlencode($name) . $pack['extension'];
+            return '<img src="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" alt="' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" title="' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" class="comment-sticker" loading="lazy" decoding="async">';
+        }, $html);
+    }
+}
+
 if (!function_exists('qiwiRenderPlainCommentContent')) {
     function qiwiRenderPlainCommentContent($text)
     {
         $text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        return nl2br($text, false);
+        return qiwiRenderCommentParagraphs(qiwiRenderCommentStickers($text));
     }
 }
 
@@ -2618,7 +2644,7 @@ if (!function_exists('qiwiRenderTrustedCommentContent')) {
             return '<a href="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '"' . $target . '>' . $matches[1] . '</a>';
         }, $html);
 
-        return nl2br($html, false);
+        return qiwiRenderCommentParagraphs(qiwiRenderCommentStickers($html));
     }
 }
 
@@ -2791,100 +2817,6 @@ if (!function_exists('qiwiNormalizeSidebarEmailUrl')) {
         }
 
         return stripos($value, 'mailto:') === 0 ? $value : 'mailto:' . $value;
-    }
-}
-
-if (!function_exists('qiwiGetHomeHeroColorNames')) {
-    function qiwiGetHomeHeroColorNames()
-    {
-        return ['caramel', 'red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
-    }
-}
-
-if (!function_exists('qiwiRenderHomeHeroLine')) {
-    function qiwiRenderHomeHeroLine($line)
-    {
-        $line = trim((string) $line);
-        if ($line === '') {
-            return '';
-        }
-
-        $colors = implode('|', qiwiGetHomeHeroColorNames());
-        $pattern = '/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu';
-        $html = '';
-        $offset = 0;
-
-        if (preg_match_all($pattern, $line, $matches, PREG_OFFSET_CAPTURE)) {
-            foreach ($matches[0] as $index => $match) {
-                $start = $match[1];
-                $length = strlen($match[0]);
-                if ($start > $offset) {
-                    $html .= htmlspecialchars(substr($line, $offset, $start - $offset), ENT_QUOTES, 'UTF-8');
-                }
-
-                $color = strtolower($matches[1][$index][0]);
-                $text = $matches[2][$index][0];
-                $html .= '<span class="home-hero-accent home-hero-accent-' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '">'
-                    . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</span>';
-                $offset = $start + $length;
-            }
-        }
-
-        if ($offset < strlen($line)) {
-            $html .= htmlspecialchars(substr($line, $offset), ENT_QUOTES, 'UTF-8');
-        }
-
-        return $html !== '' ? $html : htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
-    }
-}
-
-if (!function_exists('qiwiStripHomeHeroMarks')) {
-    function qiwiStripHomeHeroMarks($line)
-    {
-        $colors = implode('|', qiwiGetHomeHeroColorNames());
-        return trim(preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', (string) $line));
-    }
-}
-
-if (!function_exists('qiwiGetHomeHeroItems')) {
-    function qiwiGetHomeHeroItems($widget)
-    {
-        $raw = (string) qiwiGetOptionValue($widget, 'homeHeroLines', '');
-        if (trim($raw) === '') {
-            $raw = "把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]";
-        }
-
-        $items = [];
-        foreach (preg_split('/\R/u', $raw) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-
-            $html = qiwiRenderHomeHeroLine($line);
-            if ($html === '') {
-                continue;
-            }
-
-            $items[] = [
-                'html' => $html,
-                'text' => qiwiStripHomeHeroMarks($line),
-            ];
-
-            if (count($items) >= 16) {
-                break;
-            }
-        }
-
-        if (empty($items)) {
-            $title = trim((string) qiwiGetOptionValue($widget, 'title', 'Qiwi'));
-            $items[] = [
-                'html' => htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
-                'text' => $title,
-            ];
-        }
-
-        return $items;
     }
 }
 
@@ -3296,14 +3228,12 @@ if (!function_exists('qiwiGetCommentAvatarUrl')) {
     {
         $mail = strtolower(trim((string) $mail));
         $size = max(24, min(160, (int) $size));
-        $default = 'mp';
 
         if (preg_match('/^([1-9][0-9]{4,11})@qq\.com$/i', $mail, $matches)) {
-            $qqAvatar = 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100';
-            $default = rawurlencode($qqAvatar);
+            return 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100';
         }
 
-        return 'https://gravatar.loli.net/avatar/' . md5($mail) . '?s=' . $size . '&d=' . $default;
+        return 'https://gravatar.loli.net/avatar/' . md5($mail) . '?s=' . $size . '&d=mp';
     }
 }
 

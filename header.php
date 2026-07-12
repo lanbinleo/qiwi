@@ -94,7 +94,7 @@ $qiwiTitlePrefix = $qiwiCapture(function () {
     ], '', ' - ');
 });
 $qiwiSingleTitle = $this->is('single') ? $qiwiCapture(function () { $this->title(); }) : '';
-$qiwiPageTitle = $qiwiTitlePrefix . $qiwiSiteTitle;
+$qiwiPageTitle = $qiwiTitlePrefix !== '' ? $qiwiTitlePrefix . ' ' . $qiwiSiteTitle : $qiwiSiteTitle;
 if ($this->is('single') && $qiwiSingleTitle !== '' && strpos($qiwiTitlePrefix, $qiwiSingleTitle) === false) {
     $qiwiPageTitle = $qiwiSingleTitle . ' - ' . $qiwiSiteTitle;
 }
@@ -172,8 +172,10 @@ if ($qiwiIsArticle) {
     ];
 }
 
-$qiwiStyleVersion = @filemtime(__DIR__ . '/assets/css/style.css');
-$qiwiStyleAsset = 'assets/css/style.css' . ($qiwiStyleVersion ? '?v=' . $qiwiStyleVersion : '');
+$qiwiV2StyleVersion = @filemtime(__DIR__ . '/assets/css/v2.css');
+$qiwiV2StyleAsset = 'assets/css/v2.css' . ($qiwiV2StyleVersion ? '?v=' . $qiwiV2StyleVersion : '');
+$qiwiReadingFontVersion = @filemtime(__DIR__ . '/assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css');
+$qiwiReadingFontAsset = 'assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css' . ($qiwiReadingFontVersion ? '?v=' . $qiwiReadingFontVersion : '');
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($qiwiLang, ENT_QUOTES, 'UTF-8'); ?>">
@@ -182,9 +184,11 @@ $qiwiStyleAsset = 'assets/css/style.css' . ($qiwiStyleVersion ? '?v=' . $qiwiSty
     <meta name="renderer" content="webkit">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($qiwiPageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
+    <script>(function(){document.documentElement.classList.add('js');try{var t=localStorage.getItem('theme-preference')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiStyleAsset), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiReadingFontAsset), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiV2StyleAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <?php if ($qiwiUseFontAwesome): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <?php endif; ?>
@@ -240,78 +244,78 @@ $qiwiStyleAsset = 'assets/css/style.css' . ($qiwiStyleVersion ? '?v=' . $qiwiSty
     <!-- Typecho Header -->
     <?php $this->header(); ?>
 </head>
-<body>
+<body class="qiwi-v2">
 
 <?php
-$qiwiNavbarAvatar = trim((string) $this->options->logoUrl);
-$qiwiHomePostsUrl = rtrim((string) $this->options->siteUrl, '/') . '/#all-posts';
+$qiwiNavbarAvatar = function_exists('qiwiGetSidebarProfileAvatar')
+    ? trim((string) qiwiGetSidebarProfileAvatar($this))
+    : trim((string) $this->options->logoUrl);
+$qiwiHomePostsUrl = rtrim((string) $this->options->siteUrl, '/') . '/';
+$qiwiSiteDescription = trim((string) $this->options->description);
+$qiwiEnglishTitle = trim((string) qiwiGetOptionValue($this, 'v2EnglishTitle', 'QIWI JOURNAL'));
+$qiwiSidebarSlogan = trim((string) qiwiGetOptionValue($this, 'v2SidebarSlogan', '向内求索 · ON AIR'));
+$qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePostsUrl) {
+    $prefix = $mobile ? 'mobile' : 'desktop';
+    ?>
+    <a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current" aria-current="page"<?php endif; ?>>首页</a>
+    <?php foreach ($qiwiNavItems as $index => $item): ?>
+        <?php
+        $children = isset($item['children']) ? (array) $item['children'] : [];
+        $isCurrent = !empty($item['slug']) && $this->is('page', $item['slug']);
+        foreach ($children as $child) {
+            if (!empty($child['slug']) && $this->is('page', $child['slug'])) {
+                $isCurrent = true;
+                break;
+            }
+        }
+        ?>
+        <div class="v2-nav-item<?php if (!empty($children)): ?> has-children<?php endif; ?>">
+            <div class="v2-nav-row">
+                <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current" aria-current="page"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?></a>
+                <?php if (!empty($children)): ?>
+                <button class="v2-submenu-toggle" type="button" aria-expanded="false" aria-controls="<?php echo $prefix; ?>-submenu-<?php echo (int) $index; ?>" aria-label="展开 <?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?> 子菜单">⌄</button>
+                <?php endif; ?>
+            </div>
+            <?php if (!empty($children)): ?>
+            <div class="v2-submenu" id="<?php echo $prefix; ?>-submenu-<?php echo (int) $index; ?>" hidden>
+                <?php foreach ($children as $child): ?>
+                <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current" aria-current="page"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?></a>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    <?php endforeach; ?>
+    <?php
+};
 ?>
 
-<!-- 顶部导航栏 -->
-<nav class="navbar" aria-label="主导航">
-    <div class="navbar-inner">
-        <div class="navbar-title">
-            <a href="<?php $this->options->siteUrl(); ?>">
-                <?php if ($qiwiNavbarAvatar !== ''): ?>
-                    <img class="navbar-avatar" src="<?php echo htmlspecialchars($qiwiNavbarAvatar, ENT_QUOTES, 'UTF-8'); ?>" alt="" loading="lazy" decoding="async">
-                <?php endif; ?>
-                <?php $this->options->title(); ?>
-            </a>
-        </div>
-        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation-menu" aria-label="切换导航菜单">
-            <span class="nav-toggle-bar"></span>
-            <span class="nav-toggle-bar"></span>
-            <span class="nav-toggle-bar"></span>
-        </button>
-        <ul class="nav-links" id="site-navigation-menu">
-            <li><a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current"<?php endif; ?>>首页</a></li>
-
-            <?php $qiwiNavIndex = 0; ?>
-            <?php foreach ($qiwiNavItems as $item): ?>
-                <?php
-                    $qiwiNavIndex++;
-                    $children = isset($item['children']) ? (array) $item['children'] : [];
-                    $hasChildren = !empty($children);
-                    $isCurrent = !empty($item['slug']) && $this->is('page', $item['slug']);
-                    foreach ($children as $child) {
-                        if (!empty($child['slug']) && $this->is('page', $child['slug'])) {
-                            $isCurrent = true;
-                            break;
-                        }
-                    }
-                ?>
-                <li<?php if ($hasChildren): ?> class="nav-item-has-children"<?php endif; ?>>
-                    <?php if ($hasChildren): ?>
-                    <div class="nav-item-row">
-                    <?php endif; ?>
-                    <a href="<?php echo htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if ($isCurrent): ?> class="current"<?php endif; ?><?php if ($item['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($item['icon'])): ?><i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($hasChildren): ?> <span class="nav-caret" aria-hidden="true"></span><?php endif; ?></a>
-                    <?php if ($hasChildren): ?>
-                    <button class="nav-submenu-toggle" type="button" aria-expanded="false" aria-controls="nav-submenu-<?php echo (int) $qiwiNavIndex; ?>" aria-label="展开 <?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?> 子菜单">
-                        <span class="nav-caret" aria-hidden="true"></span>
-                    </button>
-                    </div>
-                    <ul class="nav-submenu" id="nav-submenu-<?php echo (int) $qiwiNavIndex; ?>">
-                        <?php foreach ($children as $child): ?>
-                            <li>
-                                <a href="<?php echo htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php if (!empty($child['slug']) && $this->is('page', $child['slug'])): ?> class="current"<?php endif; ?><?php if ($child['external']): ?> target="_blank" rel="noopener noreferrer"<?php endif; ?>><?php if (!empty($child['icon'])): ?><i class="<?php echo htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i> <?php endif; ?><?php echo htmlspecialchars($child['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php endif; ?>
-                </li>
-            <?php endforeach; ?>
-
-            <?php if ($this->options->enableTravellings == 1): ?>
-            <li>
-                <a href="https://www.travellings.cn/go.html" target="_blank" rel="noopener noreferrer" title="开往-友链接力">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="14" height="14" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;">
-                        <path d="M0 96C0 43 43 0 96 0L288 0c53 0 96 43 96 96l0 256c0 40.1-24.6 74.5-59.5 88.8l53.9 63.7c8.6 10.1 7.3 25.3-2.8 33.8s-25.3 7.3-33.8-2.8l-74-87.5-151.3 0-74 87.5c-8.6 10.1-23.7 11.4-33.8 2.8s-11.4-23.7-2.8-33.8l53.9-63.7C24.6 426.5 0 392.1 0 352L0 96zm64 32l0 96c0 17.7 14.3 32 32 32l72 0 0-160-72 0c-17.7 0-32 14.3-32 32zM216 256l72 0c17.7 0 32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-72 0 0 160zM96 384a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm224-32a32 32 0 1 0 -64 0 32 32 0 1 0 64 0z"/>
-                    </svg>开往
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <li><button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="切换主题">◐</button></li>
-        </ul>
+<header class="v2-mobile-bar">
+    <a class="v2-mobile-title" href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>
+    <div class="v2-mobile-actions">
+        <button class="theme-toggle v2-icon-button" type="button" onclick="toggleTheme(event)" aria-label="切换主题">◐</button>
+        <button class="v2-menu-toggle v2-icon-button" type="button" aria-expanded="false" aria-controls="v2-mobile-nav" aria-label="打开菜单">☰</button>
     </div>
+</header>
+
+<nav class="v2-mobile-nav" id="v2-mobile-nav" aria-label="移动端导航" hidden>
+    <?php $qiwiRenderNavItems(true); ?>
 </nav>
+
+<div class="v2-shell">
+    <aside class="v2-side">
+        <nav class="v2-nav" aria-label="主导航">
+            <?php $qiwiRenderNavItems(false); ?>
+        </nav>
+        <div class="v2-side-tools">
+            <button class="theme-toggle v2-theme-button" type="button" onclick="toggleTheme(event)" aria-label="切换主题">◐</button>
+        </div>
+        <div class="v2-side-logo">
+            <?php if ($qiwiNavbarAvatar !== ''): ?>
+            <img class="v2-side-avatar" src="<?php echo htmlspecialchars($qiwiNavbarAvatar, ENT_QUOTES, 'UTF-8'); ?>" alt="" loading="lazy" decoding="async">
+            <?php endif; ?>
+            <a class="v2-side-title" href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>
+            <?php if ($qiwiEnglishTitle !== ''): ?><div class="v2-side-english"><?php echo htmlspecialchars($qiwiEnglishTitle, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+            <?php if ($qiwiSidebarSlogan !== ''): ?><p class="v2-side-slogan"><?php echo htmlspecialchars($qiwiSidebarSlogan, ENT_QUOTES, 'UTF-8'); ?></p><?php elseif ($qiwiSiteDescription !== ''): ?><p class="v2-side-slogan"><?php echo htmlspecialchars($qiwiSiteDescription, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
+        </div>
+    </aside>
+    <main id="qiwi-pjax" class="v2-main" tabindex="-1">

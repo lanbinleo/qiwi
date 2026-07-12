@@ -18,6 +18,10 @@ $this->need('header.php');
                 <h1 class="article-header-title"><?php $this->title(); ?></h1>
             </header>
 
+            <?php if ($qiwiShowToc): ?>
+            <nav class="article-toc" aria-label="页面目录"></nav>
+            <?php endif; ?>
+
             <div class="article-body">
                 <?php qiwiContent($this); ?>
             </div>
@@ -30,11 +34,6 @@ $this->need('header.php');
         </div>
         <?php endif; ?>
     </div>
-
-    <?php if ($qiwiShowToc): ?>
-    <!-- 页面目录 -->
-    <nav class="article-toc" aria-label="页面目录"></nav>
-    <?php endif; ?>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

@@ -2447,22 +2447,6 @@
     }
 
     function enhanceSpecialTextareas() {
-        enhanceMarkupTextarea('homeHeroLines', {
-            groups: [{
-                label: '颜色标记',
-                items: [
-                    { label: '焦糖', swatch: 'caramel', before: '[caramel]', after: '[/caramel]', placeholder: '文字' },
-                    { label: '红色', swatch: 'red', before: '[red]', after: '[/red]', placeholder: '文字' },
-                    { label: '橙色', swatch: 'orange', before: '[orange]', after: '[/orange]', placeholder: '文字' },
-                    { label: '黄色', swatch: 'yellow', before: '[yellow]', after: '[/yellow]', placeholder: '文字' },
-                    { label: '绿色', swatch: 'green', before: '[green]', after: '[/green]', placeholder: '文字' },
-                    { label: '青色', swatch: 'cyan', before: '[cyan]', after: '[/cyan]', placeholder: '文字' },
-                    { label: '蓝色', swatch: 'blue', before: '[blue]', after: '[/blue]', placeholder: '文字' },
-                    { label: '紫色', swatch: 'purple', before: '[purple]', after: '[/purple]', placeholder: '文字' }
-                ]
-            }]
-        });
-
         enhanceMarkupTextarea('defaultCopyrightInfo', {
             groups: [{
                 label: '短代码',
@@ -2497,16 +2481,10 @@
     }
 
     var CONFIG_FIELD_NAMES = [
-        'homeHeroEyebrow',
-        'homeHeroLines',
-        'homeHeroQuote',
-        'homeHeroSwitchInterval',
-        'homeHeroTypingSpeed',
-        'homeHeroDeletingSpeed',
-        'homeHeroTypingPause',
-        'homeHeroAnimation',
-        'homeHeroHitokotoMode',
         'logoUrl',
+        'v2EnglishTitle',
+        'v2SidebarSlogan',
+        'v2FooterMotto',
         'enableTravellings',
         'sidebarProfileAvatar',
         'sidebarProfileText',
@@ -2544,14 +2522,10 @@
     ];
 
     var RECOMMENDED_DEFAULTS = {
-        homeHeroEyebrow: '写作 · 技术 · 生活 · 随笔',
-        homeHeroLines: '把[caramel]生活[/caramel]写成笔记\n在[green]结构[/green]里寻找回声\n持续记录，[cyan]慢慢理解[/cyan]',
-        homeHeroQuote: '留空时使用“关于页面 - 简介”',
-        homeHeroSwitchInterval: '5200',
-        homeHeroTypingSpeed: '92',
-        homeHeroDeletingSpeed: '24',
-        homeHeroTypingPause: '220',
         logoUrl: '留空时导航栏仅显示站点标题',
+        v2EnglishTitle: 'QIWI JOURNAL',
+        v2SidebarSlogan: '向内求索 · ON AIR',
+        v2FooterMotto: '向内求索，向外生长',
         sidebarProfileAvatar: '留空时使用“关于页面 - 头像”，再留空使用默认头像',
         sidebarProfileText: '留空时使用“关于页面 - 简介”',
         sidebarAnnouncement: '留空时不显示公告区域',
@@ -3397,8 +3371,7 @@
                     '<nav class="qiwi-admin-tabs" role="tablist">' +
                         '<div class="qiwi-admin-nav-group">' +
                             '<span class="qiwi-admin-nav-label">内容呈现</span>' +
-                            '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="home" data-qiwi-title="首页" data-qiwi-desc="Hero、一言与首页动态展示。"><i class="fa-solid fa-house" aria-hidden="true"></i><span>首页</span></button>' +
-                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="nav" data-qiwi-title="导航栏" data-qiwi-desc="顶部导航、外链与二级菜单。"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>导航栏</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="nav" data-qiwi-title="导航栏" data-qiwi-desc="顶部导航、外链与二级菜单。"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>导航栏</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar" data-qiwi-title="侧边栏" data-qiwi-desc="个人信息、社交链接与侧边栏模块。"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>侧边栏</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="templates" data-qiwi-title="页面模板" data-qiwi-desc="常用独立页面正文模板，可一键复制到页面正文。"><i class="fa-regular fa-copy" aria-hidden="true"></i><span>页面模板</span></button>' +
                         '</div>' +
@@ -3422,11 +3395,10 @@
                 '</aside>' +
                 '<main class="qiwi-admin-main">' +
                     '<header class="qiwi-admin-main-head">' +
-                        '<div><strong data-qiwi-current-title>首页</strong><span data-qiwi-current-desc></span></div>' +
+                        '<div><strong data-qiwi-current-title>导航栏</strong><span data-qiwi-current-desc></span></div>' +
                         '<div class="qiwi-admin-head-actions"><button type="button" class="qiwi-admin-button is-primary qiwi-admin-save-button" data-qiwi-save-trigger><i class="fa-regular fa-circle-check" aria-hidden="true"></i>保存设置</button></div>' +
                     '</header>' +
-                    '<section class="qiwi-admin-pane is-active" data-qiwi-pane="home"><div class="qiwi-admin-fields" data-qiwi-home-fields></div></section>' +
-                    '<section class="qiwi-admin-pane" data-qiwi-pane="nav">' +
+                    '<section class="qiwi-admin-pane is-active" data-qiwi-pane="nav">' +
                         '<div class="qiwi-admin-fields" data-qiwi-nav-fields></div>' +
                         '<div class="qiwi-admin-toolbar">' +
                             '<button type="button" class="qiwi-admin-button" data-nav-add="parent"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加主导航</button>' +
@@ -3536,10 +3508,9 @@
 
         navRow.parentNode.insertBefore(panel, navRow);
 
-        moveFields(['homeHeroEyebrow', 'homeHeroLines', 'homeHeroQuote', 'homeHeroSwitchInterval', 'homeHeroAnimation', 'homeHeroTypingSpeed', 'homeHeroDeletingSpeed', 'homeHeroTypingPause', 'homeHeroHitokotoMode'], $('[data-qiwi-home-fields]', panel));
-        moveFields(['logoUrl', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
+        moveFields(['logoUrl', 'v2EnglishTitle', 'v2SidebarSlogan', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
         moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
-        moveFields(['footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));

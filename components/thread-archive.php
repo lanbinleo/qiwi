@@ -147,7 +147,7 @@ $threadStartedAt = trim((string) $threadData['startedAt']);
 $threadStatus = function_exists('qiwiThreadStatusLabel') ? qiwiThreadStatusLabel($threadData['status']) : '连载中';
 ?>
 
-<main class="thread-page">
+<div class="thread-page">
     <div class="thread-shell">
         <a class="thread-back-link" href="<?php $this->options->siteUrl(); ?>">返回首页</a>
 
@@ -256,4 +256,4 @@ $threadStatus = function_exists('qiwiThreadStatusLabel') ? qiwiThreadStatusLabel
             </div>
         <?php endif; ?>
     </div>
-</main>
+</div>
