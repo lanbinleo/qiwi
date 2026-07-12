@@ -561,6 +561,14 @@ HTML;
                 });
             }
 
+            function cleanReconnectedWidget() {
+                if (!widget.shadowRoot) return;
+                ['.captcha-trigger', '.cap-troubleshoot-link', '.credits'].forEach(function (selector) {
+                    var nodes = Array.prototype.slice.call(widget.shadowRoot.querySelectorAll(selector));
+                    nodes.slice(0, -1).forEach(function (node) { node.remove(); });
+                });
+            }
+
             function restoreAfterRelocation(attempt) {
                 if (!widget.isConnected) {
                     if (attempt < 80) relocationTimer = window.setTimeout(function () { restoreAfterRelocation(attempt + 1); }, 25);
@@ -572,6 +580,8 @@ HTML;
                     if (attempt < 80) relocationTimer = window.setTimeout(function () { restoreAfterRelocation(attempt + 1); }, 25);
                     return;
                 }
+
+                cleanReconnectedWidget();
 
                 if (!relocationToken) {
                     relocationPending = false;
