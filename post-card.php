@@ -25,54 +25,37 @@ $postCommentCount = isset($postStats['comments']) ? (int) $postStats['comments']
 $postCategoryLinks = function_exists('qiwiRenderTermLinks')
     ? qiwiRenderTermLinks(isset($this->categories) ? $this->categories : array(), 'meta-category-link', 'category')
     : '';
-
-// 判断是否显示头图
 $showThumbnail = $this->fields->showThumbnail;
-$thumbnail = $this->fields->thumbnail;
-$shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && !empty($thumbnail));
+$thumbnail = trim((string) $this->fields->thumbnail);
+$shouldShowThumbnail = (($showThumbnail == 1 || $showThumbnail == 3) && $thumbnail !== '');
+
 ?>
 
-<li class="article-item">
+<li class="article-item post-item<?php if ($shouldShowThumbnail): ?> has-thumbnail<?php endif; ?>" data-post-url="<?php $this->permalink(); ?>" tabindex="0" aria-label="阅读《<?php $this->title(); ?>》">
     <div class="article-item-inner">
         <div class="article-content">
-            <div class="article-meta">
-                <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?></span>
-                <?php if ($postCategoryLinks !== ''): ?>
-                <span class="meta-category"><?php echo $postCategoryLinks; ?></span>
-                <?php endif; ?>
-                <span><?php echo $readingTime; ?> 分钟阅读</span>
-                <span><?php echo (int) $postViews; ?> 浏览</span>
-                <?php if ($postCommentCount > 0): ?>
-                <span><?php echo (int) $postCommentCount; ?> 评论</span>
-                <?php endif; ?>
-                <?php if ($this->fields->isSticky == 1): ?>
-                <span class="meta-sticky">置顶</span>
-                <?php endif; ?>
+            <div class="post-head">
+                <?php if ($this->fields->isSticky == 1): ?><span class="pin-tag">置顶</span><?php endif; ?>
+                <h2 class="article-title"><a href="<?php $this->permalink(); ?>" class="article-title-link post-title"><?php $this->title(); ?></a></h2>
+                <?php if ($postCategoryLinks !== ''): ?><span class="post-cat"><?php echo $postCategoryLinks; ?></span><?php endif; ?>
             </div>
-            <h2 class="article-title">
-                <a href="<?php $this->permalink(); ?>" class="article-title-link"><?php $this->title(); ?></a>
-            </h2>
-            <p class="article-excerpt">
+            <p class="article-excerpt post-excerpt">
                 <?php
-                $excerptLength = $shouldShowThumbnail ? 85 : 125;
                 if ($this->fields->excerpt) {
                     echo htmlspecialchars(qiwiExtractPlainText($this->fields->excerpt), ENT_QUOTES, 'UTF-8');
                 } else {
-                    // 如果有头图，展示少一些，这样比例更协调
-                    echo htmlspecialchars(qiwiExcerptText($this->content, $excerptLength), ENT_QUOTES, 'UTF-8');
+                    echo htmlspecialchars(qiwiExcerptText($this->content, $shouldShowThumbnail ? 110 : 150), ENT_QUOTES, 'UTF-8');
                 }
                 ?>
             </p>
-            <?php if ($this->tags): ?>
-            <div class="article-tags">
-                <?php echo qiwiRenderTermLinks($this->tags, 'tag', 'stable', 4); ?>
+            <div class="post-foot">
+                <span><?php echo htmlspecialchars(qiwiFormatPostRelativeTime($this->created), ENT_QUOTES, 'UTF-8'); ?> · <?php echo $readingTime; ?> 分钟阅读 · <?php echo (int) $postViews; ?> 浏览<?php if ($postCommentCount > 0): ?> · <?php echo (int) $postCommentCount; ?> 评论<?php endif; ?></span>
+                <a class="read-more" href="<?php $this->permalink(); ?>">阅读全文</a>
             </div>
-            <?php endif; ?>
         </div>
-
         <?php if ($shouldShowThumbnail): ?>
         <div class="article-thumbnail-wrapper">
-            <img src="<?php echo htmlspecialchars($thumbnail, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->title(); ?>" class="article-thumbnail" loading="lazy" decoding="async" width="420" height="236" sizes="(max-width: 768px) 100vw, 30vw">
+            <img src="<?php echo htmlspecialchars($thumbnail, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php $this->title(); ?>" class="article-thumbnail" loading="lazy" decoding="async" width="420" height="236" sizes="(max-width: 560px) 100vw, 180px">
         </div>
         <?php endif; ?>
     </div>

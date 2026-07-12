@@ -8,7 +8,7 @@ require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
  *
  * @package Qiwi GTest
  * @author Leo 里奥
- * @version 1.5.9
+ * @version 2.0.0
  * @link https://bboreo.com/
  * @link http://zsduo.com
  * @link https://ffis.me
@@ -26,6 +26,10 @@ class Geetest_Plugin implements Typecho_Plugin_Interface
      */
     public static function activate()
     {
+        $options = Helper::options();
+        if (!empty($options->plugins['activated']['QiwiCap'])) {
+            throw new Typecho_Plugin_Exception(_t('启用 Qiwi GTest 前请先停用 Qiwi CAP，两个插件不能同时注册评论和登录验证接口。'));
+        }
         // 添加插件动作
         // /action/geetest?do=ajaxResponseCaptchaData
         Helper::addAction('geetest', 'Geetest_Action');

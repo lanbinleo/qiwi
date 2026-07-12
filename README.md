@@ -1,6 +1,6 @@
 # Qiwi Typecho Theme
 
-Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.5`。主题以阅读体验为核心，提供响应式布局、昼夜模式、文章目录、友链页、归档统计、时光机说说、内容短代码和可视化后台配置。
+Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v2.0.0`。主题以窄栏阅读与个人记录为核心，提供响应式布局、昼夜模式、PJAX 页面切换、文章目录、友链页、归档统计、时光机说说、Plog 图集、内容短代码和可视化后台配置。
 
 ![Qiwi 主题截图](docs/screenshot3.png)
 
@@ -18,7 +18,7 @@ Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.5`。
 - Markdown 短代码：彩色文字、高亮标记和折叠面板
 - 归档页写作统计，支持自定义“等价书籍”参考
 - 分类页、标签云、友链页、关于页、时光机页面模板
-- 评论区资料弹窗、验证码接入和友链申请表单
+- 评论区身份下拉编辑、验证码接入和友链申请表单
 - 后台版本检查、更新日志卡片和 Linux 更新脚本
 
 ## 环境要求
@@ -27,11 +27,12 @@ Qiwi 是一个面向 Typecho 的极简博客主题，当前版本为 `v1.5.5`。
 - PHP 版本以当前 Typecho 站点可运行为准
 - 主题无前端构建步骤，上传后即可使用
 
-Qiwi `v1.5.5` 已适配 Typecho `1.3.0`。Typecho 1.3 会把 `routingTable`、`actionTable`、`panelTable` 和插件/主题配置从 PHP serialize 转为 JSON，主题和 `QiwiTheme` 伴生插件已经兼容这两种存储格式。
+Qiwi `v2.0.0` 已适配 Typecho `1.3.0`。Typecho 1.3 会把 `routingTable`、`actionTable`、`panelTable` 和插件/主题配置从 PHP serialize 转为 JSON，主题和 `QiwiTheme` 伴生插件已经兼容这两种存储格式。
 
 可选能力：
 
-- Qiwi GTest 插件：用于评论验证码
+- Qiwi CAP 插件：推荐的自托管 proof-of-work 评论与登录验证码
+- Qiwi GTest 插件：保留用于既有站点迁移，不能与 Qiwi CAP 同时启用
 - Font Awesome：导航图标和时光机图标会按需加载
 - KaTeX：文章或页面检测到 LaTeX 后按需加载
 
@@ -131,7 +132,7 @@ cd '/opt/1panel/apps/typecho/typecho/data/usr/themes/qiwi'
 bash update.sh
 ```
 
-`update.sh` 会拉取当前分支的最新代码，并把主题内置的伴生插件同步到 Typecho 的 `usr/plugins` 目录，包括 `Geetest`、`QiwiCommentMail`、`QiwiSitemap` 和 `QiwiTheme`。
+`update.sh` 会拉取当前分支的最新代码，并把主题内置的伴生插件同步到 Typecho 的 `usr/plugins` 目录，包括 `QiwiCap`、`Geetest`、`QiwiCommentMail`、`QiwiSitemap` 和 `QiwiTheme`。验证码推荐使用 `QiwiCap`；迁移前请先停用 `Geetest`，两个插件不能同时启用。
 
 如果同时升级 Typecho 核心，例如从 `1.2.1` 升级到 `1.3.0`，需要先备份数据库和完整站点目录，再替换 Typecho 核心文件并执行 Typecho 的数据库升级流程。核心升级完成后，再运行上面的 `update.sh`，确保主题和伴生插件版本一致。
 
@@ -156,7 +157,7 @@ bash update.sh
 
 ## Markdown 短代码
 
-Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v1.5.5` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
+Qiwi 从 `v1.3.0` 开始支持正文短代码，当前 `v2.0.0` 可在文章和独立页面正文中使用。短代码会在 Typecho 输出 Markdown/HTML 后再渲染，因此可以和普通 Markdown 混写；代码块和行内代码里的短代码不会被解析。后台文章/页面编辑器预览也会尽量按同一规则显示这些短代码效果。
 
 ### 彩色文字
 

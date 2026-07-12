@@ -147,7 +147,7 @@ if (!function_exists('threadedComments')) {
     ?>
     <div id="<?php $this->respondId(); ?>" class="comment-respond">
         <div class="comment-respond-header">
-            <h3 class="comment-respond-title"><?php _e('发表评论'); ?></h3>
+            <h3 class="comment-respond-title" data-comment-heading><?php if ($this->user->hasLogin()) { $this->user->screenName(); echo ' 评论'; } elseif ($hasRememberedProfile) { echo htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8') . ' 评论'; } else { echo '游客评论'; } ?></h3>
             <?php $comments->cancelReply('取消回复'); ?>
         </div>
 
@@ -159,7 +159,7 @@ if (!function_exists('threadedComments')) {
                 <a href="<?php $this->options->logoutUrl(); ?>" title="退出登录"><?php _e('退出'); ?> »</a>
             </p>
             <?php else: ?>
-            <div class="comment-profile-modal" data-comment-profile-modal role="dialog" aria-modal="true" aria-labelledby="comment-profile-title">
+            <div class="comment-profile-modal" data-comment-profile-modal id="comment-profile-fields" role="group" aria-labelledby="comment-profile-title">
                 <button class="comment-profile-backdrop" type="button" data-comment-profile-close tabindex="-1" aria-label="关闭身份设置"></button>
                 <div class="comment-profile-panel">
                     <div class="comment-profile-header">
@@ -184,7 +184,7 @@ if (!function_exists('threadedComments')) {
                         </div>
                     </div>
                     <div class="comment-profile-actions">
-                        <button type="button" class="submit-button comment-profile-save" data-comment-profile-save>保存身份</button>
+                        <button type="button" class="submit-button comment-profile-save" data-comment-profile-save>保存</button>
                     </div>
                 </div>
             </div>
@@ -199,18 +199,21 @@ if (!function_exists('threadedComments')) {
                 <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                     <div class="captcha-script">
                         <?php qiwiRenderCaptcha(); ?>
-                        <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                     </div>
                 <?php endif; ?>
                 <?php if (!$this->user->hasLogin()): ?>
-                    <button type="button" class="comment-profile-toggle" data-comment-profile-toggle>
-                        <span class="comment-identity-label">以</span>
-                        <span class="comment-identity-value" data-comment-identity-label><?php echo $hasRememberedProfile ? htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8') : '未设置'; ?></span>
-                        <span class="comment-identity-label">的身份评论</span>
+                    <button type="button" class="comment-profile-toggle" data-comment-profile-toggle aria-expanded="false" aria-controls="comment-profile-fields" title="设置评论身份">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"/></svg>
+                        <span class="comment-identity-value sr-only" data-comment-identity-label><?php echo $hasRememberedProfile ? htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8') : '未设置'; ?></span>
                     </button>
+                <?php else: ?>
+                    <a class="comment-profile-toggle is-logged" href="<?php $this->options->profileUrl(); ?>" title="打开个人资料">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"/></svg>
+                        <span class="sr-only">打开个人资料</span>
+                    </a>
                 <?php endif; ?>
+                <button type="submit" class="submit-button comment-send-button" id="sub_btn" aria-label="提交评论">提交评论</button>
             </div>
-            <button type="submit" class="submit-button" id="sub_btn"><?php _e('提交评论'); ?></button>
 
         </form>
     </div>

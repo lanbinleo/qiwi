@@ -21,11 +21,17 @@ $this->need('header.php');
                  alt="<?php $this->author->screenName(); ?>"
                  class="about-avatar"
                  onerror="this.src='https://gravatar.loli.net/avatar/default?s=240&d=mp'">
-            <h1 class="about-name"><?php $this->author->screenName(); ?></h1>
-            <?php if ($this->options->aboutBio): ?>
-                <p class="about-bio"><?php echo $this->options->aboutBio; ?></p>
-            <?php endif; ?>
+            <div class="about-identity">
+                <h1 class="about-name"><?php $this->author->screenName(); ?></h1>
+                <?php if ($this->options->aboutBio): ?>
+                    <p class="about-bio"><?php echo $this->options->aboutBio; ?></p>
+                <?php endif; ?>
+            </div>
         </div>
+
+        <?php if ($qiwiShowToc): ?>
+        <nav class="article-toc" aria-label="页面目录"></nav>
+        <?php endif; ?>
 
         <!-- 页面内容 -->
         <div class="about-section">
@@ -42,11 +48,6 @@ $this->need('header.php');
         </div>
         <?php endif; ?>
     </div>
-
-    <?php if ($qiwiShowToc): ?>
-    <!-- 页面目录 -->
-    <nav class="article-toc" aria-label="页面目录"></nav>
-    <?php endif; ?>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

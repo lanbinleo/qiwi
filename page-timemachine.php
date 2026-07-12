@@ -461,9 +461,11 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                             </button>
                         </div>
                     </div>
+                    <?php if ($replyCount > 0): ?>
                     <section class="moment-comments" aria-label="评论">
                         <?php renderMomentReplyTree($coid, $momentRepliesByParent, $authorUid, $ownerAvatar); ?>
                     </section>
+                    <?php endif; ?>
                 </div>
             </article>
             <?php endforeach; ?>
@@ -520,7 +522,6 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                 <?php if ($this->options->enabledCaptcha && !$isMomentManager && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
                     <?php qiwiRenderCaptcha(); ?>
-                    <script src="https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js"></script>
                 </div>
                 <?php endif; ?>
                 <div class="moment-reply-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
@@ -658,6 +659,10 @@ window.QIWI_MOMENTS = {
     likeToken: <?php echo json_encode(isset($momentLikeToken) ? $momentLikeToken : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
 };
 
+(function() {
+if (window.qiwiTimemachineController) window.qiwiTimemachineController.abort();
+window.qiwiTimemachineController = new AbortController();
+var qiwiTimemachineSignal = window.qiwiTimemachineController.signal;
 function initMomentInteractions() {
     const config = window.QIWI_MOMENTS || {};
     const composer = document.querySelector('[data-moment-comment-composer]');
@@ -812,7 +817,7 @@ function initMomentInteractions() {
             if (event.key === 'Escape' && form.classList.contains('is-profile-open')) {
                 closeProfile();
             }
-        });
+        }, { signal: qiwiTimemachineSignal });
     }
 
     const placeComposer = function(parentId, target) {
@@ -911,6 +916,7 @@ function initMomentInteractions() {
         });
     });
 }
+window.initMomentInteractions = initMomentInteractions;
 
 // 时光机图片上传功能
 class TimemachineUploader {
@@ -1256,6 +1262,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const uploader = new TimemachineUploader();
     }
 });
+})();
 </script>
 
 <?php $this->need('footer.php'); ?>

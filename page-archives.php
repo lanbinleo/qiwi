@@ -167,13 +167,10 @@ $pageContent = qiwiGetContent($this);
                 <?php endif; ?>
             </ul>
         </div>
-        <br>
 
         <?php if (qiwiHasRenderedContent($pageContent)): ?>
             <div class="archive-description"><?php echo $pageContent; ?></div>
         <?php endif; ?>
-
-        <br>
 
         <?php if (!empty($postsByYear)): ?>
         <div class="archives-timeline">

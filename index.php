@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 1.5.9
+ * @version 2.0.0
  * @link https://bboreo.com
  */
 
@@ -30,29 +30,6 @@ if (in_array($jikePosition, ['top', 'inline'], true)) {
 }
 $jikeTimeMode = $hasHomeJike ? ($this->options->jikeTimeMode ?: 'absolute') : 'absolute';
 if ($jikePosition === 'off') $hasHomeJike = false;
-
-$showHomeHero = $currentPage == 1;
-$homeHeroItems = $showHomeHero ? qiwiGetHomeHeroItems($this) : [];
-$homeHeroMode = $this->options->homeHeroHitokotoMode ?: 'list';
-if (!in_array($homeHeroMode, ['list', 'loop-hitokoto', 'hitokoto-after-list'], true)) {
-    $homeHeroMode = 'list';
-}
-$homeHeroEyebrow = trim((string) ($this->options->homeHeroEyebrow ?: '写作 · 技术 · 生活 · 随笔'));
-$homeHeroQuote = trim((string) ($this->options->homeHeroQuote ?: $this->options->aboutBio));
-$homeHeroSwitchInterval = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroSwitchInterval', 5200, 1500, 30000) : 5200;
-$homeHeroTypingSpeed = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroTypingSpeed', 92, 20, 500) : 92;
-$homeHeroDeletingSpeed = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroDeletingSpeed', 24, 10, 300) : 24;
-$homeHeroTypingPause = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'homeHeroTypingPause', 220, 0, 3000) : 220;
-$homeHeroAnimation = $this->options->homeHeroAnimation ?: 'fade';
-if (!in_array($homeHeroAnimation, ['fade', 'typewriter'], true)) {
-    $homeHeroAnimation = 'fade';
-}
-$homeHeroInitial = !empty($homeHeroItems) ? $homeHeroItems[0] : ['html' => '', 'text' => ''];
-$homeHeroJson = json_encode($homeHeroItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-$aboutPageUrl = function_exists('qiwiGetCustomPageUrl') ? qiwiGetCustomPageUrl($this, ['page-about.php', 'page-about']) : '';
-if ($aboutPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
-    $aboutPageUrl = qiwiGetPageUrlBySlug($this, ['about']);
-}
 
 if ($currentPage == 1) {
     // === 首页：显示所有置顶文章 + 补充非置顶文章 ===
@@ -180,42 +157,21 @@ if (function_exists('qiwiPrimePostStatsCache')) {
 }
 ?>
 
-<?php if ($showHomeHero): ?>
-<section class="home-hero" data-home-hero data-home-hero-mode="<?php echo htmlspecialchars($homeHeroMode, ENT_QUOTES, 'UTF-8'); ?>" data-home-hero-animation="<?php echo htmlspecialchars($homeHeroAnimation, ENT_QUOTES, 'UTF-8'); ?>" data-home-hero-interval="<?php echo (int) $homeHeroSwitchInterval; ?>" data-home-hero-typing-speed="<?php echo (int) $homeHeroTypingSpeed; ?>" data-home-hero-deleting-speed="<?php echo (int) $homeHeroDeletingSpeed; ?>" data-home-hero-typing-pause="<?php echo (int) $homeHeroTypingPause; ?>" data-home-hero-items="<?php echo htmlspecialchars($homeHeroJson, ENT_QUOTES, 'UTF-8'); ?>">
-    <div class="home-hero-inner">
-        <?php if ($homeHeroEyebrow !== ''): ?>
-            <div class="home-hero-eyebrow"><?php echo htmlspecialchars($homeHeroEyebrow, ENT_QUOTES, 'UTF-8'); ?></div>
-        <?php endif; ?>
-        <h1 class="home-hero-title" aria-live="polite">
-            <span class="home-hero-line"><?php echo $homeHeroInitial['html']; ?></span>
-        </h1>
-        <?php if ($homeHeroQuote !== ''): ?>
-            <p class="home-hero-quote"><?php echo htmlspecialchars($homeHeroQuote, ENT_QUOTES, 'UTF-8'); ?></p>
-        <?php endif; ?>
-        <div class="home-hero-actions">
-            <a class="home-hero-button home-hero-button-primary" href="#all-posts">浏览文章</a>
-            <?php if ($aboutPageUrl !== ''): ?>
-                <a class="home-hero-button home-hero-button-secondary" href="<?php echo htmlspecialchars($aboutPageUrl, ENT_QUOTES, 'UTF-8'); ?>">关于我</a>
-            <?php endif; ?>
-        </div>
-        <a class="home-hero-scroll" href="#all-posts" aria-label="跳到全部文章"></a>
-    </div>
-</section>
-<?php endif; ?>
-
-<div class="main-layout home-main-layout<?php echo ($showHomeHero && $hasContent) ? ' has-home-section-header' : ''; ?>">
+<div class="main-layout home-main-layout">
     <!-- 左侧留白 -->
     <div class="layout-spacer-left"></div>
 
     <!-- 主要内容 -->
     <div class="main-content">
-        <?php if ($hasContent): ?>
-        <?php if ($showHomeHero): ?>
-        <header class="home-section-header" id="all-posts">
-            <div class="home-section-eyebrow">文章列表</div>
-            <h2>最近文章</h2>
-        </header>
+        <?php if ($currentPage == 1 && $hasHomeJike && !empty($homeJikeData['items'][0])): ?>
+        <?php $latestMoment = $homeJikeData['items'][0]; ?>
+        <section class="latest-moment" aria-label="最近动态">
+            <span class="dot" aria-hidden="true"></span>
+            <b><?php echo htmlspecialchars($latestMoment['excerpt'], ENT_QUOTES, 'UTF-8'); ?></b>
+            <a href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">更多动态 →</a>
+        </section>
         <?php endif; ?>
+        <?php if ($hasContent): ?>
         <ul class="article-list">
             <?php
             // 显示文章

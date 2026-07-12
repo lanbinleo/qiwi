@@ -3,6 +3,7 @@ ob_start();
 $this->need('version.php');
 $versionDrawerOutput = ob_get_clean();
 $themeVersion = '';
+$v2FooterMotto = trim((string) qiwiGetOptionValue($this, 'v2FooterMotto', '向内求索，向外生长'));
 
 if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
     $themeVersion = $matches[1];
@@ -12,32 +13,24 @@ if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
 
 <!-- 页脚 -->
 <footer class="site-footer">
+    <div class="foot-freq" aria-hidden="true"></div>
     <div class="footer-content">
         <div class="footer-info">
-            <p>&copy; <?php echo date('Y'); ?> <a href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>. 由 <a href="https://typecho.org" target="_blank" rel="noopener">Typecho</a> 强力驱动.</p>
+            <?php if ($v2FooterMotto !== ''): ?><p class="footer-motto"><?php echo htmlspecialchars($v2FooterMotto, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
             <?php if ($this->options->footerInfo): ?>
                 <p class="site-description"><?php $this->options->footerInfo() ?></p>
-            <?php elseif ($this->options->description): ?>
-                <p class="site-description"><?php $this->options->description() ?></p>
             <?php endif; ?>
+            <p>&copy; <?php echo date('Y'); ?> <a href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a> · Typecho</p>
         </div>
 
         <div class="footer-meta">
             <div class="footer-links">
+                <?php if ($this->options->enableTravellings == 1): ?><a href="https://www.travellings.cn/go.html" target="_blank" rel="noopener noreferrer">开往</a><?php endif; ?>
                 <a href="<?php $this->options->feedUrl(); ?>" target="_blank" rel="noopener" title="RSS 订阅">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 11a9 9 0 0 1 9 9"></path>
-                        <path d="M4 4a16 16 0 0 1 16 16"></path>
-                        <circle cx="5" cy="19" r="1"></circle>
-                    </svg>
                     RSS
                 </a>
                 <?php if ($this->user->hasLogin()): ?>
                 <a href="<?php $this->options->adminUrl(); ?>" target="_blank" rel="noopener" title="管理后台">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
                     管理
                 </a>
                 <?php endif; ?>
@@ -51,6 +44,9 @@ if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
     </div>
 </footer>
 
+</main>
+</div>
+<div class="sr-only" id="qiwi-pjax-status" aria-live="polite" aria-atomic="true"></div>
 <?php echo $versionDrawerOutput; ?>
 <?php if (function_exists('qiwiBusuanziScriptEnabled') && qiwiBusuanziScriptEnabled($this)): ?>
 <script defer src="//cdn.busuanzi.cc/busuanzi/3.6.9/busuanzi.min.js"></script>
@@ -76,29 +72,49 @@ function updateThemeToggleButtons(theme) {
     } else if (savedTheme === 'light') {
         htmlElement.setAttribute('data-theme', 'light');
     } else {
-        // 没有保存的偏好，默认使用浅色模式
-        htmlElement.setAttribute('data-theme', 'light');
-        localStorage.setItem('theme-preference', 'light');
+        // V2 默认使用深色纸面
+        htmlElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme-preference', 'dark');
     }
 
     updateThemeToggleButtons(htmlElement.getAttribute('data-theme'));
 })();
 
-function toggleTheme() {
+function toggleTheme(event) {
     const htmlElement = document.documentElement;
     const currentTheme = htmlElement.getAttribute('data-theme');
-    let newTheme;
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const source = event && event.currentTarget instanceof Element ? event.currentTarget : null;
+    const rect = source ? source.getBoundingClientRect() : null;
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
 
-    if (currentTheme === 'light') {
-        htmlElement.setAttribute('data-theme', 'dark');
-        newTheme = 'dark';
-    } else {
-        htmlElement.setAttribute('data-theme', 'light');
-        newTheme = 'light';
+    function applyTheme() {
+        htmlElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme-preference', newTheme);
+        updateThemeToggleButtons(newTheme);
     }
 
-    localStorage.setItem('theme-preference', newTheme);
-    updateThemeToggleButtons(newTheme);
+    if (reduceMotion || typeof document.startViewTransition !== 'function') {
+        applyTheme();
+        return;
+    }
+
+    const transition = document.startViewTransition(applyTheme);
+    transition.ready.then(function() {
+        htmlElement.animate({
+            clipPath: [
+                'circle(0 at ' + x + 'px ' + y + 'px)',
+                'circle(' + radius + 'px at ' + x + 'px ' + y + 'px)'
+            ]
+        }, {
+            duration: 560,
+            easing: 'cubic-bezier(.22,.61,.36,1)',
+            pseudoElement: '::view-transition-new(root)'
+        });
+    }).catch(function() {});
 }
 
 function initMobileNavigation() {
@@ -293,6 +309,7 @@ function initMobileNavigation() {
 }
 
 function initArticleToc() {
+    if (document.body && document.body.classList.contains('qiwi-v2')) return;
     var tocContainer = document.querySelector('.article-toc');
     var articlePage = tocContainer ? tocContainer.closest('.article-page, .about-page, .timemachine-page, .friends-page') : null;
     var articleBody = articlePage ? articlePage.querySelector('.article-body') : document.querySelector('.article-body');
@@ -463,345 +480,6 @@ function initArticleToc() {
     headings.forEach(function(h) { observer.observe(h); });
 }
 
-function initHomeHero() {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        return;
-    }
-
-    function escapeHtml(text) {
-        return String(text).replace(/[&<>"']/g, function(char) {
-            return {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            }[char];
-        });
-    }
-
-    function fetchHitokotoItem() {
-        var controller = window.AbortController ? new AbortController() : null;
-        var timeout = null;
-        var timedOut = false;
-
-        var request = fetch('https://v1.hitokoto.cn', controller ? { signal: controller.signal } : undefined)
-            .then(function(response) {
-                if (!response.ok) return null;
-                return response.json();
-            })
-            .catch(function() { return null; });
-
-        var timeoutFallback = new Promise(function(resolve) {
-            timeout = window.setTimeout(function() {
-                timedOut = true;
-                if (controller) controller.abort();
-                resolve(null);
-            }, 2800);
-        });
-
-        return Promise.race([request, timeoutFallback])
-            .then(function(data) {
-                if (!timedOut && timeout) window.clearTimeout(timeout);
-                if (!data || !data.hitokoto) return null;
-                var source = data.from || '';
-                if (data.from_who) {
-                    source = source ? source + ' - ' + data.from_who : data.from_who;
-                }
-                var text = source ? data.hitokoto + ' —— ' + source : data.hitokoto;
-                return {
-                    html: escapeHtml(data.hitokoto),
-                    text: data.hitokoto
-                };
-            })
-            .catch(function() { return null; });
-    }
-
-    document.querySelectorAll('[data-home-hero]').forEach(function(hero) {
-        var line = hero.querySelector('.home-hero-line');
-        if (!line) return;
-
-        function updateHeroSelectionColor(source) {
-            var root = document.createElement('div');
-            var accent = null;
-            root.innerHTML = source || line.innerHTML || '';
-
-            var accentNode = root.querySelector('[class*="home-hero-accent-"]');
-            if (accentNode) {
-                String(accentNode.className || '').split(/\s+/).some(function(className) {
-                    var match = className.match(/^home-hero-accent-(caramel|red|orange|yellow|green|cyan|blue|purple)$/);
-                    if (!match) return false;
-                    accent = match[1];
-                    return true;
-                });
-            }
-
-            if (!accent) {
-                line.style.removeProperty('--home-hero-selection-color');
-                return;
-            }
-
-            line.style.setProperty(
-                '--home-hero-selection-color',
-                accent === 'caramel' ? 'var(--caramel)' : 'var(--hue-' + accent + ')'
-            );
-        }
-
-        updateHeroSelectionColor();
-
-        var mode = hero.getAttribute('data-home-hero-mode') || 'list';
-        var items = [];
-        try {
-            items = JSON.parse(hero.getAttribute('data-home-hero-items') || '[]');
-        } catch (error) {
-            items = [];
-        }
-
-        if (!items.length) return;
-        if (items.length <= 1 && mode === 'list') return;
-
-        var animation = hero.getAttribute('data-home-hero-animation') || 'fade';
-        var interval = parseInt(hero.getAttribute('data-home-hero-interval') || '5200', 10);
-        if (!interval || interval < 1500) interval = 5200;
-        var typingSpeed = parseInt(hero.getAttribute('data-home-hero-typing-speed') || '92', 10);
-        var deletingSpeed = parseInt(hero.getAttribute('data-home-hero-deleting-speed') || '24', 10);
-        var typingPause = parseInt(hero.getAttribute('data-home-hero-typing-pause') || '220', 10);
-        if (!typingSpeed || typingSpeed < 20) typingSpeed = 92;
-        if (!deletingSpeed || deletingSpeed < 10) deletingSpeed = 24;
-        if (isNaN(typingPause) || typingPause < 0) typingPause = 220;
-        if (animation === 'typewriter') {
-            line.classList.add('is-typewriter');
-        }
-
-        var index = 0;
-        var hasCompletedList = false;
-        var shouldInsertHitokoto = false;
-        var rotationTimer = null;
-        var rotationPaused = false;
-        var typingTimer = null;
-        var animationToken = 0;
-
-        function localNext() {
-            index = (index + 1) % items.length;
-            return items[index];
-        }
-
-        function showItem(item) {
-            if (!item || !item.html) return;
-            animationToken++;
-            updateHeroSelectionColor(item.html);
-            var token = animationToken;
-            if (typingTimer) {
-                window.clearTimeout(typingTimer);
-                typingTimer = null;
-            }
-
-            if (animation === 'typewriter') {
-                typeItem(item, token);
-                return;
-            }
-
-            line.classList.add('is-switching');
-            window.setTimeout(function() {
-                if (token !== animationToken) return;
-                line.innerHTML = item.html;
-                updateHeroSelectionColor(item.html);
-                line.classList.remove('is-switching');
-            }, 180);
-        }
-
-        function typeItem(item, token) {
-            var currentText = line.textContent || '';
-
-            function renderText(text) {
-                line.textContent = text;
-            }
-
-            function htmlToTokens(html) {
-                var root = document.createElement('div');
-                root.innerHTML = html || '';
-                var tokens = [];
-
-                function walk(node, classes) {
-                    if (node.nodeType === 3) {
-                        Array.prototype.forEach.call(node.nodeValue || '', function(char) {
-                            tokens.push({ char: char, classes: classes.slice() });
-                        });
-                        return;
-                    }
-
-                    if (node.nodeType !== 1) return;
-
-                    var nextClasses = classes.slice();
-                    if (node.className) {
-                        String(node.className).split(/\s+/).forEach(function(className) {
-                            if (className && className.indexOf('home-hero-accent') === 0) {
-                                nextClasses.push(className);
-                            }
-                        });
-                    }
-
-                    Array.prototype.forEach.call(node.childNodes, function(child) {
-                        walk(child, nextClasses);
-                    });
-                }
-
-                Array.prototype.forEach.call(root.childNodes, function(child) {
-                    walk(child, []);
-                });
-
-                return tokens;
-            }
-
-            function renderTokens(tokens, count) {
-                var html = '';
-                var activeClasses = '';
-                var hasOpenSpan = false;
-
-                function closeSpan() {
-                    if (hasOpenSpan) {
-                        html += '</span>';
-                        hasOpenSpan = false;
-                        activeClasses = '';
-                    }
-                }
-
-                tokens.slice(0, count).forEach(function(token) {
-                    var className = token.classes.join(' ');
-                    if (className !== activeClasses) {
-                        closeSpan();
-                        if (className) {
-                            html += '<span class="' + className + '">';
-                            activeClasses = className;
-                            hasOpenSpan = true;
-                        }
-                    }
-                    html += escapeHtml(token.char);
-                });
-
-                closeSpan();
-                line.innerHTML = html;
-            }
-
-            var nextTokens = htmlToTokens(item.html);
-
-            function deleteStep() {
-                if (token !== animationToken) return;
-                if (currentText.length > 0) {
-                    currentText = currentText.slice(0, -1);
-                    renderText(currentText);
-                    typingTimer = window.setTimeout(deleteStep, deletingSpeed);
-                    return;
-                }
-                typingTimer = window.setTimeout(typeStep, typingPause);
-            }
-
-            var cursor = 0;
-            function typeStep() {
-                if (token !== animationToken) return;
-                if (cursor < nextTokens.length) {
-                    cursor++;
-                    renderTokens(nextTokens, cursor);
-                    typingTimer = window.setTimeout(typeStep, typingSpeed);
-                    return;
-                }
-                line.innerHTML = item.html;
-                updateHeroSelectionColor(item.html);
-                typingTimer = null;
-            }
-
-            deleteStep();
-        }
-
-        function nextItem() {
-            if (mode === 'list') {
-                showItem(localNext());
-                scheduleNextRotation();
-                return;
-            }
-
-            if (!hasCompletedList) {
-                index += 1;
-                if (index < items.length) {
-                    showItem(items[index]);
-                    scheduleNextRotation();
-                    return;
-                }
-
-                hasCompletedList = true;
-                index = 0;
-                if (mode === 'loop-hitokoto') {
-                    shouldInsertHitokoto = true;
-                    showItem(items[index]);
-                    index = (index + 1) % items.length;
-                    scheduleNextRotation();
-                    return;
-                }
-            }
-
-            if (mode === 'loop-hitokoto') {
-                if (shouldInsertHitokoto) {
-                    var fallbackItem = items[index];
-                    index = (index + 1) % items.length;
-                    fetchHitokotoItem().then(function(item) {
-                        showItem(item || fallbackItem);
-                        scheduleNextRotation();
-                    });
-                    shouldInsertHitokoto = false;
-                    return;
-                }
-
-                showItem(items[index]);
-                index = (index + 1) % items.length;
-                shouldInsertHitokoto = true;
-                scheduleNextRotation();
-                return;
-            }
-
-            fetchHitokotoItem().then(function(item) {
-                showItem(item || localNext());
-                scheduleNextRotation();
-            });
-        }
-
-        function scheduleNextRotation(delay) {
-            if (rotationPaused || document.hidden) return;
-
-            if (rotationTimer) {
-                window.clearTimeout(rotationTimer);
-            }
-
-            rotationTimer = window.setTimeout(function() {
-                rotationTimer = null;
-                nextItem();
-            }, typeof delay === 'number' ? delay : interval);
-        }
-
-        function startRotation() {
-            rotationPaused = false;
-            if (!rotationTimer) scheduleNextRotation(interval);
-        }
-
-        function stopRotation() {
-            rotationPaused = true;
-            if (rotationTimer) {
-                window.clearTimeout(rotationTimer);
-                rotationTimer = null;
-            }
-        }
-
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                stopRotation();
-            } else {
-                startRotation();
-            }
-        });
-
-        startRotation();
-    });
-}
-
 function initHomeJike() {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return;
@@ -866,6 +544,7 @@ function initHomeJike() {
 }
 
 function initCommentProfile() {
+    if (document.body && document.body.classList.contains('qiwi-v2')) return;
     document.querySelectorAll('.comment-form').forEach(function(form) {
         var modal = form.querySelector('[data-comment-profile-modal]');
         var toggle = form.querySelector('[data-comment-profile-toggle]');
@@ -1053,6 +732,7 @@ function initCommentTargetHighlight() {
 }
 
 function initArticleImages() {
+    if (document.body && document.body.classList.contains('qiwi-v2')) return;
     var images = document.querySelectorAll('.article-body img, .article-hero, .comment-item.is-trusted-comment .comment-text img, .moment-comment.is-trusted-comment .moment-comment-text img');
     if (!images.length) return;
 
@@ -1898,7 +1578,6 @@ function initQiwiLocalTimes() {
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initArticleToc();
-    initHomeHero();
     initHomeJike();
     initCommentProfile();
     initCommentTargetHighlight();
@@ -1906,12 +1585,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initArticleCardThumbnails();
     initQiwiFolds();
     initQiwiExternalLinks();
-    initQiwiLinkPreviews();
     initQiwiCopyLinks();
     initQiwiLocalTimes();
     updateThemeToggleButtons(document.documentElement.getAttribute('data-theme'));
 
-    document.querySelectorAll('.article-item').forEach(item => {
+    if (!document.body.classList.contains('qiwi-v2')) document.querySelectorAll('.article-item').forEach(item => {
         item.addEventListener('click', function(e) {
             if (e.target.closest('.tag') || e.target.closest('.meta-category a') || e.target.closest('.article-title-link')) {
                 return;
@@ -2075,6 +1753,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 (function() {
+    if (document.body && document.body.classList.contains('qiwi-v2')) return;
     var readingDefaults = { font: 'plain', spacing: 'wide', size: 'medium' };
     var readingLabels = {
         font: { readable: '易读', plain: '普通' },
@@ -2245,73 +1924,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fallbackConfetti(target);
         });
     }
-    document.querySelectorAll('[data-post-like]').forEach(function(button) {
-        button.addEventListener('click', function() {
-            var endpoint = button.getAttribute('data-like-endpoint') || '';
-            var cid = button.getAttribute('data-post-id') || '';
-            if (button.classList.contains('is-liked')) {
-                celebrateLike(button);
-                return;
-            }
-            if (!endpoint || !cid || button.dataset.likeBusy === '1') return;
-
-            button.dataset.likeBusy = '1';
-            button.setAttribute('aria-busy', 'true');
-            var form = new URLSearchParams();
-            form.append('cid', cid);
-
-            fetch(endpoint, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-                body: form.toString()
-            }).then(function(response) {
-                if (!response.ok) throw new Error('Like request failed');
-                return response.json();
-            }).then(function(data) {
-                if (!data || !data.success) throw new Error('Like rejected');
-                var count = button.querySelector('[data-like-count]');
-                var label = button.querySelector('[data-like-label]');
-                var icon = button.querySelector('[data-like-icon]');
-                button.classList.add('is-liked', 'has-count');
-                button.setAttribute('aria-pressed', 'true');
-                if (count) {
-                    count.textContent = String(data.count || 0);
-                    count.hidden = false;
-                }
-                if (label) label.textContent = '已喜欢';
-                if (icon) {
-                    icon.classList.remove('fa-regular');
-                    icon.classList.add('fa-solid');
-                }
-                var reactions = button.closest('.post-reactions');
-                var support = reactions ? reactions.querySelector('[data-post-support]') : null;
-                if (support) support.hidden = false;
-                celebrateLike(button);
-            }).catch(function() {
-            }).finally(function() {
-                button.dataset.likeBusy = '0';
-                button.removeAttribute('aria-busy');
-            });
-        });
-    });
-
-    document.querySelectorAll('.post-support').forEach(function(wrap) {
-        var button = wrap.querySelector('.post-support-button');
-        if (!button) return;
-        ['mouseenter', 'focusin'].forEach(function(eventName) {
-            wrap.addEventListener(eventName, function() {
-                button.setAttribute('aria-expanded', 'true');
-            });
-        });
-        ['mouseleave', 'focusout'].forEach(function(eventName) {
-            wrap.addEventListener(eventName, function() {
-                button.setAttribute('aria-expanded', 'false');
-            });
-        });
-    });
 })();
 </script>
+<?php $qiwiV2ScriptVersion = @filemtime(__DIR__ . '/assets/js/v2.js'); ?>
+<script src="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/v2.js' . ($qiwiV2ScriptVersion ? '?v=' . $qiwiV2ScriptVersion : '')), ENT_QUOTES, 'UTF-8'); ?>"></script>
 <!-- Custom JavaScript -->
 <?php if ($this->options->customJS): ?>
 <script type="text/javascript">

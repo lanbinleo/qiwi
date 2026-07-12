@@ -508,7 +508,7 @@ $mode = $plog['mode'];
 $this->need('header.php');
 ?>
 
-<main class="plog-page plog-mode-<?php echo qiwiPlogEscape($mode); ?>" data-plog-page>
+<div class="plog-page plog-mode-<?php echo qiwiPlogEscape($mode); ?>" data-plog-page>
     <header class="plog-page-header">
         <h1><?php echo qiwiPlogEscape($plog['title']); ?></h1>
         <?php if ($plog['description'] !== ''): ?>
@@ -553,7 +553,7 @@ $this->need('header.php');
         <?php endforeach; ?>
     </section>
     <?php endif; ?>
-</main>
+</div>
 
 <?php if (!empty($photos)): ?>
 <div class="plog-lightbox" data-plog-lightbox hidden>
@@ -575,6 +575,9 @@ $this->need('header.php');
 
 <script>
 (function() {
+    if (window.qiwiPlogController) window.qiwiPlogController.abort();
+    window.qiwiPlogController = new AbortController();
+    var qiwiPlogSignal = window.qiwiPlogController.signal;
     var photos = <?php echo json_encode(array_values($photos), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     if (!photos.length) return;
 
@@ -587,6 +590,10 @@ $this->need('header.php');
     var counter = document.querySelector('[data-plog-counter]');
     var spinner = document.querySelector('[data-plog-lightbox-spinner]');
     var currentIndex = 0;
+    var loadRequest = 0;
+    var spinnerTimer = null;
+    var closeTimer = null;
+    var lastTrigger = null;
 
     function setLoaded(event) {
         var holder = event.target.closest('.plog-item, .plog-entry-media');
@@ -602,21 +609,7 @@ $this->need('header.php');
         }
     });
 
-    function setLightboxLoaded() {
-        image.classList.add('is-loaded');
-        if (spinner) spinner.hidden = true;
-    }
-
-    function openLightbox(index) {
-        currentIndex = (index + photos.length) % photos.length;
-        var photo = photos[currentIndex];
-        image.classList.remove('is-loaded');
-        if (spinner) spinner.hidden = false;
-        image.onload = setLightboxLoaded;
-        image.onerror = setLightboxLoaded;
-        image.src = photo.full || photo.src || photo.thumb;
-        if (image.complete && image.naturalWidth > 0) setLightboxLoaded();
-        image.alt = photo.title || '';
+    function updateLightboxMeta(photo) {
         title.textContent = photo.title || '';
         desc.textContent = photo.desc || '';
         desc.hidden = !photo.desc;
@@ -625,15 +618,81 @@ $this->need('header.php');
         date.textContent = photo.date_label || '';
         date.hidden = !photo.date_label;
         counter.textContent = (currentIndex + 1) + ' / ' + photos.length;
-        lightbox.hidden = false;
-        lightbox.classList.add('is-open');
+    }
+
+    function stopSpinner() {
+        if (spinnerTimer) window.clearTimeout(spinnerTimer);
+        spinnerTimer = null;
+        if (spinner) spinner.hidden = true;
+    }
+
+    function loadLightboxImage(photo) {
+        var request = ++loadRequest;
+        stopSpinner();
+        spinnerTimer = window.setTimeout(function() {
+            if (spinner && request === loadRequest) spinner.hidden = false;
+        }, 180);
+
+        var preload = new Image();
+        preload.decoding = 'async';
+        var source = photo.full || photo.src || photo.thumb;
+        function commit() {
+            if (request !== loadRequest) return;
+            stopSpinner();
+            image.classList.remove('is-loaded');
+            image.src = preload.src || source;
+            image.alt = photo.title || '';
+            window.requestAnimationFrame(function() {
+                if (request === loadRequest) image.classList.add('is-loaded');
+            });
+        }
+        preload.onload = function() {
+            var decoded = typeof preload.decode === 'function' ? preload.decode() : Promise.resolve();
+            decoded.catch(function() {}).then(commit);
+        };
+        preload.onerror = function() {
+            if (photo.thumb && source !== photo.thumb) {
+                preload.src = photo.thumb;
+                return;
+            }
+            commit();
+        };
+        preload.src = source;
+        if (preload.complete && preload.naturalWidth > 0) preload.onload();
+    }
+
+    function openLightbox(index, trigger) {
+        currentIndex = (index + photos.length) % photos.length;
+        var photo = photos[currentIndex];
+        if (trigger) lastTrigger = trigger;
+        if (closeTimer) window.clearTimeout(closeTimer);
+        updateLightboxMeta(photo);
+        if (lightbox.hidden) {
+            image.classList.remove('is-loaded');
+            image.onload = function() { image.classList.add('is-loaded'); };
+            image.src = photo.thumb || photo.src || photo.full;
+            image.alt = photo.title || '';
+            lightbox.hidden = false;
+            window.requestAnimationFrame(function() { lightbox.classList.add('is-open'); });
+        }
         document.documentElement.classList.add('plog-lightbox-open');
+        loadLightboxImage(photo);
+        var closeButton = lightbox.querySelector('[data-plog-close]');
+        if (closeButton) closeButton.focus({ preventScroll: true });
     }
 
     function closeLightbox() {
+        if (lightbox.hidden) return;
+        loadRequest += 1;
+        stopSpinner();
         lightbox.classList.remove('is-open');
-        lightbox.hidden = true;
         document.documentElement.classList.remove('plog-lightbox-open');
+        closeTimer = window.setTimeout(function() {
+            lightbox.hidden = true;
+            image.classList.remove('is-loaded');
+            image.removeAttribute('src');
+        }, 230);
+        if (lastTrigger && lastTrigger.isConnected) lastTrigger.focus({ preventScroll: true });
     }
 
     function moveLightbox(step) {
@@ -643,25 +702,38 @@ $this->need('header.php');
     document.addEventListener('click', function(event) {
         var trigger = event.target.closest('[data-plog-index]');
         if (trigger) {
-            openLightbox(parseInt(trigger.getAttribute('data-plog-index'), 10) || 0);
+            openLightbox(parseInt(trigger.getAttribute('data-plog-index'), 10) || 0, trigger);
             return;
         }
 
-        if (event.target.matches('[data-plog-close]') || event.target === lightbox) {
+        if (event.target === lightbox) {
             closeLightbox();
         }
-    });
+    }, { signal: qiwiPlogSignal });
 
-    document.querySelector('[data-plog-prev]').addEventListener('click', function() { moveLightbox(-1); });
-    document.querySelector('[data-plog-next]').addEventListener('click', function() { moveLightbox(1); });
-    document.querySelector('[data-plog-close]').addEventListener('click', closeLightbox);
+    document.querySelector('[data-plog-prev]').addEventListener('click', function() { moveLightbox(-1); }, { signal: qiwiPlogSignal });
+    document.querySelector('[data-plog-next]').addEventListener('click', function() { moveLightbox(1); }, { signal: qiwiPlogSignal });
+    document.querySelector('[data-plog-close]').addEventListener('click', closeLightbox, { signal: qiwiPlogSignal });
 
     document.addEventListener('keydown', function(event) {
         if (lightbox.hidden) return;
         if (event.key === 'Escape') closeLightbox();
         if (event.key === 'ArrowLeft') moveLightbox(-1);
         if (event.key === 'ArrowRight') moveLightbox(1);
-    });
+        if (event.key === 'Tab') {
+            var controls = Array.prototype.slice.call(lightbox.querySelectorAll('button:not([disabled])'));
+            if (!controls.length) return;
+            var first = controls[0];
+            var last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+    }, { signal: qiwiPlogSignal });
 
     function layoutJustified() {
         var gallery = document.querySelector('.plog-justified[data-plog-gallery]');
@@ -703,7 +775,7 @@ $this->need('header.php');
     window.addEventListener('resize', function() {
         window.clearTimeout(timer);
         timer = window.setTimeout(layoutJustified, 120);
-    });
+    }, { signal: qiwiPlogSignal });
 })();
 </script>
 <?php endif; ?>
