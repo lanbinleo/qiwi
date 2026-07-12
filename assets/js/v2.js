@@ -7,6 +7,8 @@
     var dynamicPageListeners = [];
     var tocObserver = null;
     var tocProgressCleanup = null;
+    var latestMomentTimer = null;
+    var stickerPackCache = {};
     var pjaxReady = Boolean(window.fetch && window.DOMParser && window.history && window.history.pushState);
 
     function currentContainer() {
@@ -184,6 +186,25 @@
         dynamicPageListeners = [];
     }
 
+    function initLatestMoment(root) {
+        if (latestMomentTimer !== null) {
+            window.clearInterval(latestMomentTimer);
+            latestMomentTimer = null;
+        }
+        var moment = root.querySelector('[data-latest-moment]');
+        if (!moment || prefersReducedMotion()) return;
+        var items = Array.prototype.slice.call(moment.querySelectorAll('[data-latest-moment-item]'));
+        if (items.length < 2) return;
+        var activeIndex = Math.max(0, items.findIndex(function (item) { return item.classList.contains('is-active'); }));
+        latestMomentTimer = window.setInterval(function () {
+            items[activeIndex].classList.remove('is-active');
+            items[activeIndex].setAttribute('aria-hidden', 'true');
+            activeIndex = (activeIndex + 1) % items.length;
+            items[activeIndex].classList.add('is-active');
+            items[activeIndex].setAttribute('aria-hidden', 'false');
+        }, 5000);
+    }
+
     function initReadingPreferences(root) {
         var defaults = { font: 'plain', spacing: 'wide', size: 'medium' };
         var labels = {
@@ -293,8 +314,6 @@
             var author = panel.querySelector('[name="author"]');
             var mail = panel.querySelector('[name="mail"]');
             var url = panel.querySelector('[name="url"]');
-            var label = form.querySelector('[data-comment-identity-label]');
-            var heading = form.closest('.comment-respond') && form.closest('.comment-respond').querySelector('[data-comment-heading]');
             var fields = [author, mail, url].filter(Boolean);
             form.classList.add('is-enhanced');
 
@@ -305,13 +324,12 @@
                 if (url && !url.value && stored.url) url.value = stored.url;
             } catch (error) {}
 
-            function updateIdentity() {
-                var name = author && author.value.trim();
-                if (label) label.textContent = name || '未设置';
-                if (heading) heading.textContent = name ? name + ' 评论' : '游客评论';
-            }
-
             function setOpen(open) {
+                if (open) {
+                    form.classList.remove('is-sticker-open');
+                    var stickerToggle = form.querySelector('[data-comment-sticker-toggle]');
+                    if (stickerToggle) stickerToggle.setAttribute('aria-expanded', 'false');
+                }
                 form.classList.toggle('is-profile-open', open);
                 toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
                 var hiddenLabel = toggle.querySelector('.sr-only');
@@ -336,7 +354,6 @@
                     return;
                 }
                 try { localStorage.setItem('qiwi-comment-profile', JSON.stringify({ author: author.value.trim(), mail: mail.value.trim(), url: url ? url.value.trim() : '' })); } catch (error) {}
-                updateIdentity();
                 setOpen(false);
             });
             fields.forEach(function (field) {
@@ -349,7 +366,137 @@
                 setOpen(true);
                 window.setTimeout(function () { invalid.reportValidity(); invalid.focus(); }, prefersReducedMotion() ? 0 : 180);
             });
-            updateIdentity();
+        });
+    }
+
+    function initCommentStickers(root) {
+        root.querySelectorAll('.comment-form').forEach(function (form) {
+            if (form.dataset.v2StickersReady === '1') return;
+            form.dataset.v2StickersReady = '1';
+            var panel = form.querySelector('[data-comment-sticker-panel]');
+            var toggle = form.querySelector('[data-comment-sticker-toggle]');
+            var textarea = form.querySelector('textarea[name="text"]');
+            var configNode = form.querySelector('[data-comment-sticker-packs]');
+            if (!panel || !toggle || !textarea || !configNode) return;
+            var tabs = panel.querySelector('[data-comment-sticker-tabs]');
+            var grid = panel.querySelector('[data-comment-sticker-grid]');
+            var status = panel.querySelector('[data-comment-sticker-status]');
+            var close = panel.querySelector('[data-comment-sticker-close]');
+            var packs = [];
+            var loaded = false;
+
+            try { packs = JSON.parse(configNode.textContent || '[]'); } catch (error) { packs = []; }
+            if (!packs.length) return;
+
+            function setOpen(open) {
+                if (open) {
+                    form.classList.remove('is-profile-open');
+                    var profileToggle = form.querySelector('[data-comment-profile-toggle]');
+                    if (profileToggle) profileToggle.setAttribute('aria-expanded', 'false');
+                }
+                form.classList.toggle('is-sticker-open', open);
+                panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                var label = toggle.querySelector('.sr-only');
+                if (label) label.textContent = open ? '收起表情包' : '展开表情包';
+                if (open && !loaded) {
+                    loaded = true;
+                    selectPack(packs[0]);
+                }
+            }
+
+            function stickerName(item, imageUrl) {
+                try {
+                    var pathname = new URL(imageUrl, window.location.href).pathname;
+                    return decodeURIComponent(pathname.substring(pathname.lastIndexOf('/') + 1).replace(/\.[^.]+$/, ''));
+                } catch (error) {
+                    return String(item.text || '').replace(/^[^-]+-/, '');
+                }
+            }
+
+            function normalizePack(data, pack) {
+                var items = [];
+                Object.keys(data || {}).forEach(function (key) {
+                    var group = data[key];
+                    (group && Array.isArray(group.container) ? group.container : []).forEach(function (item) {
+                        var match = String(item.icon || '').match(/\bsrc=(['"])(.*?)\1/i);
+                        if (!match || !match[2]) return;
+                        var imageUrl = new URL(match[2].replace(/&amp;/g, '&'), window.location.href).href;
+                        var name = stickerName(item, imageUrl);
+                        if (name) items.push({ name: name, src: imageUrl, packId: pack.id });
+                    });
+                });
+                return items;
+            }
+
+            function renderPack(pack, items) {
+                grid.textContent = '';
+                items.forEach(function (item) {
+                    var button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'comment-sticker-item';
+                    button.title = item.name;
+                    button.setAttribute('aria-label', item.name);
+                    var image = document.createElement('img');
+                    image.src = item.src;
+                    image.alt = '';
+                    image.loading = 'lazy';
+                    image.decoding = 'async';
+                    button.appendChild(image);
+                    button.addEventListener('click', function () {
+                        var token = '[sticker:' + item.packId + '/' + item.name + ']';
+                        var start = typeof textarea.selectionStart === 'number' ? textarea.selectionStart : textarea.value.length;
+                        var end = typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : start;
+                        textarea.setRangeText(token, start, end, 'end');
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        setOpen(false);
+                        textarea.focus();
+                    });
+                    grid.appendChild(button);
+                });
+                status.textContent = items.length ? '' : '这个表情包暂时没有可用内容。';
+                status.hidden = Boolean(items.length);
+                tabs.querySelectorAll('[role="tab"]').forEach(function (tab) {
+                    var active = tab.dataset.stickerPack === pack.id;
+                    tab.classList.toggle('is-active', active);
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+            }
+
+            function selectPack(pack) {
+                status.hidden = false;
+                status.textContent = '正在读取表情包…';
+                grid.textContent = '';
+                if (stickerPackCache[pack.id]) {
+                    renderPack(pack, stickerPackCache[pack.id]);
+                    return;
+                }
+                fetch(pack.source, { credentials: 'omit' })
+                    .then(function (response) { if (!response.ok) throw new Error(); return response.json(); })
+                    .then(function (data) {
+                        stickerPackCache[pack.id] = normalizePack(data, pack);
+                        renderPack(pack, stickerPackCache[pack.id]);
+                    })
+                    .catch(function () {
+                        status.hidden = false;
+                        status.textContent = '表情包读取失败，请稍后重试。';
+                    });
+            }
+
+            packs.forEach(function (pack) {
+                var tab = document.createElement('button');
+                tab.type = 'button';
+                tab.className = 'comment-sticker-tab';
+                tab.dataset.stickerPack = pack.id;
+                tab.setAttribute('role', 'tab');
+                tab.setAttribute('aria-selected', 'false');
+                tab.textContent = pack.label;
+                tab.addEventListener('click', function () { selectPack(pack); });
+                tabs.appendChild(tab);
+            });
+
+            toggle.addEventListener('click', function () { setOpen(!form.classList.contains('is-sticker-open')); });
+            if (close) close.addEventListener('click', function () { setOpen(false); textarea.focus(); });
         });
     }
 
@@ -559,6 +706,8 @@
     function initPjaxPage(root, afterPjax) {
         initReadingPreferences(root);
         initCommentProfiles(root);
+        initCommentStickers(root);
+        initLatestMoment(root);
         initToc(root);
         if (afterPjax) {
             root.dataset.v2PjaxPage = '1';
@@ -595,6 +744,12 @@
         container.classList.add('is-leaving');
         var hidden = new Promise(function (resolve) { window.setTimeout(resolve, prefersReducedMotion() ? 0 : 190); });
         cleanupDynamicPageListeners();
+        var visibleLightbox = document.querySelector('.v2-lightbox.is-visible');
+        if (visibleLightbox) clearLightbox(visibleLightbox);
+        if (latestMomentTimer !== null) {
+            window.clearInterval(latestMomentTimer);
+            latestMomentTimer = null;
+        }
         if (tocObserver) {
             tocObserver.disconnect();
             tocObserver = null;
@@ -654,6 +809,108 @@
         });
     }
 
+    function getLightboxTargetRect(preview) {
+        var padding = window.innerWidth <= 700 ? 18 : 40;
+        var availableWidth = Math.max(1, Math.min(1200, window.innerWidth - padding * 2));
+        var availableHeight = Math.max(1, window.innerHeight - padding * 2);
+        var naturalWidth = preview.naturalWidth || availableWidth;
+        var naturalHeight = preview.naturalHeight || availableHeight;
+        var scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+        var width = Math.max(1, naturalWidth * scale);
+        var height = Math.max(1, naturalHeight * scale);
+        return {
+            left: (window.innerWidth - width) / 2,
+            top: (window.innerHeight - height) / 2,
+            width: width,
+            height: height
+        };
+    }
+
+    function clearLightbox(lightbox) {
+        var preview = lightbox.querySelector('img');
+        var source = lightbox._qiwiSource;
+        if (lightbox._qiwiCloseTimer) window.clearTimeout(lightbox._qiwiCloseTimer);
+        lightbox._qiwiCloseTimer = null;
+        if (source && source.classList) source.classList.remove('v2-lightbox-source');
+        lightbox._qiwiSource = null;
+        lightbox.classList.remove('is-visible', 'is-open', 'is-closing');
+        preview.classList.remove('is-prepared', 'is-open');
+        preview.removeAttribute('src');
+        preview.removeAttribute('style');
+        document.documentElement.classList.remove('v2-lightbox-open');
+    }
+
+    function closeLightbox(lightbox) {
+        if (!lightbox || !lightbox.classList.contains('is-visible') || lightbox.classList.contains('is-closing')) return;
+        var preview = lightbox.querySelector('img');
+        var source = lightbox._qiwiSource;
+        var sourceRect = source && source.isConnected ? source.getBoundingClientRect() : null;
+        lightbox._qiwiRequest = (lightbox._qiwiRequest || 0) + 1;
+        lightbox.classList.add('is-closing');
+        lightbox.classList.remove('is-open');
+
+        if (!prefersReducedMotion() && sourceRect && sourceRect.width > 0 && sourceRect.height > 0) {
+            var targetLeft = parseFloat(preview.style.left) || 0;
+            var targetTop = parseFloat(preview.style.top) || 0;
+            var targetWidth = parseFloat(preview.style.width) || preview.offsetWidth || 1;
+            var targetHeight = parseFloat(preview.style.height) || preview.offsetHeight || 1;
+            preview.style.transform = 'translate(' + (sourceRect.left - targetLeft) + 'px,' + (sourceRect.top - targetTop) + 'px) scale(' + (sourceRect.width / targetWidth) + ',' + (sourceRect.height / targetHeight) + ')';
+        } else {
+            preview.style.opacity = '0';
+        }
+        preview.classList.remove('is-open');
+
+        lightbox._qiwiCloseTimer = window.setTimeout(function () { clearLightbox(lightbox); }, prefersReducedMotion() ? 0 : 370);
+    }
+
+    function openLightbox(source) {
+        var lightbox = document.querySelector('.v2-lightbox');
+        if (!lightbox) {
+            lightbox = document.createElement('button');
+            lightbox.type = 'button';
+            lightbox.className = 'v2-lightbox';
+            lightbox.setAttribute('aria-label', '关闭图片预览');
+            lightbox.innerHTML = '<img alt="">';
+            document.body.appendChild(lightbox);
+            lightbox.addEventListener('click', function () { closeLightbox(lightbox); });
+        }
+        if (lightbox.classList.contains('is-visible')) return;
+
+        var preview = lightbox.querySelector('img');
+        var requestId = (lightbox._qiwiRequest || 0) + 1;
+        lightbox._qiwiRequest = requestId;
+        lightbox._qiwiSource = source;
+        preview.alt = source.alt || '';
+        preview.src = source.currentSrc || source.src;
+        lightbox.classList.add('is-visible');
+        document.documentElement.classList.add('v2-lightbox-open');
+
+        var decoded = typeof preview.decode === 'function' ? preview.decode() : Promise.resolve();
+        decoded.catch(function () {}).then(function () {
+            if (lightbox._qiwiRequest !== requestId || !preview.src) return;
+            var sourceRect = source.getBoundingClientRect();
+            var targetRect = getLightboxTargetRect(preview);
+            preview.style.left = targetRect.left + 'px';
+            preview.style.top = targetRect.top + 'px';
+            preview.style.width = targetRect.width + 'px';
+            preview.style.height = targetRect.height + 'px';
+            if (!prefersReducedMotion() && sourceRect.width > 0 && sourceRect.height > 0) {
+                preview.style.transform = 'translate(' + (sourceRect.left - targetRect.left) + 'px,' + (sourceRect.top - targetRect.top) + 'px) scale(' + (sourceRect.width / targetRect.width) + ',' + (sourceRect.height / targetRect.height) + ')';
+            } else {
+                preview.style.transform = 'none';
+            }
+            preview.classList.add('is-prepared');
+            source.classList.add('v2-lightbox-source');
+            window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function () {
+                    if (lightbox._qiwiRequest !== requestId) return;
+                    lightbox.classList.add('is-open');
+                    preview.classList.add('is-open');
+                });
+            });
+        });
+    }
+
     document.addEventListener('click', function (event) {
         var likeButton = event.target.closest('[data-post-like]');
         if (likeButton) {
@@ -672,11 +929,15 @@
                 .then(function (data) {
                     if (!data || !data.success) throw new Error();
                     likeButton.classList.add('is-liked', 'has-count');
+                    var reactions = likeButton.closest('.post-reactions');
+                    if (reactions) reactions.classList.add('is-liked');
                     likeButton.setAttribute('aria-pressed', 'true');
                     var label = likeButton.querySelector('[data-like-label]');
                     var count = likeButton.querySelector('[data-like-count]');
+                    var icon = likeButton.querySelector('[data-like-icon]');
                     if (label) label.textContent = '已喜欢';
                     if (count) { count.textContent = String(data.count || 0); count.hidden = false; }
+                    if (icon) { icon.classList.remove('fa-regular'); icon.classList.add('fa-solid'); }
                     celebrateLike(likeButton);
                 }).catch(function () {}).finally(function () {
                     likeButton.dataset.likeBusy = '0';
@@ -695,38 +956,7 @@
         var image = event.target.closest('#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image');
         if (image) {
             event.preventDefault();
-            var lightbox = document.querySelector('.v2-lightbox');
-            if (!lightbox) {
-                lightbox = document.createElement('button');
-                lightbox.type = 'button';
-                lightbox.className = 'v2-lightbox';
-                lightbox.setAttribute('aria-label', '关闭图片预览');
-                lightbox.innerHTML = '<img alt="">';
-                document.body.appendChild(lightbox);
-                lightbox.addEventListener('click', function () {
-                    var previewImage = lightbox.querySelector('img');
-                    lightbox.classList.remove('is-open');
-                    document.documentElement.classList.remove('v2-lightbox-open');
-                    window.setTimeout(function () {
-                        lightbox.classList.remove('is-visible');
-                        previewImage.classList.remove('is-loaded');
-                        previewImage.removeAttribute('src');
-                    }, prefersReducedMotion() ? 0 : 240);
-                });
-            }
-            var preview = lightbox.querySelector('img');
-            preview.classList.remove('is-loaded');
-            preview.src = image.currentSrc || image.src;
-            preview.alt = image.alt || '';
-            lightbox.classList.add('is-visible');
-            document.documentElement.classList.add('v2-lightbox-open');
-            window.requestAnimationFrame(function () {
-                lightbox.classList.add('is-open');
-            });
-            var decoded = typeof preview.decode === 'function' ? preview.decode() : Promise.resolve();
-            decoded.catch(function () {}).then(function () {
-                if (preview.src) preview.classList.add('is-loaded');
-            });
+            openLightbox(image);
             return;
         }
 
@@ -739,7 +969,7 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             var lightbox = document.querySelector('.v2-lightbox.is-visible');
-            if (lightbox) { event.preventDefault(); lightbox.click(); }
+            if (lightbox) { event.preventDefault(); closeLightbox(lightbox); }
             return;
         }
         if (event.key !== 'Enter' && event.key !== ' ') return;

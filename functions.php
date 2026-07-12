@@ -2563,11 +2563,58 @@ if (!function_exists('qiwiCommentSafeUrl')) {
     }
 }
 
+if (!function_exists('qiwiRenderCommentParagraphs')) {
+    function qiwiRenderCommentParagraphs($html)
+    {
+        $html = trim(str_replace(["\r\n", "\r"], "\n", (string) $html));
+        if ($html === '') {
+            return '';
+        }
+
+        $paragraphs = preg_split('/[ \t]*\n+[ \t]*/u', $html, -1, PREG_SPLIT_NO_EMPTY);
+        return '<p>' . implode('</p><p>', $paragraphs) . '</p>';
+    }
+}
+
+if (!function_exists('qiwiGetCommentStickerPacks')) {
+    function qiwiGetCommentStickerPacks()
+    {
+        return array(
+            'heo' => array(
+                'id' => 'heo',
+                'label' => 'Heo',
+                'source' => 'https://cdn.jsdelivr.net/npm/sticker-heo@2022.7.5/twikoo.json',
+                'assetBase' => 'https://cdn.jsdelivr.net/npm/sticker-heo@2022.7.5/Sticker-100/',
+                'extension' => '.png',
+            ),
+        );
+    }
+}
+
+if (!function_exists('qiwiRenderCommentStickers')) {
+    function qiwiRenderCommentStickers($html)
+    {
+        $packs = qiwiGetCommentStickerPacks();
+
+        return preg_replace_callback('/\[sticker:([a-z0-9_-]+)\/([^\]\r\n]{1,80})\]/iu', function ($matches) use ($packs) {
+            $packId = strtolower($matches[1]);
+            $name = trim(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if (!isset($packs[$packId]) || $name === '' || preg_match('~[\x00-\x1F\x7F/\\\\]~u', $name)) {
+                return $matches[0];
+            }
+
+            $pack = $packs[$packId];
+            $url = $pack['assetBase'] . rawurlencode($name) . $pack['extension'];
+            return '<img src="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" alt="' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" title="' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '" class="comment-sticker" loading="lazy" decoding="async">';
+        }, $html);
+    }
+}
+
 if (!function_exists('qiwiRenderPlainCommentContent')) {
     function qiwiRenderPlainCommentContent($text)
     {
         $text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        return nl2br($text, false);
+        return qiwiRenderCommentParagraphs(qiwiRenderCommentStickers($text));
     }
 }
 
@@ -2597,7 +2644,7 @@ if (!function_exists('qiwiRenderTrustedCommentContent')) {
             return '<a href="' . htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '"' . $target . '>' . $matches[1] . '</a>';
         }, $html);
 
-        return nl2br($html, false);
+        return qiwiRenderCommentParagraphs(qiwiRenderCommentStickers($html));
     }
 }
 
@@ -3181,14 +3228,12 @@ if (!function_exists('qiwiGetCommentAvatarUrl')) {
     {
         $mail = strtolower(trim((string) $mail));
         $size = max(24, min(160, (int) $size));
-        $default = 'mp';
 
         if (preg_match('/^([1-9][0-9]{4,11})@qq\.com$/i', $mail, $matches)) {
-            $qqAvatar = 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100';
-            $default = rawurlencode($qqAvatar);
+            return 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100';
         }
 
-        return 'https://gravatar.loli.net/avatar/' . md5($mail) . '?s=' . $size . '&d=' . $default;
+        return 'https://gravatar.loli.net/avatar/' . md5($mail) . '?s=' . $size . '&d=mp';
     }
 }
 

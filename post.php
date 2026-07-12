@@ -112,7 +112,7 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                 <?php qiwiContent($this); ?>
             </div>
 
-            <section class="post-reactions" aria-label="文章反馈">
+            <section class="post-reactions<?php if ($qiwiPostLiked): ?> is-liked<?php endif; ?>" aria-label="文章反馈">
                 <button
                     type="button"
                     class="post-like-button<?php if ($qiwiPostLiked): ?> is-liked has-count<?php endif; ?>"

@@ -164,10 +164,16 @@ if (function_exists('qiwiPrimePostStatsCache')) {
     <!-- 主要内容 -->
     <div class="main-content">
         <?php if ($currentPage == 1 && $hasHomeJike && !empty($homeJikeData['items'][0])): ?>
-        <?php $latestMoment = $homeJikeData['items'][0]; ?>
-        <section class="latest-moment" aria-label="最近动态">
+        <section class="latest-moment" aria-label="最近动态" data-latest-moment>
             <span class="dot" aria-hidden="true"></span>
-            <b><?php echo htmlspecialchars($latestMoment['excerpt'], ENT_QUOTES, 'UTF-8'); ?></b>
+            <span class="latest-moment-items">
+                <?php foreach ($homeJikeData['items'] as $momentIndex => $latestMoment): ?>
+                <b class="latest-moment-item<?php echo $momentIndex === 0 ? ' is-active' : ''; ?>" data-latest-moment-item aria-hidden="<?php echo $momentIndex === 0 ? 'false' : 'true'; ?>">
+                    <time datetime="<?php echo htmlspecialchars($latestMoment['datetime'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($latestMoment['relative_date_label'], ENT_QUOTES, 'UTF-8'); ?></time>
+                    <span aria-hidden="true"> · </span><?php echo htmlspecialchars($latestMoment['excerpt'], ENT_QUOTES, 'UTF-8'); ?>
+                </b>
+                <?php endforeach; ?>
+            </span>
             <a href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">更多动态 →</a>
         </section>
         <?php endif; ?>
