@@ -164,7 +164,7 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
             script.async = true;
             script.setAttribute('data-qiwi-cap-library', '1');
             script.onerror = function () {
-                if (widget) widget.dispatchEvent(new CustomEvent('error', { detail: { isCap: true, message: 'CAP 组件加载失败' } }));
+                if (widget) EventTarget.prototype.dispatchEvent.call(widget, new CustomEvent('error', { detail: { isCap: true, message: 'CAP 组件加载失败' } }));
             };
             document.head.appendChild(script);
         }
@@ -522,6 +522,10 @@ HTML;
 
             var controls = Array.prototype.slice.call(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
             var status = container.querySelector('[data-qiwi-cap-status]');
+            var relocationToken = '';
+            var relocationTimer = null;
+            var relocationPending = false;
+            var commentsRoot = form.closest('#comments');
             if (!status) {
                 status = document.createElement('p');
                 status.className = 'qiwi-cap-status';
@@ -557,10 +561,48 @@ HTML;
                 });
             }
 
+            function restoreAfterRelocation(attempt) {
+                if (!widget.isConnected) {
+                    if (attempt < 80) relocationTimer = window.setTimeout(function () { restoreAfterRelocation(attempt + 1); }, 25);
+                    return;
+                }
+
+                var hidden = widget.querySelector('input[name="cap-token"]');
+                if (!hidden) {
+                    if (attempt < 80) relocationTimer = window.setTimeout(function () { restoreAfterRelocation(attempt + 1); }, 25);
+                    return;
+                }
+
+                if (!relocationToken) {
+                    relocationPending = false;
+                    update(false, '请先完成人机验证。', false);
+                    return;
+                }
+
+                hidden.value = relocationToken;
+                widget.token = relocationToken;
+                relocationPending = false;
+                EventTarget.prototype.dispatchEvent.call(widget, new CustomEvent('solve', {
+                    bubbles: true,
+                    composed: true,
+                    detail: { token: relocationToken }
+                }));
+            }
+
             widget.addEventListener('solve', function (event) {
-                update(Boolean((event.detail && event.detail.token) || tokenValue()), '验证已完成，可以提交。', false);
+                var solvedToken = String((event.detail && event.detail.token) || tokenValue()).trim();
+                if (solvedToken) relocationToken = solvedToken;
+                update(Boolean(solvedToken), '验证已完成，可以提交。', false);
             });
             widget.addEventListener('reset', function () {
+                if (relocationPending || !widget.isConnected) {
+                    var preservedToken = tokenValue();
+                    if (preservedToken) relocationToken = preservedToken;
+                    if (relocationTimer !== null) window.clearTimeout(relocationTimer);
+                    relocationTimer = window.setTimeout(function () { restoreAfterRelocation(0); }, 0);
+                    return;
+                }
+                relocationToken = '';
                 update(false, '验证已失效，请重新完成人机验证。', true);
             });
             widget.addEventListener('error', function () {
@@ -574,6 +616,21 @@ HTML;
                 try { widget.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (error) { widget.scrollIntoView(); }
                 if (typeof widget.focus === 'function') widget.focus();
             }, true);
+
+            if (commentsRoot) {
+                commentsRoot.addEventListener('click', function (event) {
+                    var trigger = event.target.closest('.comment-reply a, #cancel-comment-reply-link');
+                    if (!trigger) return;
+                    relocationPending = true;
+                    var currentToken = tokenValue();
+                    if (currentToken) relocationToken = currentToken;
+                    window.setTimeout(function () {
+                        if (relocationPending && widget.isConnected && !form.classList.contains('is-cap-verified')) {
+                            relocationPending = false;
+                        }
+                    }, 1000);
+                }, true);
+            }
 
             update(Boolean(tokenValue()), tokenValue() ? '验证已完成，可以提交。' : '请先完成人机验证。', false);
         };
