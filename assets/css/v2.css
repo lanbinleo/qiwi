@@ -1234,13 +1234,13 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
     .qiwi-v2 .toc-progress {
         content: "";
         position: absolute;
-        top: 0;
+        top: 5px;
         left: 8px;
         width: 1px;
         border-radius: 2px;
     }
-    .qiwi-v2 .article-toc::before { bottom: 0; background: var(--v2-border-soft); }
-    .qiwi-v2 .toc-progress { z-index: 1; height: var(--toc-progress); background: var(--v2-accent-strong); transition: height .12s linear; }
+    .qiwi-v2 .article-toc::before { bottom: 5px; background: var(--v2-border-soft); }
+    .qiwi-v2 .toc-progress { z-index: 1; height: var(--toc-progress-size, 0); background: var(--v2-accent-strong); transition: height .12s linear; }
     .qiwi-v2 .toc-title,
     .qiwi-v2 .toc-mobile-progress { display: none; }
     .qiwi-v2 .toc-list {
@@ -1254,31 +1254,45 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         gap: 0;
         overflow: visible;
     }
-    .qiwi-v2 .toc-list > .toc-item { position: relative; display: flex; align-items: center; min-height: 10px; }
+    .qiwi-v2 .toc-list > .toc-item { position: relative; display: flex; min-height: 10px; align-items: center; }
     .qiwi-v2 .toc-list > .toc-item > .toc-link {
         position: relative;
         display: block;
-        width: 9px;
-        height: 9px;
-        margin-left: 4px;
+        left: 8px;
+        width: 7px;
+        height: 7px;
         padding: 0;
         border: 1px solid var(--v2-border);
         border-radius: 50%;
         background: var(--v2-bg);
-        transition: width .2s ease, height .2s ease, margin .2s ease, background-color .2s ease, border-color .2s ease;
+        transform: translateX(-50%);
+        transition: width .2s ease, height .2s ease, background-color .2s ease, border-color .2s ease;
+    }
+    .qiwi-v2 .toc-list > .toc-item > .toc-link::before,
+    .qiwi-v2 .toc-end-node::before {
+        content: "";
+        position: absolute;
+        inset: -11px -15px;
+    }
+    .qiwi-v2 .toc-list > .toc-item.is-passed > .toc-link,
+    .qiwi-v2 .toc-list > .toc-item > .toc-link.is-passed {
+        width: 9px;
+        height: 9px;
+        border-color: color-mix(in srgb, var(--v2-accent-strong) 78%, var(--v2-border));
+        background: color-mix(in srgb, var(--v2-accent-strong) 72%, var(--v2-bg));
     }
     .qiwi-v2 .toc-list > .toc-item.is-section-active > .toc-link,
     .qiwi-v2 .toc-list > .toc-item > .toc-link.is-active {
         width: 13px;
         height: 13px;
-        margin-left: 2px;
         border-color: var(--v2-accent-strong);
         background: var(--v2-accent-strong);
     }
-    .qiwi-v2 .toc-list > .toc-item > .toc-link:hover { transform: none; border-color: var(--v2-accent); background: var(--v2-accent); }
-    .qiwi-v2 .toc-list > .toc-item > .toc-link .toc-link-text {
+    .qiwi-v2 .toc-list > .toc-item > .toc-link:hover { width: 11px; height: 11px; border-color: var(--v2-accent); background: var(--v2-accent); transform: translateX(-50%); }
+    .qiwi-v2 .toc-list > .toc-item > .toc-link .toc-link-text,
+    .qiwi-v2 .toc-end-node .toc-link-text {
         position: absolute;
-        left: 22px;
+        left: calc(50% + 14px);
         top: 50%;
         width: max-content;
         max-width: 230px;
@@ -1296,29 +1310,59 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         transform: translate(5px, -50%);
         transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
     }
-    .qiwi-v2 .toc-list > .toc-item > .toc-link:hover .toc-link-text,
-    .qiwi-v2 .toc-list > .toc-item > .toc-link:focus-visible .toc-link-text {
+    .qiwi-v2 .toc-list > .toc-item:hover > .toc-link .toc-link-text,
+    .qiwi-v2 .toc-list > .toc-item:focus-within > .toc-link .toc-link-text,
+    .qiwi-v2 .toc-end:hover .toc-link-text {
         opacity: 1;
         visibility: visible;
         transform: translate(0, -50%);
     }
+    .qiwi-v2 .toc-list > .toc-item.has-children > .toc-link .toc-link-text {
+        width: 230px;
+        box-sizing: border-box;
+        border-radius: var(--v2-radius) var(--v2-radius) 0 0;
+    }
     .qiwi-v2 .toc-list > .toc-item > .toc-children {
         position: absolute;
         left: 22px;
-        top: calc(50% + 18px);
-        display: none;
+        top: calc(50% + 16px);
+        z-index: 2;
+        display: grid;
         width: 230px;
         max-height: 220px;
         padding: 8px 10px;
         overflow-y: auto;
         border: 1px solid var(--v2-border-soft);
+        border-top: 0;
         border-radius: var(--v2-radius);
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
         background: color-mix(in srgb, var(--v2-surface) 96%, transparent);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(5px);
+        transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
     }
     .qiwi-v2 .toc-list > .toc-item:hover > .toc-children,
-    .qiwi-v2 .toc-list > .toc-item:focus-within > .toc-children { display: grid; }
-    .qiwi-v2 .toc-children .toc-link { padding: 4px 2px; font-size: .72rem; }
-    .qiwi-v2 .toc-children .toc-link:hover { transform: none; }
+    .qiwi-v2 .toc-list > .toc-item:focus-within > .toc-children { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(0); }
+    .qiwi-v2 .toc-children .toc-link { padding: 5px 7px; border-radius: 3px; font-size: .72rem; transition: color .18s ease, background-color .18s ease; }
+    .qiwi-v2 .toc-children .toc-link:hover { background: color-mix(in srgb, var(--v2-accent) 10%, transparent); transform: none; }
+    .qiwi-v2 .toc-children .toc-link.is-passed { color: color-mix(in srgb, var(--v2-accent) 72%, var(--v2-muted)); }
+    .qiwi-v2 .toc-end-node {
+        position: relative;
+        left: 8px;
+        display: block;
+        width: 6px;
+        height: 6px;
+        border: 1px solid var(--v2-border);
+        border-radius: 50%;
+        background: var(--v2-bg);
+        transform: translateX(-50%);
+        transition: width .2s ease, height .2s ease, border-color .2s ease, background-color .2s ease;
+    }
+    .qiwi-v2 .toc-end:hover .toc-end-node { width: 10px; height: 10px; border-color: var(--v2-accent); }
+    .qiwi-v2 .article-toc.is-complete .toc-end-node { width: 13px; height: 13px; border-color: var(--v2-accent-strong); background: var(--v2-accent-strong); }
 }
 
 @media (max-width: 1099px) {
@@ -1340,6 +1384,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
     .qiwi-v2 .article-toc.is-open .toc-title::after { content: "−"; }
     .qiwi-v2 .article-toc > .toc-list { display: none; padding: 12px 0 4px; }
     .qiwi-v2 .article-toc.is-open > .toc-list { display: grid; }
+    .qiwi-v2 .toc-end { display: none; }
     .qiwi-v2 .toc-mobile-progress {
         position: fixed;
         top: 0;

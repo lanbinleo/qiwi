@@ -544,6 +544,7 @@
             if (list) return list;
             list = document.createElement('ul');
             list.className = 'toc-children';
+            item.classList.add('has-children');
             item.appendChild(list);
             return list;
         }
@@ -576,6 +577,7 @@
         list.className = 'toc-list';
         var currentH2 = null;
         var currentH3 = null;
+        var tocEntries = [];
 
         headings.forEach(function (heading, index) {
             var text = headingText(heading);
@@ -596,6 +598,7 @@
                 revealHeading(heading, link);
             });
             item.appendChild(link);
+            tocEntries.push({ heading: heading, item: item, link: link });
 
             if (level === 2) {
                 list.appendChild(item);
@@ -611,6 +614,17 @@
                 currentH3 = level === 3 ? item : null;
             }
         });
+        var endItem = document.createElement('li');
+        endItem.className = 'toc-item toc-end';
+        var endNode = document.createElement('span');
+        endNode.className = 'toc-end-node';
+        endNode.setAttribute('aria-label', '文章结尾');
+        var endLabel = document.createElement('span');
+        endLabel.className = 'toc-link-text';
+        endLabel.textContent = '结 尾';
+        endNode.appendChild(endLabel);
+        endItem.appendChild(endNode);
+        list.appendChild(endItem);
         var progress = document.createElement('span');
         progress.className = 'toc-progress';
         progress.setAttribute('aria-hidden', 'true');
@@ -627,33 +641,34 @@
 
         toc.appendChild(list);
 
-        if ('IntersectionObserver' in window) {
-            var links = Array.prototype.slice.call(toc.querySelectorAll('.toc-link'));
-            tocObserver = new IntersectionObserver(function (entries) {
-                entries.forEach(function (entry) {
-                    if (!entry.isIntersecting) return;
-                    links.forEach(function (link) {
-                        var active = link.getAttribute('href') === '#' + entry.target.id;
-                        link.classList.toggle('is-active', active);
-                        if (active) {
-                            toc.querySelectorAll('.toc-item.is-section-active').forEach(function (item) { item.classList.remove('is-section-active'); });
-                            var section = link.closest('.toc-item.level-2') || link.closest('.toc-item');
-                            if (section) section.classList.add('is-section-active');
-                        }
-                    });
-                });
-            }, { rootMargin: '-80px 0px -72% 0px' });
-            headings.forEach(function (heading) { tocObserver.observe(heading); });
-        }
-
         var frame = null;
         function updateProgress() {
             frame = null;
             var rect = body.getBoundingClientRect();
-            var start = window.scrollY + rect.top - window.innerHeight * .24;
-            var distance = Math.max(1, rect.height - window.innerHeight * .52);
-            var value = Math.max(0, Math.min(1, (window.scrollY - start) / distance));
+            var bodyTop = window.scrollY + rect.top;
+            var readingLine = window.scrollY + window.innerHeight * .24;
+            var value = Math.max(0, Math.min(1, (readingLine - bodyTop) / Math.max(1, rect.height)));
+            var activeIndex = -1;
+            tocEntries.forEach(function (entry, index) {
+                var headingTop = window.scrollY + entry.heading.getBoundingClientRect().top;
+                if (headingTop <= readingLine + 1) activeIndex = index;
+            });
+            var complete = value >= .995;
+            toc.classList.toggle('is-complete', complete);
+            toc.querySelectorAll('.toc-item.is-section-active').forEach(function (item) { item.classList.remove('is-section-active'); });
+            tocEntries.forEach(function (entry, index) {
+                var active = !complete && index === activeIndex;
+                var passed = complete || index < activeIndex;
+                entry.link.classList.toggle('is-active', active);
+                entry.link.classList.toggle('is-passed', passed);
+                entry.item.classList.toggle('is-passed', passed);
+                if (active) {
+                    var section = entry.link.closest('.toc-item.level-2') || entry.item;
+                    section.classList.add('is-section-active');
+                }
+            });
             toc.style.setProperty('--toc-progress', (value * 100).toFixed(2) + '%');
+            toc.style.setProperty('--toc-progress-size', (Math.max(0, toc.clientHeight - 10) * value).toFixed(2) + 'px');
         }
         function requestProgress() {
             if (frame !== null) return;
