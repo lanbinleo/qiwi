@@ -89,6 +89,15 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
         );
         $widgetScriptUrl->addRule('required', _t('请填写 Widget Script URL'));
         $form->addInput($widgetScriptUrl);
+
+        $caBundlePath = new Typecho_Widget_Helper_Form_Element_Text(
+            'caBundlePath',
+            null,
+            '',
+            _t('CA 证书路径（可选）'),
+            _t('当 PHP 请求 CAP Server 提示 unable to get local issuer certificate 时填写。留空会自动读取 php.ini、Linux 系统证书和常见 phpstudy/Git for Windows 证书路径。')
+        );
+        $form->addInput($caBundlePath);
     }
 
     public static function personalConfig(Typecho_Widget_Helper_Form $form)
@@ -336,6 +345,7 @@ HTML;
 
         $response = '';
         $status = 0;
+        $caBundle = self::caBundlePath();
 
         if (function_exists('curl_init')) {
             $ch = curl_init($endpoint);
@@ -352,6 +362,9 @@ HTML;
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
             ));
+            if ($caBundle !== '') {
+                curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+            }
 
             $raw = curl_exec($ch);
             if ($raw !== false) {
@@ -373,6 +386,11 @@ HTML;
                     'verify_peer_name' => true,
                 ),
             ));
+            if ($caBundle !== '') {
+                $contextOptions = stream_context_get_options($context);
+                $contextOptions['ssl']['cafile'] = $caBundle;
+                $context = stream_context_create($contextOptions);
+            }
 
             $raw = @file_get_contents($endpoint, false, $context);
             if ($raw !== false) {
@@ -624,6 +642,36 @@ JS;
         $options = self::options();
         $value = isset($options->widgetScriptUrl) ? $options->widgetScriptUrl : self::DEFAULT_WIDGET_SCRIPT;
         return self::normalizeHttpUrl($value);
+    }
+
+    private static function caBundlePath()
+    {
+        $options = self::options();
+        $configured = isset($options->caBundlePath) ? trim((string) $options->caBundlePath) : '';
+        $candidates = array(
+            $configured,
+            (string) ini_get('curl.cainfo'),
+            (string) ini_get('openssl.cafile'),
+            dirname(PHP_BINARY) . DIRECTORY_SEPARATOR . 'cacert.pem',
+            __DIR__ . DIRECTORY_SEPARATOR . 'cacert.pem',
+            'C:\\Program Files\\Git\\usr\\ssl\\certs\\ca-bundle.crt',
+            'C:\\Program Files\\Git\\mingw64\\ssl\\certs\\ca-bundle.crt',
+            '/etc/ssl/certs/ca-certificates.crt',
+            '/etc/pki/tls/certs/ca-bundle.crt',
+            '/etc/ssl/cert.pem',
+        );
+
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string) $candidate);
+            if ($candidate === '' || !is_file($candidate) || !is_readable($candidate)) {
+                continue;
+            }
+
+            $resolved = realpath($candidate);
+            return $resolved !== false ? $resolved : $candidate;
+        }
+
+        return '';
     }
 
     private static function normalizeHttpUrl($url)

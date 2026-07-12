@@ -22,6 +22,8 @@ CAP 的 challenge 在访客浏览器中完成，Typecho 只负责把 `cap-token`
    - Widget Script URL
 4. 保存配置后，再选择需要保护的页面。
 
+如果 Typecho 所在的 PHP 环境没有配置系统 CA，服务器验证可能提示 `unable to get local issuer certificate`。插件会自动检查 `curl.cainfo`、`openssl.cafile`、Linux 常见证书位置以及 phpstudy 常用的 Git for Windows CA bundle；也可以在插件设置中手动填写“CA 证书路径”。TLS 证书校验不会被关闭。
+
 插件默认不启用评论或登录验证，避免配置尚未完成时影响站点操作。
 
 ## 评论表单接入
