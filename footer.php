@@ -1641,7 +1641,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <?php endif; ?>
 
 <!-- Code highlighting; colors are owned by the active v2 stylesheet. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<?php $qiwiHighlightScriptVersion = @filemtime(__DIR__ . '/assets/js/vendor/highlight.min.js'); ?>
+<script src="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/vendor/highlight.min.js' . ($qiwiHighlightScriptVersion ? '?v=' . $qiwiHighlightScriptVersion : '')), ENT_QUOTES, 'UTF-8'); ?>"></script>
 
 <script>
 (function() {

@@ -614,7 +614,7 @@
         var progress = document.createElement('span');
         progress.className = 'toc-progress';
         progress.setAttribute('aria-hidden', 'true');
-        toc.insertBefore(progress, list);
+        toc.appendChild(progress);
         var mobileProgress = document.createElement('span');
         mobileProgress.className = 'toc-mobile-progress';
         mobileProgress.setAttribute('aria-hidden', 'true');
