@@ -786,6 +786,7 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .comment-item > .comment-list { margin-top: 18px; }
 .qiwi-v2 .comment-item > .comment-list > .comment-item + .comment-item { margin-top: 18px; }
 .qiwi-v2 .comments-section > .comment-list ~ .comment-respond { margin-top: 40px; }
+.qiwi-v2 .comment-item .comment-respond { margin: 20px 0 0; }
 .qiwi-v2 .comment-main { display: flex; gap: 14px; }
 .qiwi-v2 .comment-avatar { flex: 0 0 auto; }
 .qiwi-v2 .comment-child { margin-left: 30px; padding-left: 0; border-left: 0; }
@@ -1581,6 +1582,7 @@ html.v2-lightbox-open body { overflow: hidden; }
     .qiwi-v2 .latest-moment-item { white-space: normal; }
     .qiwi-v2 .latest-moment a { display: none; }
     .qiwi-v2 .comment-form-footer { flex-wrap: nowrap; }
+    .qiwi-v2 .comment-item .comment-respond { margin-top: 16px; }
     .qiwi-v2 .comment-profile-modal.is-logged-profile .comment-profile-panel { gap: 6px; padding-right: 10px; padding-left: 10px; }
     .qiwi-v2 .comment-profile-account-actions { gap: 4px; }
     .qiwi-v2 .comment-profile-account-actions a { padding: 6px 8px; }
