@@ -1289,6 +1289,13 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         background: var(--v2-accent-strong);
     }
     .qiwi-v2 .toc-list > .toc-item > .toc-link:hover { width: 11px; height: 11px; border-color: var(--v2-accent); background: var(--v2-accent); transform: translateX(-50%); }
+    .qiwi-v2 .toc-list > .toc-item.is-section-active > .toc-link:hover,
+    .qiwi-v2 .toc-list > .toc-item > .toc-link.is-active:hover {
+        width: 13px;
+        height: 13px;
+        border-color: var(--v2-accent-strong);
+        background: var(--v2-accent-strong);
+    }
     .qiwi-v2 .toc-list > .toc-item > .toc-link .toc-link-text,
     .qiwi-v2 .toc-end-node .toc-link-text {
         position: absolute;
