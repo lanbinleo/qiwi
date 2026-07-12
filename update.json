@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "releaseDate": "2026-07-11",
+  "releaseDate": "2026-07-12",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
@@ -8,6 +8,7 @@
     "新增带页面动效、History 与失败回退的 PJAX 导航，保留真实 URL、SEO 信息和无 JavaScript 访问能力",
     "保留文章与说说点赞、赞赏、验证码、浏览量、评论统计、Plog 多布局和归档文章字数",
     "新增 V2 英文站名、侧栏 Slogan 与页脚 Motto 配置，并将开往入口调整到页脚",
-    "新增 QiwiCap 伴生插件并接入通用验证码接口，支持自托管 CAP 评论与后台登录验证"
+    "新增 QiwiCap 伴生插件并接入通用验证码接口，支持自托管 CAP 评论与后台登录验证",
+    "修复 PJAX 下 LaTeX 渲染、旧浏览器链接跳转、可信评论图片灯箱、页面标题间距及 Qiwi CAP 登录查询兼容性"
   ]
 }

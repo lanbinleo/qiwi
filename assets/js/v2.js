@@ -9,7 +9,7 @@
     var tocProgressCleanup = null;
     var latestMomentTimer = null;
     var stickerPackCache = {};
-    var pjaxReady = Boolean(window.fetch && window.DOMParser && window.history && window.history.pushState);
+    var pjaxReady = Boolean(window.fetch && window.DOMParser && window.AbortController && window.history && window.history.pushState);
 
     function currentContainer() {
         return document.querySelector(containerSelector);
@@ -105,6 +105,7 @@
     }
 
     function updateHead(nextDocument) {
+        var pendingScripts = [];
         document.title = nextDocument.title || document.title;
         ['description', 'keywords'].forEach(function (name) {
             var current = document.head.querySelector('meta[name="' + name + '"]');
@@ -133,7 +134,30 @@
             var clone = document.createElement('script');
             clone.src = script.src;
             clone.async = false;
+            pendingScripts.push(new Promise(function (resolve) {
+                clone.addEventListener('load', resolve, { once: true });
+                clone.addEventListener('error', resolve, { once: true });
+            }));
             document.head.appendChild(clone);
+        });
+
+        return Promise.all(pendingScripts);
+    }
+
+    function initLatex(root, nextDocument) {
+        if (!nextDocument || !nextDocument.head.querySelector('script[src*="auto-render.min.js"]')) return;
+        if (typeof window.renderMathInElement !== 'function') return;
+        window.renderMathInElement(root, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\(', right: '\\)', display: false },
+                { left: '\\[', right: '\\]', display: true }
+            ],
+            throwOnError: false,
+            strict: 'ignore',
+            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            ignoredClasses: ['nokatex']
         });
     }
 
@@ -827,13 +851,16 @@
                 var nextContainer = nextDocument.querySelector(containerSelector);
                 if (!nextContainer) throw new Error('Missing PJAX container');
 
-                updateHead(nextDocument);
+                var headReady = updateHead(nextDocument);
                 container.innerHTML = nextContainer.innerHTML;
                 if (!options.popstate) history.pushState({ qiwiPjax: true, qiwiScrollY: 0 }, '', target.href);
                 updateNavigation(target.href);
 
-                return executeScripts(container).then(function () {
+                return headReady.then(function () {
+                    return executeScripts(container);
+                }).then(function () {
                     initPjaxPage(container, true);
+                    initLatex(container, nextDocument);
                     var scrollY = requestedScrollY;
                     if (target.hash) {
                         var anchor = document.getElementById(decodeURIComponent(target.hash.slice(1)));
@@ -1003,7 +1030,7 @@
             return;
         }
 
-        var image = event.target.closest('#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image');
+        var image = event.target.closest('#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image, #qiwi-pjax .comment-item.is-trusted-comment .comment-text img, #qiwi-pjax .moment-comment.is-trusted-comment .moment-comment-text img');
         if (image) {
             event.preventDefault();
             openLightbox(image);

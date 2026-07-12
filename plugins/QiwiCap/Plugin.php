@@ -294,8 +294,15 @@ HTML;
         $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
         $user = $db->fetchRow($db->select()
             ->from('table.users')
-            ->where((strpos($name, '@') ? 'mail' : 'name') . ' = ?', $name)
+            ->where('name = ?', $name)
             ->limit(1));
+
+        if (empty($user) && strpos($name, '@') !== false) {
+            $user = $db->fetchRow($db->select()
+                ->from('table.users')
+                ->where('mail = ?', $name)
+                ->limit(1));
+        }
 
         if (empty($user)) {
             return false;

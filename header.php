@@ -94,7 +94,7 @@ $qiwiTitlePrefix = $qiwiCapture(function () {
     ], '', ' - ');
 });
 $qiwiSingleTitle = $this->is('single') ? $qiwiCapture(function () { $this->title(); }) : '';
-$qiwiPageTitle = $qiwiTitlePrefix . $qiwiSiteTitle;
+$qiwiPageTitle = $qiwiTitlePrefix !== '' ? $qiwiTitlePrefix . ' ' . $qiwiSiteTitle : $qiwiSiteTitle;
 if ($this->is('single') && $qiwiSingleTitle !== '' && strpos($qiwiTitlePrefix, $qiwiSingleTitle) === false) {
     $qiwiPageTitle = $qiwiSingleTitle . ' - ' . $qiwiSiteTitle;
 }
