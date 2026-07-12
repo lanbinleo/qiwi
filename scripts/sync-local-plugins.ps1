@@ -2,7 +2,7 @@ param(
     [string]$TypechoRoot = "D:\phpstudy_pro\WWW\localhost",
     [string]$PhpBin = "D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe",
     [string[]]$Plugins = @("Geetest", "QiwiCap", "QiwiSitemap", "QiwiTheme", "QiwiCommentMail"),
-    [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCommentMail"),
+    [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCommentMail", "QiwiCap"),
     [string[]]$ObsoletePlugins = @("CommentToMail")
 )
 
@@ -116,7 +116,10 @@ if (!defined('__TYPECHO_CLASS_ALIASES__')) {
 \Widget\Options::alloc()->to($options);
 $db = \Typecho\Db::get();
 $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', 'plugins')->limit(1));
-$plugins = !empty($row['value']) ? @unserialize($row['value']) : array();
+$plugins = !empty($row['value']) ? json_decode($row['value'], true) : array();
+if (!is_array($plugins) && !empty($row['value'])) {
+    $plugins = @unserialize($row['value']);
+}
 if (!is_array($plugins)) {
     $plugins = array();
 }
@@ -154,13 +157,13 @@ foreach ($pluginNames as $pluginName) {
 $exported = \Typecho\Plugin::export();
 if (!empty($row)) {
     $db->query($db->update('table.options')
-        ->rows(array('value' => serialize($exported)))
+        ->rows(array('value' => json_encode($exported)))
         ->where('name = ?', 'plugins'));
 } else {
     $db->query($db->insert('table.options')->rows(array(
         'name' => 'plugins',
         'user' => 0,
-        'value' => serialize($exported),
+        'value' => json_encode($exported),
     )));
 }
 '@

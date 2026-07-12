@@ -1365,6 +1365,10 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 .qiwi-v2 .captcha-script .qiwi-gt-captcha-root { width: 100%; max-width: 100%; }
 .qiwi-v2 .captcha-script .qiwi-cap-captcha,
 .qiwi-v2 .captcha-script cap-widget { display: block; width: 100%; max-width: 100%; }
+.qiwi-v2 .captcha-script .qiwi-cap-status { margin: 4px 0 0; color: var(--v2-muted); font-size: .68rem; line-height: 1.5; }
+.qiwi-v2 .captcha-script .qiwi-cap-status.is-error { color: var(--v2-accent-strong); }
+.qiwi-v2 .captcha-script .qiwi-cap-status.is-verified { color: var(--v2-accent); }
+.qiwi-v2 .comment-send-button:disabled { cursor: not-allowed; opacity: .42; }
 :root[data-theme="dark"] .qiwi-v2 .captcha-script cap-widget {
     --cap-background: color-mix(in srgb, var(--v2-surface) 88%, var(--v2-bg));
     --cap-border-color: var(--v2-border-soft);

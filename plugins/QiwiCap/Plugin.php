@@ -125,6 +125,7 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
         $scriptJson = self::json($scriptUrl);
         $instanceId = 'qiwi-cap-' . str_replace('.', '', uniqid('', true));
         $instanceJson = self::json($instanceId);
+        $guardScript = self::guardJavascript();
 
         echo <<<HTML
 <div class="qiwi-cap-captcha" id="{$instanceId}">
@@ -139,17 +140,29 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
     if (!root) return;
 
     var widget = root.querySelector('cap-widget');
-    if (widget) widget.setAttribute('data-cap-api-endpoint', endpoint);
-    if (window.customElements && window.customElements.get('cap-widget')) return;
+    if (widget) {
+        widget.setAttribute('data-cap-api-endpoint', endpoint);
+        widget.setAttribute('required', '');
+    }
 
-    var existing = document.querySelector('script[data-qiwi-cap-library]');
-    if (existing) return;
+    {$guardScript}
 
-    var script = document.createElement('script');
-    script.src = scriptUrl;
-    script.async = true;
-    script.setAttribute('data-qiwi-cap-library', '1');
-    document.head.appendChild(script);
+    if (!(window.customElements && window.customElements.get('cap-widget'))) {
+        var existing = document.querySelector('script[data-qiwi-cap-library]');
+        if (!existing) {
+            var script = document.createElement('script');
+            script.src = scriptUrl;
+            script.async = true;
+            script.setAttribute('data-qiwi-cap-library', '1');
+            script.onerror = function () {
+                if (widget) widget.dispatchEvent(new CustomEvent('error', { detail: { isCap: true, message: 'CAP 组件加载失败' } }));
+            };
+            document.head.appendChild(script);
+        }
+    }
+
+    var form = root.closest('form');
+    if (form && widget && window.QiwiCapGuard) window.QiwiCapGuard(form, widget, root);
 })();
 </script>
 HTML;
@@ -174,11 +187,16 @@ HTML;
 
         $endpointJson = self::json($endpoint);
         $scriptUrlHtml = self::escape($scriptUrl);
+        $guardScript = self::guardJavascript();
 
         echo <<<HTML
 <style>
 .qiwi-cap-login { margin: 0 0 1em; }
 .qiwi-cap-login cap-widget { display: block; width: 100%; }
+.qiwi-cap-status { margin: .55em 0 0; color: #999; font-size: 12px; line-height: 1.6; }
+.qiwi-cap-status.is-error { color: #c0392b; }
+.qiwi-cap-status.is-verified { color: #2e7d32; }
+.qiwi-cap-login ~ .submit button:disabled { cursor: not-allowed; opacity: .55; }
 </style>
 <script src="{$scriptUrlHtml}" data-qiwi-cap-library="1"></script>
 <script>
@@ -192,6 +210,7 @@ HTML;
 
     var widget = document.createElement('cap-widget');
     widget.setAttribute('data-cap-api-endpoint', {$endpointJson});
+    widget.setAttribute('required', '');
     wrapper.appendChild(widget);
 
     var submit = form.querySelector('.submit');
@@ -200,6 +219,9 @@ HTML;
     } else {
         form.appendChild(wrapper);
     }
+
+    {$guardScript}
+    if (window.QiwiCapGuard) window.QiwiCapGuard(form, widget, wrapper);
 })();
 </script>
 HTML;
@@ -220,7 +242,10 @@ HTML;
         }
 
         if (!self::verifyCaptcha()) {
-            throw new Typecho_Widget_Exception(_t('CAP 验证失败，请返回后重新完成验证。'), 403);
+            $reason = self::requestToken() === ''
+                ? _t('尚未完成 CAP 人机验证。')
+                : _t('CAP 验证已失效或未通过。');
+            throw new Typecho_Widget_Exception(self::commentCaptchaErrorMessage($comment, $reason), 403);
         }
 
         return $comment;
@@ -231,12 +256,8 @@ HTML;
      */
     public static function verifyCaptcha()
     {
-        if (!isset($_POST['cap-token']) || is_array($_POST['cap-token'])) {
-            return false;
-        }
-
-        $token = trim((string) $_POST['cap-token']);
-        if ($token === '' || strlen($token) > 8192) {
+        $token = self::requestToken();
+        if ($token === '') {
             return false;
         }
 
@@ -253,7 +274,10 @@ HTML;
         }
 
         if (self::shouldVerifyLoginCaptcha(true) && !self::verifyCaptcha()) {
-            self::rejectLoginCaptcha($name);
+            $message = self::requestToken() === ''
+                ? _t('请先完成 CAP 人机验证，再登录后台。')
+                : _t('CAP 验证已失效或未通过，请重新验证。');
+            self::rejectLoginCaptcha($name, $message);
             return false;
         }
 
@@ -375,14 +399,10 @@ HTML;
             return true;
         }
 
-        try {
-            $request = Typecho_Widget::widget('Widget_Options')->request;
-            return $request && $request->isPost() && (string) $request->action === 'login';
-        } catch (Exception $e) {
-            return false;
-        } catch (Throwable $e) {
-            return false;
-        }
+        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : '';
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+        $path = (string) parse_url($requestUri, PHP_URL_PATH);
+        return $method === 'POST' && preg_match('~/(?:index\.php/)?action/login(?:/|$)~i', $path) === 1;
     }
 
     private static function isLoginPage()
@@ -397,11 +417,11 @@ HTML;
         }
     }
 
-    private static function rejectLoginCaptcha($name)
+    private static function rejectLoginCaptcha($name, $message)
     {
         try {
             Typecho_Cookie::set('__typecho_remember_name', $name);
-            Typecho_Widget::widget('Widget_Notice')->set(_t('CAP 验证失败，请重新完成验证。'), 'error');
+            Typecho_Widget::widget('Widget_Notice')->set($message, 'error');
             Typecho_Widget::widget('Widget_Options')->response->goBack();
         } catch (Exception $e) {
         } catch (Throwable $e) {
@@ -439,6 +459,108 @@ HTML;
         } catch (Throwable $e) {
             return false;
         }
+    }
+
+    private static function requestToken()
+    {
+        if (!isset($_POST['cap-token']) || is_array($_POST['cap-token'])) {
+            return '';
+        }
+
+        $token = trim((string) $_POST['cap-token']);
+        return $token !== '' && strlen($token) <= 8192 ? $token : '';
+    }
+
+    private static function commentCaptchaErrorMessage($comment, $reason)
+    {
+        $text = is_array($comment) && isset($comment['text']) ? (string) $comment['text'] : '';
+        $escapedText = self::escape($text);
+        $escapedReason = self::escape($reason);
+
+        return <<<HTML
+<style>
+.qiwi-cap-error{max-width:680px;margin:0 auto;color:#3f3b36}.qiwi-cap-error h1{margin:0 0 12px;font-size:22px;color:#2f2a25}.qiwi-cap-error p{margin:0 0 16px;line-height:1.8}.qiwi-cap-error textarea{box-sizing:border-box;width:100%;min-height:180px;padding:12px;border:1px solid #d8d1c7;border-radius:8px;background:#faf8f4;color:#3f3b36;font:14px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}.qiwi-cap-error-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.qiwi-cap-error button{padding:8px 14px;border:1px solid #b9aa98;border-radius:999px;background:transparent;color:#6f5741;cursor:pointer}.qiwi-cap-error button:hover{background:#f2ece4}
+</style>
+<div class="qiwi-cap-error">
+    <h1>评论没有提交</h1>
+    <p>{$escapedReason} 原评论内容已经保留，你可以复制后返回重新验证。</p>
+    <textarea id="qiwi-cap-comment-copy" readonly>{$escapedText}</textarea>
+    <div class="qiwi-cap-error-actions">
+        <button type="button" onclick="var t=document.getElementById('qiwi-cap-comment-copy');if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t.value).then(function(){alert('评论内容已复制');});}else{t.focus();t.select();document.execCommand('copy');alert('评论内容已复制');}">复制评论内容</button>
+        <button type="button" onclick="history.back()">返回继续编辑</button>
+    </div>
+</div>
+HTML;
+    }
+
+    private static function guardJavascript()
+    {
+        return <<<'JS'
+    if (!window.QiwiCapGuard) {
+        window.QiwiCapGuard = function (form, widget, container) {
+            if (!form || !widget || widget.dataset.qiwiCapGuard === '1') return;
+            widget.dataset.qiwiCapGuard = '1';
+            widget.setAttribute('required', '');
+
+            var controls = Array.prototype.slice.call(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+            var status = container.querySelector('[data-qiwi-cap-status]');
+            if (!status) {
+                status = document.createElement('p');
+                status.className = 'qiwi-cap-status';
+                status.setAttribute('data-qiwi-cap-status', '1');
+                status.setAttribute('role', 'status');
+                status.setAttribute('aria-live', 'polite');
+                container.appendChild(status);
+            }
+
+            controls.forEach(function (control) {
+                if (!control.hasAttribute('data-qiwi-cap-was-disabled')) {
+                    control.setAttribute('data-qiwi-cap-was-disabled', control.disabled ? '1' : '0');
+                    control.setAttribute('data-qiwi-cap-title', control.getAttribute('title') || '');
+                }
+            });
+
+            function tokenValue() {
+                var hidden = widget.querySelector('input[name="cap-token"]');
+                return String(widget.token || widget.tokenValue || (hidden && hidden.value) || '').trim();
+            }
+
+            function update(verified, message, isError) {
+                form.classList.toggle('is-cap-verified', verified);
+                form.classList.toggle('is-cap-pending', !verified);
+                status.classList.toggle('is-verified', verified);
+                status.classList.toggle('is-error', Boolean(isError));
+                status.textContent = message;
+                controls.forEach(function (control) {
+                    var originallyDisabled = control.getAttribute('data-qiwi-cap-was-disabled') === '1';
+                    control.disabled = originallyDisabled || !verified;
+                    control.setAttribute('aria-disabled', control.disabled ? 'true' : 'false');
+                    control.setAttribute('title', verified ? control.getAttribute('data-qiwi-cap-title') : '请先完成人机验证');
+                });
+            }
+
+            widget.addEventListener('solve', function (event) {
+                update(Boolean((event.detail && event.detail.token) || tokenValue()), '验证已完成，可以提交。', false);
+            });
+            widget.addEventListener('reset', function () {
+                update(false, '验证已失效，请重新完成人机验证。', true);
+            });
+            widget.addEventListener('error', function () {
+                update(false, '人机验证暂时没有完成，请重试。', true);
+            });
+            form.addEventListener('submit', function (event) {
+                if (tokenValue()) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                update(false, '请先完成人机验证，再提交。', true);
+                try { widget.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (error) { widget.scrollIntoView(); }
+                if (typeof widget.focus === 'function') widget.focus();
+            }, true);
+
+            update(Boolean(tokenValue()), tokenValue() ? '验证已完成，可以提交。' : '请先完成人机验证。', false);
+        };
+    }
+JS;
     }
 
     private static function setCurrentUser($userWidget, array $user)
