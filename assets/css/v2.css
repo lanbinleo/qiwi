@@ -10,6 +10,9 @@
     --v2-border: #3f3f46;
     --v2-border-soft: rgba(63, 63, 70, .55);
     --v2-mark: rgba(222, 208, 127, .2);
+    --v2-code-bg: #17171a;
+    --v2-code-toolbar: #1c1c1f;
+    --v2-code-text: #d4d4d8;
     --v2-radius: 4px;
     --v2-serif: "Noto Serif SC", "Songti SC", STSong, SimSun, serif;
     --v2-hand: "Kaiti SC", STKaiti, KaiTi, "Noto Serif SC", serif;
@@ -38,6 +41,9 @@
     --v2-border: #d4d4d6;
     --v2-border-soft: #e4e4e7;
     --v2-mark: rgba(157, 130, 8, .17);
+    --v2-code-bg: #f6f6f4;
+    --v2-code-toolbar: #fbfbfa;
+    --v2-code-text: #3f3f46;
 }
 
 *,
@@ -562,16 +568,84 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .article-body th { color: var(--v2-heading); font-weight: 600; }
 .qiwi-v2 .article-body :not(pre) > code { padding: .12em .38em; border: 1px solid var(--v2-border-soft); border-radius: 3px; background: var(--v2-surface); color: var(--v2-accent-strong); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: .86em; }
 .qiwi-v2 .article-body pre {
+    max-width: 100%;
+    margin: 0 0 2em;
+    overflow: auto;
     border: 1px solid var(--v2-border-soft);
     border-radius: var(--v2-radius);
-    background: var(--v2-surface);
+    background: var(--v2-code-bg);
     box-shadow: none;
 }
-.qiwi-v2 .code-block-wrapper { margin: 0 0 2em; overflow: hidden; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-surface); }
+.qiwi-v2 .article-body pre code,
+.qiwi-v2 .article-body pre code.hljs { display: block; min-width: max-content; padding: 17px 18px; overflow: visible; background: transparent; color: var(--v2-code-text); font-family: var(--font-mono); font-size: .84rem; line-height: 1.75; tab-size: 4; }
+.qiwi-v2 .code-block-wrapper { margin: 0 0 2em; overflow: hidden; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-code-bg); }
 .qiwi-v2 .code-block-wrapper pre { margin: 0; border: 0; border-radius: 0; }
-.qiwi-v2 .code-block-header { display: flex; justify-content: space-between; align-items: center; padding: 7px 14px; border-bottom: 1px dashed var(--v2-border-soft); color: var(--v2-muted); font-size: .7rem; letter-spacing: 1.5px; }
-.qiwi-v2 .copy-button { border: 0; background: transparent; color: var(--v2-muted); }
-.qiwi-v2 .copy-button:hover { color: var(--v2-accent); }
+.qiwi-v2 .code-block-header { display: flex; justify-content: space-between; align-items: center; min-height: 38px; padding: 5px 8px 5px 15px; border-bottom: 1px solid var(--v2-border-soft); background: var(--v2-code-toolbar); color: var(--v2-muted); }
+.qiwi-v2 .code-language { font-family: var(--font-mono); font-size: .68rem; font-weight: 600; letter-spacing: 1.2px; }
+.qiwi-v2 .copy-button { display: inline-grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--v2-muted); transition: color .2s ease, background-color .2s ease; }
+.qiwi-v2 .copy-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.qiwi-v2 .copy-button:hover { background: color-mix(in srgb, var(--v2-accent) 12%, transparent); color: var(--v2-accent-strong); }
+.qiwi-v2 .copy-button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+.qiwi-v2 .copy-button.is-copied { background: color-mix(in srgb, #58a66a 15%, transparent); color: #67b779; }
+.qiwi-v2 .hljs-comment,
+.qiwi-v2 .hljs-quote { color: #7f8c86; font-style: italic; }
+.qiwi-v2 .hljs-keyword,
+.qiwi-v2 .hljs-selector-tag,
+.qiwi-v2 .hljs-literal,
+.qiwi-v2 .hljs-section,
+.qiwi-v2 .hljs-link { color: #d89ac8; }
+.qiwi-v2 .hljs-string,
+.qiwi-v2 .hljs-title,
+.qiwi-v2 .hljs-name,
+.qiwi-v2 .hljs-type,
+.qiwi-v2 .hljs-attribute,
+.qiwi-v2 .hljs-symbol,
+.qiwi-v2 .hljs-bullet,
+.qiwi-v2 .hljs-addition,
+.qiwi-v2 .hljs-variable,
+.qiwi-v2 .hljs-template-tag,
+.qiwi-v2 .hljs-template-variable { color: #b9c987; }
+.qiwi-v2 .hljs-number,
+.qiwi-v2 .hljs-meta,
+.qiwi-v2 .hljs-built_in,
+.qiwi-v2 .hljs-builtin-name,
+.qiwi-v2 .hljs-params { color: #e6ad76; }
+.qiwi-v2 .hljs-attr,
+.qiwi-v2 .hljs-selector-id,
+.qiwi-v2 .hljs-selector-class,
+.qiwi-v2 .hljs-selector-attr,
+.qiwi-v2 .hljs-selector-pseudo { color: #86b9d8; }
+.qiwi-v2 .hljs-deletion { color: #e58b8b; }
+.qiwi-v2 .hljs-emphasis { font-style: italic; }
+.qiwi-v2 .hljs-strong { font-weight: 700; }
+:root[data-theme="light"] .qiwi-v2 .hljs-comment,
+:root[data-theme="light"] .qiwi-v2 .hljs-quote { color: #6f7a73; }
+:root[data-theme="light"] .qiwi-v2 .hljs-keyword,
+:root[data-theme="light"] .qiwi-v2 .hljs-selector-tag,
+:root[data-theme="light"] .qiwi-v2 .hljs-literal,
+:root[data-theme="light"] .qiwi-v2 .hljs-section,
+:root[data-theme="light"] .qiwi-v2 .hljs-link { color: #9d3b86; }
+:root[data-theme="light"] .qiwi-v2 .hljs-string,
+:root[data-theme="light"] .qiwi-v2 .hljs-title,
+:root[data-theme="light"] .qiwi-v2 .hljs-name,
+:root[data-theme="light"] .qiwi-v2 .hljs-type,
+:root[data-theme="light"] .qiwi-v2 .hljs-attribute,
+:root[data-theme="light"] .qiwi-v2 .hljs-symbol,
+:root[data-theme="light"] .qiwi-v2 .hljs-bullet,
+:root[data-theme="light"] .qiwi-v2 .hljs-addition,
+:root[data-theme="light"] .qiwi-v2 .hljs-variable,
+:root[data-theme="light"] .qiwi-v2 .hljs-template-tag,
+:root[data-theme="light"] .qiwi-v2 .hljs-template-variable { color: #5d711f; }
+:root[data-theme="light"] .qiwi-v2 .hljs-number,
+:root[data-theme="light"] .qiwi-v2 .hljs-meta,
+:root[data-theme="light"] .qiwi-v2 .hljs-built_in,
+:root[data-theme="light"] .qiwi-v2 .hljs-builtin-name,
+:root[data-theme="light"] .qiwi-v2 .hljs-params { color: #a85618; }
+:root[data-theme="light"] .qiwi-v2 .hljs-attr,
+:root[data-theme="light"] .qiwi-v2 .hljs-selector-id,
+:root[data-theme="light"] .qiwi-v2 .hljs-selector-class,
+:root[data-theme="light"] .qiwi-v2 .hljs-selector-attr,
+:root[data-theme="light"] .qiwi-v2 .hljs-selector-pseudo { color: #286f9b; }
 .qiwi-v2 .article-body details,
 .qiwi-v2 .qiwi-fold { margin: 0 0 2em; border-top: 1px dashed var(--v2-border-soft); border-bottom: 1px dashed var(--v2-border-soft); background: transparent; }
 .qiwi-v2 .article-body summary,

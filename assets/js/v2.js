@@ -669,9 +669,37 @@
         updateProgress();
     }
 
+    function copyCodeText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+        return new Promise(function (resolve, reject) {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.top = '-1000px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
+            } catch (error) {
+                reject(error);
+            } finally {
+                textarea.remove();
+            }
+        });
+    }
+
     function initCodeBlocks(root) {
+        var aliases = { txt: 'plaintext', text: 'plaintext', shell: 'bash', sh: 'bash', js: 'javascript', ts: 'typescript', html: 'xml' };
         root.querySelectorAll('pre code').forEach(function (code) {
             if (code.closest('.code-block-wrapper')) return;
+            var classNames = Array.prototype.slice.call(code.classList);
+            var languageClass = classNames.find(function (name) { return /^(?:language|lang)-/.test(name); });
+            var rawLanguage = languageClass ? languageClass.replace(/^(?:language|lang)-/, '') : '';
+            if (!rawLanguage && code.classList.contains('plaintext')) rawLanguage = 'plaintext';
+            var highlightLanguage = aliases[rawLanguage] || rawLanguage;
+            if (languageClass) code.classList.remove(languageClass);
+            if (highlightLanguage && !code.classList.contains('language-' + highlightLanguage)) code.classList.add('language-' + highlightLanguage);
             if (window.hljs && typeof window.hljs.highlightElement === 'function') {
                 try { window.hljs.highlightElement(code); } catch (error) {}
             }
@@ -683,16 +711,25 @@
             header.className = 'code-block-header';
             var language = document.createElement('span');
             language.className = 'code-language';
-            language.textContent = (code.className.match(/language-([^\s]+)/) || [null, 'text'])[1];
+            language.textContent = (rawLanguage || 'text').toUpperCase();
             var button = document.createElement('button');
             button.type = 'button';
             button.className = 'copy-button';
-            button.innerHTML = '<span class="copy-text">复制</span>';
+            button.setAttribute('aria-label', '复制代码');
+            button.setAttribute('title', '复制代码');
+            button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg><span class="sr-only copy-text">复制代码</span>';
             button.addEventListener('click', function () {
-                var promise = navigator.clipboard ? navigator.clipboard.writeText(code.textContent) : Promise.reject();
-                promise.then(function () {
-                    button.querySelector('.copy-text').textContent = '已复制';
-                    window.setTimeout(function () { button.querySelector('.copy-text').textContent = '复制'; }, 1500);
+                copyCodeText(code.textContent).then(function () {
+                    button.classList.add('is-copied');
+                    button.setAttribute('aria-label', '已复制');
+                    button.setAttribute('title', '已复制');
+                    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg><span class="sr-only copy-text">已复制</span>';
+                    window.setTimeout(function () {
+                        button.classList.remove('is-copied');
+                        button.setAttribute('aria-label', '复制代码');
+                        button.setAttribute('title', '复制代码');
+                        button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg><span class="sr-only copy-text">复制代码</span>';
+                    }, 1500);
                 }).catch(function () {});
             });
             header.appendChild(language);
@@ -709,10 +746,8 @@
         initCommentStickers(root);
         initLatestMoment(root);
         initToc(root);
-        if (afterPjax) {
-            root.dataset.v2PjaxPage = '1';
-            initCodeBlocks(root);
-        }
+        initCodeBlocks(root);
+        if (afterPjax) root.dataset.v2PjaxPage = '1';
         if (typeof window.initQiwiFolds === 'function') window.initQiwiFolds();
         if (typeof window.initQiwiExternalLinks === 'function') window.initQiwiExternalLinks();
         if (typeof window.initQiwiCopyLinks === 'function') window.initQiwiCopyLinks();
