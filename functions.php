@@ -2580,6 +2580,13 @@ if (!function_exists('qiwiGetCommentStickerPacks')) {
     function qiwiGetCommentStickerPacks()
     {
         return array(
+            'wechat' => array(
+                'id' => 'wechat',
+                'label' => '微信',
+                'source' => qiwiGetMappedAssetUrl('assets/emoji/wechat/manifest.json'),
+                'assetBase' => qiwiGetMappedAssetUrl('assets/emoji/wechat/'),
+                'extension' => '.png',
+            ),
             'heo' => array(
                 'id' => 'heo',
                 'label' => 'Heo',

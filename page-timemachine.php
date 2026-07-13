@@ -24,6 +24,7 @@ $prefix = $db->getPrefix();
 $rememberAuthor = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'author') : trim((string) $this->remember('author', true));
 $rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'mail') : trim((string) $this->remember('mail', true));
 $canShowOwnWaitingReplies = !$this->user->hasLogin() && $rememberAuthor !== '' && $rememberMail !== '';
+$momentStickerPacks = function_exists('qiwiGetCommentStickerPacks') ? array_values(qiwiGetCommentStickerPacks()) : array();
 
 // 查询说说（作者的评论），并允许访客看见自己的待审核顶层评论。
 $select = $db->select()->from($prefix.'comments')
@@ -203,6 +204,9 @@ function renderMarkdown($text) {
     if (function_exists('qiwiRenderShortcodes')) {
         $text = qiwiRenderShortcodes($text);
     }
+    if (function_exists('qiwiRenderCommentStickers')) {
+        $text = qiwiRenderCommentStickers($text);
+    }
 
     return renderMomentParagraphs($text);
 }
@@ -299,6 +303,9 @@ function renderMomentAvatar($mail, $fallback, $size = 48) {
 function renderMomentCommentText($text) {
     $text = htmlspecialchars((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $text = preg_replace('/`([^`]+?)`/', '<code>$1</code>', $text);
+    if (function_exists('qiwiRenderCommentStickers')) {
+        $text = qiwiRenderCommentStickers($text);
+    }
     return nl2br($text);
 }
 
@@ -518,6 +525,15 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                 <div class="moment-reply-text-field">
                     <label for="moment-reply-text">内容 *</label>
                     <textarea name="text" id="moment-reply-text" rows="3" placeholder="写一条评论…" required><?php $this->remember('text'); ?></textarea>
+                    <?php if (!empty($momentStickerPacks)): ?>
+                    <div class="comment-sticker-panel" data-comment-sticker-panel aria-hidden="true">
+                        <div class="comment-sticker-tabs" data-comment-sticker-tabs role="tablist" aria-label="表情包分类"></div>
+                        <button type="button" class="comment-sticker-close" data-comment-sticker-close aria-label="关闭表情包">×</button>
+                        <div class="comment-sticker-grid" data-comment-sticker-grid></div>
+                        <p class="comment-sticker-status" data-comment-sticker-status>正在读取表情包…</p>
+                    </div>
+                    <script type="application/json" data-comment-sticker-packs><?php echo json_encode($momentStickerPacks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+                    <?php endif; ?>
                 </div>
                 <?php if ($this->options->enabledCaptcha && !$isMomentManager && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
                 <div class="captcha-script">
@@ -525,6 +541,12 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                 </div>
                 <?php endif; ?>
                 <div class="moment-reply-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
+                    <?php if (!empty($momentStickerPacks)): ?>
+                    <button type="button" class="comment-sticker-toggle moment-reply-sticker-toggle" data-comment-sticker-toggle aria-expanded="false" title="选择表情包">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.2s1.2 1.8 3.5 1.8 3.5-1.8 3.5-1.8M9 9.5h.01M15 9.5h.01"/></svg>
+                        <span class="sr-only">展开表情包</span>
+                    </button>
+                    <?php endif; ?>
                     <?php if (!$this->user->hasLogin()): ?>
                     <button type="button" class="moment-reply-profile-toggle" data-moment-profile-toggle aria-expanded="false" aria-controls="moment-reply-profile-modal">
                         <span class="moment-reply-identity-label">以</span>
@@ -731,6 +753,13 @@ function initMomentInteractions() {
 
     const openProfile = function() {
         if (!form || !profileToggle) return;
+        form.classList.remove('is-sticker-open');
+        const stickerOverflowOwner = form.closest('.moment-reply-composer');
+        if (stickerOverflowOwner) stickerOverflowOwner.classList.remove('is-sticker-open');
+        const stickerToggle = form.querySelector('[data-comment-sticker-toggle]');
+        const stickerPanel = form.querySelector('[data-comment-sticker-panel]');
+        if (stickerToggle) stickerToggle.setAttribute('aria-expanded', 'false');
+        if (stickerPanel) stickerPanel.setAttribute('aria-hidden', 'true');
         form.classList.add('is-profile-open');
         document.documentElement.classList.add('comment-profile-open');
         document.body.classList.add('comment-profile-open');
