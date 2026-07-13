@@ -1,8 +1,13 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "2.0.0";
+$version = "2.0.1";
 $releaseNotes = [
+    "2.0.1" => <<<EOT
+- 评论区和时光机回复新增本地微信表情包，并优化表情在正文中的行内显示
+- 优化时光机多图排列与图片灯箱，支持长图滚动、点击缩放、明确的关闭入口和键盘焦点管理
+- 修复 PJAX 导航后 Typecho 评论反垃圾 token 未重新初始化的问题
+EOT,
     "2.0.0" => <<<EOT
 - 采用窄栏纸面设计重构首页、文章、评论、说说、图集、友链、归档与移动端导航
 - 新增带页面动效、History 与失败回退的 PJAX 导航，保留真实 URL、SEO 信息和无 JavaScript 访问能力
@@ -319,6 +324,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "2.0.1" => "2026-07-13",
   "2.0.0" => "2026-07-11",
   "1.5.9" => "2026-07-03",
   "1.5.6" => "2026-07-03",
@@ -385,6 +391,7 @@ echo $version;
     position: fixed;
     inset: 0;
     z-index: 99999;
+    overflow: hidden;
     pointer-events: none;
     transition: opacity var(--transition);
     opacity: 0;
