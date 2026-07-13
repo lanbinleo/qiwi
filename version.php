@@ -1,8 +1,13 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-$version = "2.0.1";
+$version = "2.0.2";
 $releaseNotes = [
+    "2.0.2" => <<<EOT
+- 修复说说发布与评论表情交互，并为说说评论恢复人机验证、统一博客评论样式
+- 管理员可从文章和独立页面直接进入编辑，页面滚动后显示返回顶部按钮
+- 目录进度按可见顶层标题区间和节点位置计算，版本更新抽屉延续 1.5.9 的经典视觉
+EOT,
     "2.0.1" => <<<EOT
 - 评论区和时光机回复新增本地微信表情包，并优化表情在正文中的行内显示
 - 优化时光机多图排列与图片灯箱，支持长图滚动、点击缩放、明确的关闭入口和键盘焦点管理
@@ -324,6 +329,7 @@ EOT,
 ];
 
 $releaseDate = [
+  "2.0.2" => "2026-07-13",
   "2.0.1" => "2026-07-13",
   "2.0.0" => "2026-07-11",
   "1.5.9" => "2026-07-03",
@@ -391,7 +397,6 @@ echo $version;
     position: fixed;
     inset: 0;
     z-index: 99999;
-    overflow: hidden;
     pointer-events: none;
     transition: opacity var(--transition);
     opacity: 0;
@@ -778,6 +783,7 @@ echo $version;
     });
 
     versions.forEach(function(v) {
+      if (v === CURRENT_VERSION) return;
       const note = RELEASE_NOTES[v] || '';
       const date = RELEASE_DATES[v] || '';
 

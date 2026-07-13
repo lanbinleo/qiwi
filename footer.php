@@ -4,6 +4,16 @@ $this->need('version.php');
 $versionDrawerOutput = ob_get_clean();
 $themeVersion = '';
 $v2FooterMotto = trim((string) qiwiGetOptionValue($this, 'v2FooterMotto', '向内求索，向外生长'));
+$qiwiQuickEditUrl = '';
+$qiwiIsAdministrator = $this->user->hasLogin()
+    && isset($this->user->group)
+    && (string) $this->user->group === 'administrator';
+if ($qiwiIsAdministrator && $this->is('single') && isset($this->cid)) {
+    $qiwiEditPath = $this->is('page') ? 'write-page.php?cid=' : 'write-post.php?cid=';
+    ob_start();
+    $this->options->adminUrl($qiwiEditPath . (int) $this->cid);
+    $qiwiQuickEditUrl = trim(ob_get_clean());
+}
 
 if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
     $themeVersion = $matches[1];
@@ -43,6 +53,17 @@ if (preg_match('/^\s*([0-9][^<\s]*)/', $versionDrawerOutput, $matches)) {
         </div>
     </div>
 </footer>
+
+<div class="v2-floating-actions" aria-label="页面快捷操作">
+    <?php if ($qiwiQuickEditUrl !== ''): ?>
+    <a class="v2-floating-action v2-quick-edit" href="<?php echo htmlspecialchars($qiwiQuickEditUrl, ENT_QUOTES, 'UTF-8'); ?>" data-no-pjax title="编辑当前内容" aria-label="编辑当前内容">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4Z"></path><path d="m13.5 6.5 4 4"></path></svg>
+    </a>
+    <?php endif; ?>
+    <button class="v2-floating-action v2-back-to-top" type="button" data-back-to-top hidden title="返回顶部" aria-label="返回顶部">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6"></path><path d="M12 8v11"></path></svg>
+    </button>
+</div>
 
 </main>
 </div>
