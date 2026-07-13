@@ -412,9 +412,8 @@
     }
 
     function initCommentStickers(root) {
-        root.querySelectorAll('.comment-form, .moment-reply-form').forEach(function (form) {
+        root.querySelectorAll('.comment-form, .moment-reply-form, .publisher-form').forEach(function (form) {
             if (form.dataset.v2StickersReady === '1') return;
-            form.dataset.v2StickersReady = '1';
             var panel = form.querySelector('[data-comment-sticker-panel]');
             var toggle = form.querySelector('[data-comment-sticker-toggle]');
             var textarea = form.querySelector('textarea[name="text"]');
@@ -430,6 +429,7 @@
 
             try { packs = JSON.parse(configNode.textContent || '[]'); } catch (error) { packs = []; }
             if (!packs.length) return;
+            form.dataset.v2StickersReady = '1';
 
             function setOpen(open) {
                 if (open) {
@@ -756,20 +756,48 @@
         });
 
         toc.appendChild(list);
+        var railEntries = tocEntries.filter(function (entry) { return entry.item.parentElement === list; });
+
+        function railItemFor(item) {
+            var railItem = item;
+            while (railItem && railItem.parentElement !== list) {
+                railItem = railItem.parentElement.closest('.toc-item');
+            }
+            return railItem;
+        }
 
         var frame = null;
         function updateProgress() {
             frame = null;
             var rect = body.getBoundingClientRect();
             var bodyTop = window.scrollY + rect.top;
+            var bodyBottom = bodyTop + rect.height;
             var readingLine = window.scrollY + window.innerHeight * .24;
-            var value = Math.max(0, Math.min(1, (readingLine - bodyTop) / Math.max(1, rect.height)));
             var activeIndex = -1;
-            tocEntries.forEach(function (entry, index) {
-                var headingTop = window.scrollY + entry.heading.getBoundingClientRect().top;
+            var headingTops = tocEntries.map(function (entry) {
+                return window.scrollY + entry.heading.getBoundingClientRect().top;
+            });
+            headingTops.forEach(function (headingTop, index) {
                 if (headingTop <= readingLine + 1) activeIndex = index;
             });
-            var complete = value >= .995;
+            var complete = readingLine >= bodyBottom - 1;
+            var value = 0;
+            var sectionProgress = 0;
+            var activeRailIndex = -1;
+            if (complete) {
+                value = 1;
+            } else if (activeIndex >= 0) {
+                var activeRailItem = railItemFor(tocEntries[activeIndex].item);
+                activeRailIndex = railEntries.findIndex(function (entry) { return entry.item === activeRailItem; });
+                if (activeRailIndex >= 0) {
+                    var sectionStart = window.scrollY + railEntries[activeRailIndex].heading.getBoundingClientRect().top;
+                    var sectionEnd = activeRailIndex + 1 < railEntries.length
+                        ? window.scrollY + railEntries[activeRailIndex + 1].heading.getBoundingClientRect().top
+                        : bodyBottom;
+                    sectionProgress = Math.max(0, Math.min(1, (readingLine - sectionStart) / Math.max(1, sectionEnd - sectionStart)));
+                    value = Math.min(1, (activeRailIndex + sectionProgress) / Math.max(1, railEntries.length));
+                }
+            }
             toc.classList.toggle('is-complete', complete);
             toc.querySelectorAll('.toc-item.is-section-active').forEach(function (item) { item.classList.remove('is-section-active'); });
             tocEntries.forEach(function (entry, index) {
@@ -779,12 +807,32 @@
                 entry.link.classList.toggle('is-passed', passed);
                 entry.item.classList.toggle('is-passed', passed);
                 if (active) {
-                    var section = entry.link.closest('.toc-item.level-2') || entry.item;
+                    var section = railItemFor(entry.item) || entry.item;
                     section.classList.add('is-section-active');
                 }
             });
+            var progressSize = Math.max(0, toc.clientHeight - 10) * value;
+            if (window.innerWidth >= 1100) {
+                var tocTop = toc.getBoundingClientRect().top;
+                var nodeCenter = function (item) {
+                    var node = item.firstElementChild;
+                    if (!node) return 5;
+                    var nodeRect = node.getBoundingClientRect();
+                    return nodeRect.top - tocTop + nodeRect.height / 2;
+                };
+                if (complete) {
+                    progressSize = Math.max(0, nodeCenter(endItem) - 5);
+                } else if (activeRailIndex >= 0) {
+                    var startCenter = nodeCenter(railEntries[activeRailIndex].item);
+                    var nextItem = activeRailIndex + 1 < railEntries.length ? railEntries[activeRailIndex + 1].item : endItem;
+                    var endCenter = nodeCenter(nextItem);
+                    progressSize = Math.max(0, startCenter + (endCenter - startCenter) * sectionProgress - 5);
+                } else {
+                    progressSize = 0;
+                }
+            }
             toc.style.setProperty('--toc-progress', (value * 100).toFixed(2) + '%');
-            toc.style.setProperty('--toc-progress-size', (Math.max(0, toc.clientHeight - 10) * value).toFixed(2) + 'px');
+            toc.style.setProperty('--toc-progress-size', progressSize.toFixed(2) + 'px');
         }
         function requestProgress() {
             if (frame !== null) return;
@@ -871,6 +919,19 @@
         });
     }
 
+    var backToTopFrame = null;
+    function updateBackToTop() {
+        backToTopFrame = null;
+        var button = document.querySelector('[data-back-to-top]');
+        if (!button) return;
+        button.hidden = window.scrollY <= 160;
+    }
+
+    function requestBackToTopUpdate() {
+        if (backToTopFrame !== null) return;
+        backToTopFrame = window.requestAnimationFrame(updateBackToTop);
+    }
+
     function initPjaxPage(root, afterPjax) {
         initReadingPreferences(root);
         initCommentProfiles(root);
@@ -879,6 +940,7 @@
         initLatestMoment(root);
         initToc(root);
         initCodeBlocks(root);
+        requestBackToTopUpdate();
         if (afterPjax) root.dataset.v2PjaxPage = '1';
         if (typeof window.initQiwiFolds === 'function') window.initQiwiFolds();
         if (typeof window.initQiwiExternalLinks === 'function') window.initQiwiExternalLinks();
@@ -1157,6 +1219,12 @@
     }
 
     document.addEventListener('click', function (event) {
+        var backToTop = event.target.closest('[data-back-to-top]');
+        if (backToTop) {
+            event.preventDefault();
+            window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+            return;
+        }
         var likeButton = event.target.closest('[data-post-like]');
         if (likeButton) {
             event.preventDefault();
@@ -1229,6 +1297,8 @@
         if (!pjaxReady) return;
         navigate(window.location.href, { popstate: true });
     });
+    window.addEventListener('scroll', requestBackToTopUpdate, { passive: true });
+    window.addEventListener('resize', requestBackToTopUpdate);
 
     initGlobalNavigation();
     initPjaxPage(document, false);

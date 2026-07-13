@@ -322,7 +322,7 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         return;
     }
 
-    echo '<div class="moment-comments-list" data-comment-level="' . (int) $level . '">';
+    echo '<div class="comment-list moment-comments-list" data-comment-level="' . (int) $level . '">';
     foreach ($repliesByParent[$parent] as $reply) {
         $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
         $avatar = $isOwner ? $ownerAvatar : renderMomentAvatar(isset($reply['mail']) ? $reply['mail'] : '', $ownerAvatar, 40);
@@ -332,31 +332,32 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
         $isWaiting = isset($reply['status']) && (string) $reply['status'] === 'waiting';
         $created = isset($reply['created']) ? (int) $reply['created'] : 0;
         $location = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($reply) : '';
-        echo '<article class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . ($isTrustedReply ? ' is-trusted-comment' : '') . '" id="comment-' . $coid . '">';
-        echo '<img class="moment-comment-avatar" src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt="">';
-        echo '<div class="moment-comment-body">';
-        echo '<div class="moment-comment-meta"><span class="moment-comment-author-row"><span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
-        // if ($isOwner) {
-        //     echo '<span class="moment-owner-badge" title="UP 主亲自回复"><i class="fa-solid fa-check" aria-hidden="true"></i><span>UP 主</span></span>';
-        // }
-        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time>';
-        if ($location !== '') {
-            echo '<span class="moment-comment-location">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '</span>';
+        echo '<article class="comment-item moment-comment' . ($level > 0 ? ' comment-child' : '') . ($isWaiting ? ' is-waiting' : '') . ($isTrustedReply ? ' is-trusted-comment' : '') . '" id="comment-' . $coid . '">';
+        echo '<div class="comment-main">';
+        echo '<div class="comment-avatar"><img src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt=""></div>';
+        echo '<div class="comment-content">';
+        echo '<div class="comment-author-line"><span class="comment-author-row"><span class="comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
+        if ($isOwner) {
+            echo '<img class="comment-owner-badge" src="' . htmlspecialchars(qiwiGetThemeAssetUrl('assets/img/admin-badge.png'), ENT_QUOTES, 'UTF-8') . '" alt="博主" title="博主">';
         }
         echo '</span>';
         if ($isWaiting) {
-            echo '<span class="moment-comment-status-note">您的评论正在等待审核</span>';
+            echo '<span class="comment-status-note">您的评论正在等待审核</span>';
         }
         echo '</div>';
-        echo '<div class="moment-comment-text">' . ($isTrustedReply ? renderTrustedMomentCommentText(isset($reply['text']) ? $reply['text'] : '') : renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '')) . '</div>';
-        echo '<div class="moment-comment-actions">';
+        echo '<div class="comment-text moment-comment-text">' . ($isTrustedReply ? renderTrustedMomentCommentText(isset($reply['text']) ? $reply['text'] : '') : renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '')) . '</div>';
+        echo '<div class="comment-footnote moment-comment-actions">';
+        echo '<time class="comment-date moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time>';
+        if ($location !== '') {
+            echo '<span class="comment-location moment-comment-location">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '</span>';
+        }
         echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
         if ($canCopyReplyLink && $coid > 0) {
             echo '<button type="button" class="moment-comment-copy-link qiwi-copy-link" data-qiwi-copy-link="#comment-' . $coid . '" aria-label="复制评论链接" title="复制评论链接"><i class="fa-solid fa-link" aria-hidden="true"></i></button>';
         }
-        echo '</div>';
+        echo '</div></div></div>';
         renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);
-        echo '</div></article>';
+        echo '</article>';
     }
     echo '</div>';
 }
@@ -535,12 +536,12 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                     <script type="application/json" data-comment-sticker-packs><?php echo json_encode($momentStickerPacks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
                     <?php endif; ?>
                 </div>
-                <?php if ($this->options->enabledCaptcha && !$isMomentManager && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
-                <div class="captcha-script">
-                    <?php qiwiRenderCaptcha(); ?>
-                </div>
-                <?php endif; ?>
                 <div class="moment-reply-footer" data-has-profile="<?php echo $hasRememberedProfile ? 'true' : 'false'; ?>">
+                    <?php if ($this->options->enabledCaptcha && function_exists('qiwiCanRenderCaptcha') && qiwiCanRenderCaptcha()): ?>
+                    <div class="captcha-script">
+                        <?php qiwiRenderCaptcha(); ?>
+                    </div>
+                    <?php endif; ?>
                     <?php if (!empty($momentStickerPacks)): ?>
                     <button type="button" class="comment-sticker-toggle moment-reply-sticker-toggle" data-comment-sticker-toggle aria-expanded="false" title="选择表情包">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.2s1.2 1.8 3.5 1.8 3.5-1.8 3.5-1.8M9 9.5h.01M15 9.5h.01"/></svg>
@@ -606,8 +607,20 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                         <button type="button" class="moment-editor-tool" data-md-action="image" title="图片" aria-label="图片"><i class="fa-regular fa-image" aria-hidden="true"></i></button>
                         <button type="button" class="moment-editor-tool" data-md-action="quote" title="引用" aria-label="引用"><i class="fa-solid fa-quote-left" aria-hidden="true"></i></button>
                         <button type="button" class="moment-editor-tool" data-md-action="code" title="行内代码 Ctrl+E" aria-label="行内代码"><i class="fa-solid fa-code" aria-hidden="true"></i></button>
+                        <?php if (!empty($momentStickerPacks)): ?>
+                        <button type="button" class="moment-editor-tool moment-editor-sticker-toggle" data-comment-sticker-toggle aria-expanded="false" title="选择表情包" aria-label="选择表情包"><i class="fa-regular fa-face-smile" aria-hidden="true"></i><span class="sr-only">展开表情包</span></button>
+                        <?php endif; ?>
                     </div>
                     <textarea name="text" id="moment-textarea" placeholder="想说些什么？支持 Markdown 语法和图片上传（粘贴图片自动上传）..." rows="6" required></textarea>
+                    <?php if (!empty($momentStickerPacks)): ?>
+                    <div class="comment-sticker-panel" data-comment-sticker-panel aria-hidden="true">
+                        <div class="comment-sticker-tabs" data-comment-sticker-tabs role="tablist" aria-label="表情包分类"></div>
+                        <button type="button" class="comment-sticker-close" data-comment-sticker-close aria-label="关闭表情包">×</button>
+                        <div class="comment-sticker-grid" data-comment-sticker-grid></div>
+                        <p class="comment-sticker-status" data-comment-sticker-status>正在读取表情包…</p>
+                    </div>
+                    <script type="application/json" data-comment-sticker-packs><?php echo json_encode($momentStickerPacks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+                    <?php endif; ?>
                 </div>
 
                 <!-- 上传进度条 -->
@@ -851,7 +864,7 @@ function initMomentInteractions() {
 
     const placeComposer = function(parentId, target) {
         if (!composer || !parentInput || !target) return;
-        const body = target.closest('.moment-content, .moment-comment-body');
+        const body = target.closest('.moment-content, .comment-content');
         if (!body) return;
 
         parentInput.value = parentId;
@@ -1284,13 +1297,21 @@ class TimemachineUploader {
     }
 }
 
-// 初始化上传器
-document.addEventListener('DOMContentLoaded', function() {
+function initTimemachinePage() {
+    const page = document.querySelector('.timemachine-page');
+    if (!page || page.dataset.timemachineReady === '1') return;
+    page.dataset.timemachineReady = '1';
     initMomentInteractions();
     if (document.getElementById('moment-textarea') || document.getElementById('open-settings')) {
-        const uploader = new TimemachineUploader();
+        new TimemachineUploader();
     }
-});
+}
+window.initTimemachinePage = initTimemachinePage;
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTimemachinePage, { once: true });
+} else {
+    initTimemachinePage();
+}
 })();
 </script>
 

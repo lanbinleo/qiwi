@@ -993,21 +993,17 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .moment-action.is-active { color: var(--v2-accent); }
 .qiwi-v2 .moment-comments { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-surface); }
 .qiwi-v2 .moment-comments:empty { display: none; }
-.qiwi-v2 .moment-comments-list { display: grid; gap: 14px; }
-.qiwi-v2 .moment-comment { display: flex; gap: 10px; }
-.qiwi-v2 .moment-comment-avatar { width: 28px; height: 28px; flex: 0 0 auto; border-radius: var(--v2-radius); }
-.qiwi-v2 .moment-comment-body { min-width: 0; flex: 1; }
-.qiwi-v2 .moment-comment-meta { display: flex; flex-wrap: wrap; gap: 7px; color: var(--v2-muted); font-size: .7rem; }
-.qiwi-v2 .moment-comment-author { color: var(--v2-accent); }
-.qiwi-v2 .moment-comment-text { margin-top: 4px; color: var(--v2-text); font-size: .84rem; line-height: 1.85; }
-.qiwi-v2 .moment-comment-actions button { margin-top: 4px; padding: 0; border: 0; background: transparent; color: var(--v2-muted); font-size: .7rem; }
+.qiwi-v2 .moment-comments > .moment-comments-list > .comment-item + .comment-item { margin-top: 22px; }
+.qiwi-v2 .moment-comment-actions button { padding: 0; border: 0; background: transparent; color: var(--v2-muted); font-size: inherit; }
 .qiwi-v2 .moment-publisher { margin-top: 54px; padding: 18px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: color-mix(in srgb, var(--v2-surface) 70%, transparent); box-shadow: none; }
 .qiwi-v2 .publisher-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 14px; }
 .qiwi-v2 .publisher-title { color: var(--v2-heading); font-size: .88rem; font-weight: 500; letter-spacing: 2px; }
 .qiwi-v2 .settings-btn { border: 0; background: transparent; color: var(--v2-muted); font-size: .72rem; }
+.qiwi-v2 .moment-editor { position: relative; }
 .qiwi-v2 .moment-editor-toolbar { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 9px; border-bottom: 1px dashed var(--v2-border-soft); }
 .qiwi-v2 .moment-editor-tool { width: 30px; height: 30px; border: 0; background: transparent; color: var(--v2-muted); }
 .qiwi-v2 .moment-editor-tool:hover { color: var(--v2-accent); }
+.qiwi-v2 .publisher-form.is-sticker-open .comment-sticker-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition-delay: 0s; }
 .qiwi-v2 .moment-editor textarea,
 .qiwi-v2 .moment-reply-text-field textarea { width: 100%; padding: 13px 0; border: 0; outline: 0; background: transparent; color: var(--v2-text); line-height: 1.9; resize: vertical; }
 .qiwi-v2 .publisher-form > .submit-button { display: block; margin: 10px 0 0 auto; padding: 7px 18px; border: 1px solid var(--v2-accent); background: transparent; color: var(--v2-accent); }
@@ -1231,6 +1227,24 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 .qiwi-v2 .theme-name a:hover,
 .qiwi-v2 .footer-links a:hover,
 .qiwi-v2 .theme-version:hover { color: var(--v2-accent-strong); }
+.qiwi-v2 .version-drawer__overlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.qiwi-v2 .v2-floating-actions { position: fixed; right: 72px; bottom: 64px; z-index: 950; display: grid; gap: 10px; }
+.qiwi-v2 .v2-floating-action {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--v2-border);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--v2-bg) 88%, transparent);
+    color: var(--v2-muted);
+    transition: border-color .2s ease, color .2s ease, transform .2s ease;
+}
+.qiwi-v2 .v2-floating-action[hidden] { display: none; }
+.qiwi-v2 .v2-floating-action:hover,
+.qiwi-v2 .v2-floating-action:focus-visible { border-color: var(--v2-accent); color: var(--v2-accent); transform: translateY(-2px); }
+.qiwi-v2 .v2-floating-action svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 /* V2 交互增强 */
 ::view-transition-old(root),
@@ -1266,7 +1280,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         border-radius: 2px;
     }
     .qiwi-v2 .article-toc::before { bottom: 5px; background: var(--v2-border-soft); }
-    .qiwi-v2 .toc-progress { z-index: 1; height: var(--toc-progress-size, 0); background: var(--v2-accent-strong); transition: height .12s linear; }
+    .qiwi-v2 .toc-progress { z-index: 1; height: var(--toc-progress-size, 0); background: var(--v2-accent-strong); }
     .qiwi-v2 .toc-title,
     .qiwi-v2 .toc-mobile-progress { display: none; }
     .qiwi-v2 .toc-list {
@@ -1428,7 +1442,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         height: 2px;
         background: var(--v2-accent-strong);
         pointer-events: none;
-        transition: width .12s linear;
+        transition: none;
     }
 }
 
@@ -1766,6 +1780,8 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     .qiwi-v2 .friend-feed-card time,
     .qiwi-v2 .friend-feed-card > span:last-child { grid-column: 2; grid-row: 1; }
     .qiwi-v2 .article-reading-popover { right: auto; left: 0; min-width: min(280px, calc(100vw - 36px)); }
+    .qiwi-v2 .v2-floating-actions { right: 30px; bottom: 30px; }
+    .qiwi-v2 .v2-floating-action { width: 40px; height: 40px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1775,6 +1791,7 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     * { scroll-behavior: auto !important; }
     .article-toc *,
     .comment-profile-modal,
+    .v2-floating-action,
     .plog-lightbox,
     .plog-lightbox *,
     .v2-lightbox * { animation: none !important; transition: none !important; }

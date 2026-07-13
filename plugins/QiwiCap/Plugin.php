@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiCap
  * @author  Leo 里奥
- * @version 2.0.1
+ * @version 2.0.2
  * @link    https://capjs.js.org/
  */
 class QiwiCap_Plugin implements Typecho_Plugin_Interface
