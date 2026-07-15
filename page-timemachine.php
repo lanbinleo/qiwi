@@ -869,7 +869,18 @@ function initMomentInteractions() {
 
         parentInput.value = parentId;
         composer.hidden = false;
-        body.appendChild(composer);
+        let movedWithState = false;
+        if (typeof body.moveBefore === 'function') {
+            try {
+                body.moveBefore(composer, null);
+                movedWithState = true;
+            } catch (error) {}
+        }
+        if (!movedWithState) {
+            if (form) form.dispatchEvent(new CustomEvent('qiwi:captcha-relocation-start'));
+            body.appendChild(composer);
+            if (form) form.dispatchEvent(new CustomEvent('qiwi:captcha-relocation-end'));
+        }
 
         const textarea = textInput || composer.querySelector('textarea');
         if (textarea) textarea.focus();
