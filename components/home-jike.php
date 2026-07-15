@@ -13,7 +13,7 @@ if (empty($homeJikeData['items']) || empty($homeJikeData['permalink'])) return;
                 <?php $timeLabel = $homeJikeTimeMode === 'relative' ? $item['relative_date_label'] : $item['date_label']; ?>
                 <a class="home-jike-item" href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>" title="前往 <?php echo htmlspecialchars($homeJikeData['title'], ENT_QUOTES, 'UTF-8'); ?>">
                     <span class="home-jike-label">即刻</span>
-                    <span class="home-jike-text"><?php echo htmlspecialchars($item['excerpt'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="home-jike-text"><?php echo isset($item['excerpt_html']) ? $item['excerpt_html'] : htmlspecialchars($item['excerpt'], ENT_QUOTES, 'UTF-8'); ?></span>
                     <time class="home-jike-date" datetime="<?php echo htmlspecialchars($item['datetime'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($timeLabel, ENT_QUOTES, 'UTF-8'); ?></time>
                 </a>
                 <?php endforeach; ?>
