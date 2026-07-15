@@ -2617,6 +2617,53 @@ if (!function_exists('qiwiRenderCommentStickers')) {
     }
 }
 
+if (!function_exists('qiwiRenderHomepageMomentExcerpt')) {
+    function qiwiRenderHomepageMomentExcerpt($text, $length = 72)
+    {
+        $text = qiwiExtractPlainText($text);
+        if ($text === '') {
+            return '';
+        }
+
+        $length = max(1, (int) $length);
+        $remaining = $length;
+        $excerpt = '';
+        $truncated = false;
+        $packs = qiwiGetCommentStickerPacks();
+        $pattern = '/(\[sticker:(?:[a-z0-9_-]+)\/(?:[^\]\r\n]{1,80})\])/iu';
+        $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+        foreach ($parts as $part) {
+            $isSticker = false;
+            if (preg_match('/^\[sticker:([a-z0-9_-]+)\/([^\]\r\n]{1,80})\]$/iu', $part, $matches)) {
+                $packId = strtolower($matches[1]);
+                $name = trim(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $isSticker = isset($packs[$packId]) && $name !== '' && !preg_match('~[\x00-\x1F\x7F/\\\\]~u', $name);
+            }
+
+            $partLength = $isSticker ? 1 : mb_strlen($part, 'UTF-8');
+            if ($partLength <= $remaining) {
+                $excerpt .= $part;
+                $remaining -= $partLength;
+                continue;
+            }
+
+            if (!$isSticker && $remaining > 0) {
+                $excerpt .= mb_substr($part, 0, $remaining, 'UTF-8');
+            }
+            $truncated = true;
+            break;
+        }
+
+        $excerpt = rtrim($excerpt);
+        if ($truncated) {
+            $excerpt .= '…';
+        }
+
+        return qiwiRenderCommentStickers(htmlspecialchars($excerpt, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+}
+
 if (!function_exists('qiwiRenderPlainCommentContent')) {
     function qiwiRenderPlainCommentContent($text)
     {
@@ -3560,8 +3607,12 @@ if (!function_exists('qiwiGetHomepageJikeData')) {
         $items = [];
         foreach ($comments as $comment) {
             $excerpt = qiwiExcerptText($comment['text']);
+            $excerptHtml = qiwiRenderHomepageMomentExcerpt($comment['text']);
             if ($excerpt === '') {
                 $excerpt = qiwiFallbackJikeExcerpt($comment['text']);
+            }
+            if ($excerptHtml === '' && $excerpt !== '') {
+                $excerptHtml = htmlspecialchars($excerpt, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             }
 
             if ($excerpt === '') {
@@ -3571,6 +3622,7 @@ if (!function_exists('qiwiGetHomepageJikeData')) {
             $items[] = [
                 'coid' => (int) $comment['coid'],
                 'excerpt' => $excerpt,
+                'excerpt_html' => $excerptHtml,
                 'datetime' => date('c', (int) $comment['created']),
                 'date_label' => date('m-d', (int) $comment['created']),
                 'relative_date_label' => qiwiFormatJikeRelativeTime((int) $comment['created']),

@@ -400,6 +400,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
     private function renderMomentContent($text)
     {
         $text = str_replace(array("\r\n", "\r"), "\n", (string) $text);
+        $text = $this->renderMomentStickerLabels($text);
         if ($text === '') {
             return '';
         }
@@ -416,6 +417,14 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $html = nl2br($html);
 
         return QiwiSitemap_Plugin::renderFeedHtml($html);
+    }
+
+    private function renderMomentStickerLabels($text)
+    {
+        return preg_replace_callback('/\[sticker:([a-z0-9_-]+)\/([^\]\r\n]{1,80})\]/iu', function ($matches) {
+            $name = trim(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            return $name === '' ? '' : '[' . $name . ']';
+        }, (string) $text);
     }
 
     private function renderMomentBlockquotes($html)
@@ -508,6 +517,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
     private function cleanMomentTitleText($text)
     {
         $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = $this->renderMomentStickerLabels($text);
         $text = preg_replace('/!\[([^\]]*)\]\(([^)]+)\)/u', '$1', $text);
         $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/u', '$1', $text);
         $text = preg_replace('/(```|~~~)[\s\S]*?\1/u', ' ', $text);
