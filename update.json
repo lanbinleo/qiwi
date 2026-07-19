@@ -1,10 +1,10 @@
 {
-  "version": "2.0.4",
-  "releaseDate": "2026-07-15",
+  "version": "2.0.5",
+  "releaseDate": "2026-07-19",
   "repository": "https://github.com/lanbinleo/qiwi",
   "updateScript": "update.sh",
   "notes": [
-    "修复 Time Machine RSS 原样显示表情代码的问题，改为输出兼容阅读器的表情名称文本",
-    "首页最近动态支持直接显示说说中的表情图片"
+    "修复说说粘贴图片后 Markdown 地址沿用图床接口返回域名的问题，改为使用当前配置的图床 API 域名",
+    "修复关闭文章或页面评论后，目录进度无法到达结尾节点的问题"
   ]
 }

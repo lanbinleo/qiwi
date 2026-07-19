@@ -773,6 +773,9 @@
             var bodyTop = window.scrollY + rect.top;
             var bodyBottom = bodyTop + rect.height;
             var readingLine = window.scrollY + window.innerHeight * .24;
+            var documentHeight = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+            var maxReadingLine = Math.max(0, documentHeight - window.innerHeight) + window.innerHeight * .24;
+            var progressEnd = Math.min(bodyBottom, maxReadingLine);
             var activeIndex = -1;
             var headingTops = tocEntries.map(function (entry) {
                 return window.scrollY + entry.heading.getBoundingClientRect().top;
@@ -780,7 +783,7 @@
             headingTops.forEach(function (headingTop, index) {
                 if (headingTop <= readingLine + 1) activeIndex = index;
             });
-            var complete = readingLine >= bodyBottom - 1;
+            var complete = readingLine >= progressEnd - 1;
             var value = 0;
             var sectionProgress = 0;
             var activeRailIndex = -1;
@@ -793,7 +796,7 @@
                     var sectionStart = window.scrollY + railEntries[activeRailIndex].heading.getBoundingClientRect().top;
                     var sectionEnd = activeRailIndex + 1 < railEntries.length
                         ? window.scrollY + railEntries[activeRailIndex + 1].heading.getBoundingClientRect().top
-                        : bodyBottom;
+                        : progressEnd;
                     sectionProgress = Math.max(0, Math.min(1, (readingLine - sectionStart) / Math.max(1, sectionEnd - sectionStart)));
                     value = Math.min(1, (activeRailIndex + sectionProgress) / Math.max(1, railEntries.length));
                 }
