@@ -1278,7 +1278,9 @@ class TimemachineUploader {
             const data = await response.json();
 
             if (data.status && data.data && data.data.links) {
-                const imageUrl = data.data.links.url;
+                const apiUrl = new URL(this.settings.baseUrl);
+                const uploadedUrl = new URL(data.data.links.url, apiUrl.origin);
+                const imageUrl = apiUrl.origin + uploadedUrl.pathname + uploadedUrl.search + uploadedUrl.hash;
                 const markdown = `![${data.data.name}](${imageUrl})`;
 
                 // 插入到光标位置
