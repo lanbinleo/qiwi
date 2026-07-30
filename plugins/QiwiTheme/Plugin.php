@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.0.5
+ * @version 2.0.6
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -35,7 +35,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'cacheCommentIpLocation');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
+        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
     }
 
     public static function deactivate()
@@ -50,7 +50,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、说说点赞、文章点赞、IP 归属地与外链点击统计。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地与外链点击统计。'));
         $form->addInput($info);
     }
 

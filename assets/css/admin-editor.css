@@ -72,6 +72,56 @@
 .qiwi-admin-preview-shortcodes .qiwi-mark-blue { background: rgba(40, 107, 214, 0.16); }
 .qiwi-admin-preview-shortcodes .qiwi-mark-purple { background: rgba(123, 85, 199, 0.16); }
 
+.qiwi-admin-preview-shortcodes .qiwi-admin-attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 220px;
+    margin: 5px 0;
+    padding: 8px 11px;
+    border: 1px solid #d9dfe7;
+    border-radius: 14px;
+    background: #f8f9fb;
+    color: #202328;
+    vertical-align: middle;
+}
+
+.qiwi-admin-attachment-icon {
+    display: inline-grid;
+    flex: 0 0 36px;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(54, 120, 212, .12);
+    color: #3678d4;
+}
+.qiwi-admin-attachment-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.qiwi-admin-attachment > span:last-child { display: grid; gap: 2px; }
+.qiwi-admin-attachment strong { font-size: 12px; }
+.qiwi-admin-attachment small { color: #6d7785; font-size: 11px; }
+
+#file-list .qiwi-secure-attachment-insert {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin: 0 7px 0 3px;
+    padding: 1px 6px;
+    border: 1px solid #cfd7e2;
+    border-radius: 999px;
+    background: #f7f9fc;
+    color: #3678d4;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1.5;
+    vertical-align: middle;
+}
+
+#file-list .qiwi-secure-attachment-insert:hover,
+#file-list .qiwi-secure-attachment-insert:focus { border-color: #3678d4; background: #fff; }
+#file-list .qiwi-secure-attachment-insert svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
 .qiwi-wmd-button span {
     display: inline-flex !important;
     align-items: center;
@@ -84,16 +134,25 @@
     font: 700 12px/1 Arial, sans-serif;
 }
 
-.qiwi-editor-insert-menu {
+#wmd-button-bar {
     position: relative;
+}
+
+.qiwi-editor-insert-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
     z-index: 30;
-    width: min(560px, 100%);
-    margin: 8px 0 12px;
+    width: min(560px, calc(100% - 16px));
+    max-height: min(70vh, 520px);
+    margin: 0;
     padding: 12px;
+    overflow-y: auto;
     background: #fff;
     border: 1px solid #d9dfe7;
     border-radius: 8px;
     box-shadow: 0 10px 28px rgba(32, 35, 40, 0.12);
+    box-sizing: border-box;
 }
 
 .qiwi-editor-insert-menu[hidden] {

@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiCap
  * @author  Leo 里奥
- * @version 2.0.5
+ * @version 2.0.6
  * @link    https://capjs.js.org/
  */
 class QiwiCap_Plugin implements Typecho_Plugin_Interface
@@ -115,6 +115,14 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
     }
 
     /**
+     * 供主题判断附件下载验证码是否已经启用并完成配置。
+     */
+    public static function canRenderAttachmentCaptcha()
+    {
+        return self::isThemeCaptchaEnabled() && self::isConfigured();
+    }
+
+    /**
      * 输出评论表单中的 CAP widget。主题应在 form 标签内部调用。
      */
     public static function commentCaptchaRender()
@@ -122,6 +130,24 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
         if (!self::canRenderCommentCaptcha()) {
             return false;
         }
+
+        return self::renderCaptchaWidget();
+    }
+
+    /**
+     * 输出附件下载表单中的 CAP widget。
+     */
+    public static function attachmentCaptchaRender()
+    {
+        if (!self::canRenderAttachmentCaptcha()) {
+            return false;
+        }
+
+        return self::renderCaptchaWidget();
+    }
+
+    private static function renderCaptchaWidget()
+    {
 
         $endpoint = self::widgetEndpoint();
         $scriptUrl = self::widgetScriptUrl();
@@ -537,6 +563,7 @@ HTML;
             var verificationExpired = false;
             var commentsRoot = form.closest('#comments');
             var widgetRenderObserver = null;
+            var executeTimer = null;
             if (!status) {
                 status = document.createElement('p');
                 status.className = 'qiwi-cap-status';
@@ -572,6 +599,13 @@ HTML;
                 });
             }
 
+            function dispatchFormEvent(name, detail) {
+                form.dispatchEvent(new CustomEvent(name, {
+                    bubbles: false,
+                    detail: detail || {}
+                }));
+            }
+
             function cleanReconnectedWidget() {
                 if (!widget.shadowRoot) return;
                 ['.captcha-trigger', '.cap-troubleshoot-link', '.credits'].forEach(function (selector) {
@@ -591,6 +625,31 @@ HTML;
             function observeWidgetRenderSoon(attempt) {
                 if (observeWidgetRender() || attempt >= 80) return;
                 window.setTimeout(function () { observeWidgetRenderSoon(attempt + 1); }, 25);
+            }
+
+            function executeWidget(attempt) {
+                var currentToken = tokenValue();
+                if (currentToken) {
+                    dispatchFormEvent('qiwi:captcha-verified', { token: currentToken, provider: 'QiwiCap' });
+                    return;
+                }
+
+                cleanReconnectedWidget();
+                var trigger = widget.shadowRoot ? widget.shadowRoot.querySelector('.captcha-trigger') : null;
+                if (trigger && !trigger.disabled) {
+                    trigger.click();
+                    return;
+                }
+
+                if (attempt < 100) {
+                    executeTimer = window.setTimeout(function () { executeWidget(attempt + 1); }, 25);
+                    return;
+                }
+
+                dispatchFormEvent('qiwi:captcha-manual-required', {
+                    message: '请在附件下方完成人机验证。',
+                    provider: 'QiwiCap'
+                });
             }
 
             function prepareRelocation() {
@@ -654,6 +713,9 @@ HTML;
                     verificationExpired = false;
                 }
                 update(Boolean(solvedToken), '验证已完成，可以提交。', false);
+                if (solvedToken) {
+                    dispatchFormEvent('qiwi:captcha-verified', { token: solvedToken, provider: 'QiwiCap' });
+                }
             });
             widget.addEventListener('reset', function () {
                 if (relocationPending || !widget.isConnected) {
@@ -674,6 +736,10 @@ HTML;
             });
             widget.addEventListener('error', function () {
                 update(false, '人机验证暂时没有完成，请重试。', true);
+                dispatchFormEvent('qiwi:captcha-error', {
+                    message: '人机验证暂时没有完成，请在附件下方重试。',
+                    provider: 'QiwiCap'
+                });
             });
             form.addEventListener('submit', function (event) {
                 if (tokenValue()) return;
@@ -685,6 +751,26 @@ HTML;
             }, true);
             form.addEventListener('qiwi:captcha-relocation-start', prepareRelocation);
             form.addEventListener('qiwi:captcha-relocation-end', finishRelocation);
+            form.addEventListener('qiwi:captcha-execute', function () {
+                if (executeTimer !== null) window.clearTimeout(executeTimer);
+                executeTimer = null;
+                executeWidget(0);
+            });
+            form.addEventListener('qiwi:captcha-reset', function () {
+                if (executeTimer !== null) window.clearTimeout(executeTimer);
+                executeTimer = null;
+                relocationToken = '';
+                hasCompletedVerification = false;
+                verificationExpired = false;
+                if (typeof widget.reset === 'function') {
+                    widget.reset();
+                    return;
+                }
+                var hidden = widget.querySelector('input[name="cap-token"]');
+                if (hidden) hidden.value = '';
+                widget.token = '';
+                update(false, '请先完成人机验证。', false);
+            });
 
             if (commentsRoot) {
                 commentsRoot.addEventListener('click', function (event) {

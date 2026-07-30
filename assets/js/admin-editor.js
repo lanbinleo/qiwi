@@ -64,11 +64,11 @@
 
     function isProtectedNode(node) {
         var element = node && node.nodeType === 1 ? node : node && node.parentElement;
-        return !!(element && element.closest('pre, code, script, style, .qiwi-mark, [class*="qiwi-text-"]'));
+        return !!(element && element.closest('pre, code, script, style, .qiwi-mark, .qiwi-admin-attachment, [class*="qiwi-text-"]'));
     }
 
     function hasShortcodeText(element) {
-        return /\[(?:fold|\/fold|mark|red|orange|yellow|green|cyan|blue|purple)(?:\s|\]|=)/i.test(element.textContent || '');
+        return /\[(?:fold|\/fold|mark|red|orange|yellow|green|cyan|blue|purple|attachment|file)(?:\s|\]|=)/i.test(element.textContent || '');
     }
 
     function getTextNodes(root) {
@@ -356,6 +356,39 @@
         }
     }
 
+    function enhanceAttachmentShortcodes(root) {
+        for (var pass = 0; pass < 40; pass++) {
+            var nodes = getTextNodes(root);
+            var replaced = false;
+            for (var i = 0; i < nodes.length; i++) {
+                var match = nodes[i].nodeValue.match(/\[(?:attachment|file)\b([^\]]*)\](?:\s*\[\/(?:attachment|file)\])?/i);
+                if (!match) continue;
+
+                var attrs = parseAttrs(match[1] || '');
+                var attachmentId = String(attrs.id || '').replace(/[^0-9]/g, '');
+                var displayName = String(attrs.name || '').trim() || '受保护附件';
+                var downloadName = String(attrs.download || '').trim();
+                var preview = document.createElement('span');
+                preview.className = 'qiwi-admin-attachment';
+                preview.innerHTML = '<span class="qiwi-admin-attachment-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 12.5 14 7a3 3 0 0 1 4.2 4.2l-7.1 7.1a5 5 0 0 1-7.1-7.1l7.4-7.4"></path></svg></span>'
+                    + '<span><strong></strong><small></small></span>';
+                preview.querySelector('strong').textContent = displayName;
+                preview.querySelector('small').textContent = attachmentId
+                    ? '附件 CID：' + attachmentId + (downloadName ? ' · 下载：' + downloadName : '')
+                    : '请填写附件 CID';
+
+                var range = document.createRange();
+                range.setStart(nodes[i], match.index);
+                range.setEnd(nodes[i], match.index + match[0].length);
+                range.deleteContents();
+                range.insertNode(preview);
+                replaced = true;
+                break;
+            }
+            if (!replaced) break;
+        }
+    }
+
     function enhancePreview(element) {
         if (!element || element.dataset.qiwiShortcodesRendering === '1') return;
 
@@ -365,6 +398,7 @@
         element.dataset.qiwiShortcodesRendering = '1';
         enhanceFolds(element);
         enhanceInlineShortcodes(element);
+        enhanceAttachmentShortcodes(element);
         delete element.dataset.qiwiShortcodesRendering;
     }
 
@@ -441,6 +475,41 @@
         });
     }
 
+    function attachmentShortcodeValue(value) {
+        return String(value || '')
+            .replace(/[\r\n\t]+/g, ' ')
+            .replace(/"/g, '”')
+            .replace(/\]/g, '）')
+            .trim();
+    }
+
+    function attachmentTitleFromFileName(fileName) {
+        fileName = attachmentShortcodeValue(fileName);
+        if (!fileName) return '附件标题';
+        var title = fileName.replace(/\.[^.]+$/, '').trim();
+        return title || fileName;
+    }
+
+    function attachmentFileNameByCid(attachmentId) {
+        var item = document.querySelector('#file-list li[data-cid="' + attachmentId + '"]');
+        var insertLink = item ? item.querySelector('.insert') : null;
+        return insertLink ? attachmentShortcodeValue(insertLink.textContent || '') : '';
+    }
+
+    function insertAttachmentSnippet(attachmentId, fileName, includeDownload) {
+        attachmentId = String(attachmentId || '').replace(/[^0-9]/g, '');
+        if (!attachmentId) return;
+        fileName = attachmentShortcodeValue(fileName) || attachmentFileNameByCid(attachmentId);
+        var displayName = attachmentTitleFromFileName(fileName);
+        insertIntoEditor(function() {
+            var shortcode = '[attachment id="' + attachmentId + '" name="' + displayName + '"';
+            if (includeDownload) {
+                shortcode += ' download="' + (fileName || '附件文件') + '"';
+            }
+            return '\n' + shortcode + ' description=""]\n';
+        });
+    }
+
     function makeToolButton(label, title, onClick) {
         var button = document.createElement('button');
         button.type = 'button';
@@ -501,6 +570,15 @@
             }),
             makeToolButton('无分隔线', '插入无标题分隔线的 fold', function() {
                 insertFoldSnippet(true);
+                menu.hidden = true;
+                anchor.setAttribute('aria-expanded', 'false');
+            })
+        ]);
+
+        addGroup('附件', [
+            makeToolButton('受保护附件', '根据 Typecho 附件 CID 插入验证下载组件', function() {
+                var attachmentId = window.prompt('请输入 Typecho 附件 CID');
+                if (attachmentId) insertAttachmentSnippet(attachmentId, '', true);
                 menu.hidden = true;
                 anchor.setAttribute('aria-expanded', 'false');
             })
@@ -570,6 +648,64 @@
             menu.hidden = true;
             button.setAttribute('aria-expanded', 'false');
         });
+    }
+
+    function initAttachmentEnhancer() {
+        var list = document.getElementById('file-list');
+        if (!list || list.dataset.qiwiAttachmentTools === '1') return;
+        list.dataset.qiwiAttachmentTools = '1';
+
+        function itemData(item, name) {
+            if (window.jQuery) {
+                var value = window.jQuery(item).data(name);
+                if (value !== undefined) return value;
+            }
+            return item.dataset ? item.dataset[name] : '';
+        }
+
+        function enhanceItem(item) {
+            if (!item || item.nodeType !== 1 || item.querySelector('.qiwi-secure-attachment-insert')) return;
+            var isImage = itemData(item, 'image');
+            if (isImage === true || isImage === 1 || String(isImage) === '1') return;
+
+            var cid = String(itemData(item, 'cid') || '').replace(/[^0-9]/g, '');
+            var info = item.querySelector('.info');
+            var insertLink = item.querySelector('.insert');
+            var fileName = insertLink ? attachmentShortcodeValue(insertLink.textContent || '') : '';
+            if (!cid || !info) return;
+
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'qiwi-secure-attachment-insert';
+            button.title = '插入需要人机验证的附件组件';
+            button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5.5 5.6v5.2c0 4.3 2.7 7.9 6.5 9.2 3.8-1.3 6.5-4.9 6.5-9.2V5.6L12 3Z"></path><path d="m9.2 11.8 1.8 1.8 3.8-4"></path></svg><span>验证下载</span>';
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                insertAttachmentSnippet(cid, fileName, false);
+            });
+            info.insertBefore(button, info.firstChild);
+        }
+
+        Array.prototype.forEach.call(list.querySelectorAll('li'), enhanceItem);
+        var observer = new MutationObserver(function() {
+            Array.prototype.forEach.call(list.querySelectorAll('li'), enhanceItem);
+        });
+        observer.observe(list, { childList: true, subtree: true });
+
+        if (window.Typecho && typeof window.Typecho.uploadComplete === 'function' && !window.Typecho.uploadComplete.qiwiAttachmentWrapped) {
+            var originalUploadComplete = window.Typecho.uploadComplete;
+            var wrappedUploadComplete = function(attachment) {
+                var isImage = attachment && (attachment.isImage === true || attachment.isImage === 1 || String(attachment.isImage) === '1');
+                if (attachment && !isImage && attachment.cid) {
+                    insertAttachmentSnippet(attachment.cid, attachment.title || '', false);
+                    return;
+                }
+                return originalUploadComplete.apply(this, arguments);
+            };
+            wrappedUploadComplete.qiwiAttachmentWrapped = true;
+            window.Typecho.uploadComplete = wrappedUploadComplete;
+        }
     }
 
     function normalizePlogMode(mode) {
@@ -1357,6 +1493,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         enhanceAllPreviews();
         initToolbarEnhancer();
+        initAttachmentEnhancer();
         initPlogEditorEnhancer();
 
         document.addEventListener('input', function(event) {
