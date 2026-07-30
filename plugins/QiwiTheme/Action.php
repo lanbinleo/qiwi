@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isGotoRequest() || $this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isLinkPreviewRequest()) {
+        if ($this->isGotoRequest() || $this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isLinkPreviewRequest() || $this->isAttachmentDownloadRequest()) {
             return;
         }
 
@@ -24,6 +24,9 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
         if ($this->request->is('do=link-preview')) {
             $this->linkPreview();
+        }
+        if ($this->request->is('do=attachment-download')) {
+            $this->attachmentDownload();
         }
 
         Typecho_Widget::widget('Widget_Security')->protect();
@@ -86,6 +89,58 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
 
         $this->json(array('success' => false, 'message' => 'Preview not found'), 404);
+    }
+
+    public function attachmentDownload()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => '仅支持 POST 下载请求。'), 405);
+        }
+
+        $attachmentId = (int) $this->request->get('attachment_id', 0);
+        $contentId = (int) $this->request->get('content_id', 0);
+        $requestedName = $this->request->get('download_name', '');
+        $captchaState = $this->attachmentCaptchaState();
+        if ($captchaState['mode'] === 'error') {
+            $this->json(array('success' => false, 'message' => $captchaState['message']), 503);
+        }
+        if ($captchaState['mode'] === 'required' && !$this->verifyAttachmentCaptcha()) {
+            $this->json(array('success' => false, 'message' => '人机验证未通过或已经失效，请重新验证。'), 403);
+        }
+
+        $attachment = $this->publicAttachment($attachmentId, $contentId);
+        if (empty($attachment)) {
+            $this->json(array('success' => false, 'message' => '附件不存在或不属于当前内容。'), 404);
+        }
+
+        $path = $this->attachmentLocalPath($attachment['path']);
+        if ($path === '' || !is_file($path) || !is_readable($path)) {
+            $this->json(array('success' => false, 'message' => '附件文件当前不可读取。'), 404);
+        }
+
+        $originalName = isset($attachment['name']) && trim((string) $attachment['name']) !== ''
+            ? trim((string) $attachment['name'])
+            : 'attachment.' . (isset($attachment['type']) ? $attachment['type'] : 'bin');
+        $name = $this->attachmentDownloadName($requestedName, $originalName, isset($attachment['type']) ? $attachment['type'] : '');
+        $mime = isset($attachment['mime']) && trim((string) $attachment['mime']) !== ''
+            ? trim((string) $attachment['mime'])
+            : 'application/octet-stream';
+        $fallbackName = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
+        if ($fallbackName === '') {
+            $fallbackName = 'attachment';
+        }
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: ' . str_replace(array("\r", "\n"), '', $mime));
+        header('Content-Length: ' . (string) filesize($path));
+        header('Content-Disposition: attachment; filename="' . $fallbackName . '"; filename*=UTF-8\'\'' . rawurlencode($name));
+        header('Cache-Control: private, no-store, max-age=0');
+        header('X-Content-Type-Options: nosniff');
+        header('X-Qiwi-Attachment: 1');
+        readfile($path);
+        exit;
     }
 
     public function readThread()
@@ -1021,6 +1076,202 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     private function isLinkPreviewRequest()
     {
         return $this->request && $this->request->is('do=link-preview');
+    }
+
+    private function isAttachmentDownloadRequest()
+    {
+        return $this->request && $this->request->is('do=attachment-download');
+    }
+
+    private function attachmentCaptchaState()
+    {
+        try {
+            Typecho_Widget::widget('Widget_Options')->to($options);
+            if (!isset($options->enabledCaptcha) || (string) $options->enabledCaptcha !== '1') {
+                return array('mode' => 'disabled', 'message' => '');
+            }
+
+            $activated = isset($options->plugins['activated']) && is_array($options->plugins['activated'])
+                ? $options->plugins['activated']
+                : array();
+            if (!empty($activated['QiwiCap'])) {
+                $available = class_exists('QiwiCap_Plugin')
+                    && method_exists('QiwiCap_Plugin', 'canRenderAttachmentCaptcha')
+                    && method_exists('QiwiCap_Plugin', 'verifyCaptcha')
+                    && QiwiCap_Plugin::canRenderAttachmentCaptcha();
+
+                return $available
+                    ? array('mode' => 'required', 'message' => '')
+                    : array('mode' => 'error', 'message' => 'Qiwi CAP 未完成配置，附件下载暂时不可用。');
+            }
+
+            if (!empty($activated['Geetest'])) {
+                return array('mode' => 'disabled', 'message' => '');
+            }
+
+            return array('mode' => 'error', 'message' => '已启用附件验证码，但没有可用的 Qiwi CAP 服务。');
+        } catch (Exception $e) {
+            return array('mode' => 'error', 'message' => '附件验证码状态读取失败，下载暂时不可用。');
+        } catch (Throwable $e) {
+            return array('mode' => 'error', 'message' => '附件验证码状态读取失败，下载暂时不可用。');
+        }
+    }
+
+    private function verifyAttachmentCaptcha()
+    {
+        try {
+            return class_exists('QiwiCap_Plugin')
+                && method_exists('QiwiCap_Plugin', 'verifyCaptcha')
+                && QiwiCap_Plugin::verifyCaptcha() === true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function attachmentDownloadName($requested, $fallback, $extension)
+    {
+        $name = $this->sanitizeAttachmentName($requested);
+        if ($name === '') {
+            $name = $this->sanitizeAttachmentName($fallback);
+        }
+        if ($name === '') {
+            $name = 'attachment';
+        }
+
+        $extension = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '', (string) $extension));
+        if ($extension === '') {
+            return $name;
+        }
+
+        $currentExtension = strtolower((string) pathinfo($name, PATHINFO_EXTENSION));
+        if ($currentExtension === $extension) {
+            return $name;
+        }
+
+        if ($currentExtension !== '') {
+            $name = $this->sanitizeAttachmentName(substr($name, 0, -strlen($currentExtension) - 1));
+        }
+
+        return ($name !== '' ? $name : 'attachment') . '.' . $extension;
+    }
+
+    private function sanitizeAttachmentName($name)
+    {
+        if (is_array($name) || is_object($name)) {
+            return '';
+        }
+
+        $name = html_entity_decode(strip_tags((string) $name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $name = preg_replace('/[\x00-\x1F\x7F]+/u', '', $name);
+        $name = str_replace(array('/', '\\'), '-', $name);
+        $name = preg_replace('/\s+/u', ' ', $name);
+        return trim((string) $name, " .\t\n\r\0\x0B");
+    }
+
+    private function publicAttachment($attachmentId, $contentId)
+    {
+        $attachmentId = (int) $attachmentId;
+        $contentId = (int) $contentId;
+        if ($attachmentId <= 0 || $contentId <= 0) {
+            return array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            Typecho_Widget::widget('Widget_Options')->to($options);
+            $parent = $db->fetchRow($db->select('cid', 'text')
+                ->from('table.contents')
+                ->where('cid = ?', $contentId)
+                ->where('type IN ?', array('post', 'page'))
+                ->where('status = ?', 'publish')
+                ->where('(password IS NULL OR password = ?)', '')
+                ->where('created < ?', $options->gmtTime)
+                ->limit(1));
+            if (empty($parent)) {
+                return array();
+            }
+            if (!$this->contentReferencesAttachment(isset($parent['text']) ? $parent['text'] : '', $attachmentId)) {
+                return array();
+            }
+
+            $row = $db->fetchRow($db->select('cid', 'title', 'text', 'parent')
+                ->from('table.contents')
+                ->where('cid = ?', $attachmentId)
+                ->where('parent = ?', $contentId)
+                ->where('type = ?', 'attachment')
+                ->where('status = ?', 'publish')
+                ->limit(1));
+            if (empty($row)) {
+                return array();
+            }
+
+            $data = json_decode(isset($row['text']) ? (string) $row['text'] : '', true);
+            if (!is_array($data) || empty($data['path'])) {
+                return array();
+            }
+
+            return array(
+                'name' => isset($data['name']) && trim((string) $data['name']) !== '' ? trim((string) $data['name']) : (string) $row['title'],
+                'path' => (string) $data['path'],
+                'type' => isset($data['type']) ? strtolower(trim((string) $data['type'])) : '',
+                'mime' => isset($data['mime']) ? trim((string) $data['mime']) : 'application/octet-stream',
+            );
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+    }
+
+    private function contentReferencesAttachment($content, $attachmentId)
+    {
+        $attachmentId = (int) $attachmentId;
+        if ($attachmentId <= 0) {
+            return false;
+        }
+
+        $content = html_entity_decode((string) $content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if (!preg_match_all('/\[(?:attachment|file)\b([^\]]*)\]/iu', $content, $matches)) {
+            return false;
+        }
+
+        foreach ($matches[1] as $attrsText) {
+            if (preg_match('/(?:^|\s)id\s*=\s*(?:"(\d+)"|\'(\d+)\'|(\d+))(?:\s|$)/iu', (string) $attrsText, $idMatch)) {
+                foreach (array(1, 2, 3) as $index) {
+                    if (!empty($idMatch[$index]) && (int) $idMatch[$index] === $attachmentId) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function attachmentLocalPath($relativePath)
+    {
+        $relativePath = str_replace('\\', '/', trim((string) $relativePath));
+        if ($relativePath === '' || strpos($relativePath, "\0") !== false || preg_match('#(?:^|/)\.\.(?:/|$)#', $relativePath)) {
+            return '';
+        }
+
+        $root = defined('__TYPECHO_UPLOAD_ROOT_DIR__') ? __TYPECHO_UPLOAD_ROOT_DIR__ : __TYPECHO_ROOT_DIR__;
+        $rootReal = realpath($root);
+        if ($rootReal === false) {
+            return '';
+        }
+
+        $candidate = rtrim($rootReal, '/\\') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($relativePath, '/'));
+        $candidateReal = realpath($candidate);
+        if ($candidateReal === false) {
+            return '';
+        }
+
+        $rootPrefix = rtrim(str_replace('\\', '/', $rootReal), '/') . '/';
+        $candidateNormalized = str_replace('\\', '/', $candidateReal);
+        return strpos($candidateNormalized, $rootPrefix) === 0 ? $candidateReal : '';
     }
 
     private function json($payload, $status = 200)

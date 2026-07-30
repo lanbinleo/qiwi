@@ -7,6 +7,7 @@
     var dynamicPageListeners = [];
     var tocObserver = null;
     var tocProgressCleanup = null;
+    var momentTextFoldFrame = null;
     var latestMomentTimer = null;
     var stickerPackCache = {};
     var pjaxReady = Boolean(window.fetch && window.DOMParser && window.AbortController && window.history && window.history.pushState);
@@ -616,6 +617,152 @@
         });
     }
 
+    function isStandaloneMomentMedia(node) {
+        if (!node || node.nodeType !== 1) return false;
+        if (node.matches('.moment-image-grid, .moment-single-image, figure, video')) return true;
+        if (node.matches('img:not(.comment-sticker)')) return true;
+        if (!node.matches('p')) return false;
+
+        var media = node.querySelector('img:not(.comment-sticker), figure, video');
+        if (!media) return false;
+        var clone = node.cloneNode(true);
+        clone.querySelectorAll('img:not(.comment-sticker), figure, video, br').forEach(function (item) { item.remove(); });
+        return !clone.textContent.trim();
+    }
+
+    function prepareMomentTextFold(target) {
+        if (target.dataset.v2TextFoldReady === '1') return;
+        target.dataset.v2TextFoldReady = '1';
+
+        var nodes = Array.prototype.slice.call(target.childNodes);
+        var segment = null;
+        nodes.forEach(function (node) {
+            if (isStandaloneMomentMedia(node)) {
+                segment = null;
+                return;
+            }
+            if (node.nodeType === 3 && !node.textContent.trim() && !segment) return;
+            if (!segment) {
+                segment = document.createElement('div');
+                segment.className = 'qiwi-text-fold-segment';
+                target.insertBefore(segment, node);
+            }
+            segment.appendChild(node);
+        });
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'qiwi-text-fold-toggle';
+        button.hidden = true;
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = '<span data-fold-label>展开</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>';
+        button.addEventListener('click', function () {
+            var expanded = target.dataset.v2TextFoldExpanded !== '1';
+            target.dataset.v2TextFoldExpanded = expanded ? '1' : '0';
+            target.classList.toggle('is-text-collapsed', !expanded);
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            var label = button.querySelector('[data-fold-label]');
+            if (label) label.textContent = expanded ? '收起' : '展开';
+        });
+        target.appendChild(button);
+    }
+
+    function getMomentTextLines(segment) {
+        var rects = [];
+        var walker = document.createTreeWalker(segment, NodeFilter.SHOW_TEXT);
+        var node;
+        while ((node = walker.nextNode())) {
+            if (!node.textContent.trim()) continue;
+            var range = document.createRange();
+            range.selectNodeContents(node);
+            Array.prototype.forEach.call(range.getClientRects(), function (rect) {
+                if (rect.width > 0 && rect.height > 0) rects.push({ top: rect.top, bottom: rect.bottom });
+            });
+            range.detach();
+        }
+
+        rects.sort(function (a, b) { return a.top - b.top; });
+        return rects.reduce(function (lines, rect) {
+            var current = lines[lines.length - 1];
+            if (current && rect.top < current.bottom - 1 && rect.bottom > current.top + 1) {
+                current.top = Math.min(current.top, rect.top);
+                current.bottom = Math.max(current.bottom, rect.bottom);
+            } else {
+                lines.push({ top: rect.top, bottom: rect.bottom });
+            }
+            return lines;
+        }, []);
+    }
+
+    function measureMomentTextFold(target) {
+        var segments = Array.prototype.slice.call(target.querySelectorAll(':scope > .qiwi-text-fold-segment'));
+        var button = target.querySelector(':scope > .qiwi-text-fold-toggle');
+        if (!segments.length || !button) return;
+
+        var expanded = target.dataset.v2TextFoldExpanded === '1';
+        target.classList.remove('is-text-collapsed');
+        segments.forEach(function (segment) {
+            segment.classList.remove('is-text-fold-clamped', 'is-text-fold-hidden');
+            segment.style.removeProperty('--qiwi-text-fold-height');
+        });
+
+        var remainingLines = 4;
+        var overflow = false;
+        var clampSegment = null;
+
+        segments.forEach(function (segment) {
+            var lines = getMomentTextLines(segment);
+            if (overflow) {
+                segment.classList.add('is-text-fold-hidden');
+                return;
+            }
+            if (lines.length <= remainingLines) {
+                remainingLines -= lines.length;
+                return;
+            }
+
+            overflow = true;
+            clampSegment = segment;
+            if (remainingLines > 0) {
+                var segmentTop = segment.getBoundingClientRect().top;
+                var clampHeight = Math.max(1, lines[remainingLines - 1].bottom - segmentTop + 1);
+                segment.classList.add('is-text-fold-clamped');
+                segment.style.setProperty('--qiwi-text-fold-height', clampHeight.toFixed(2) + 'px');
+            } else {
+                segment.classList.add('is-text-fold-hidden');
+            }
+        });
+
+        button.hidden = !overflow;
+        target.classList.toggle('is-text-collapsed', overflow && !expanded);
+        button.setAttribute('aria-expanded', expanded && overflow ? 'true' : 'false');
+        var label = button.querySelector('[data-fold-label]');
+        if (label) label.textContent = expanded && overflow ? '收起' : '展开';
+        if (clampSegment && button.previousElementSibling !== clampSegment) {
+            clampSegment.insertAdjacentElement('afterend', button);
+        }
+    }
+
+    function refreshMomentTextFolds() {
+        momentTextFoldFrame = null;
+        document.querySelectorAll('.moment-text[data-v2-text-fold-ready="1"], .moment-comment-text[data-v2-text-fold-ready="1"]').forEach(measureMomentTextFold);
+    }
+
+    function requestMomentTextFoldRefresh() {
+        if (momentTextFoldFrame !== null) return;
+        momentTextFoldFrame = window.requestAnimationFrame(refreshMomentTextFolds);
+    }
+
+    function initMomentTextFolds(root) {
+        root.querySelectorAll('.moment-text, .moment-comment-text').forEach(function (target) {
+            prepareMomentTextFold(target);
+            measureMomentTextFold(target);
+        });
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(requestMomentTextFoldRefresh).catch(function () {});
+        }
+    }
+
     function initToc(root) {
         if (tocObserver) {
             tocObserver.disconnect();
@@ -766,20 +913,62 @@
             return railItem;
         }
 
+        tocEntries.forEach(function (entry) {
+            var railItem = railItemFor(entry.item);
+            entry.railIndex = railEntries.findIndex(function (railEntry) { return railEntry.item === railItem; });
+        });
+
         var frame = null;
+        var metricsFrame = null;
+        var bodyBottom = 0;
+        var documentHeight = 0;
+        var headingTops = [];
+        var railHeadingTops = [];
+        var railNodeCenters = [];
+        var endNodeCenter = 0;
+        var tocHeight = 0;
+        var lastActiveIndex = null;
+        var lastComplete = null;
+
+        function refreshMetrics() {
+            metricsFrame = null;
+            var scrollY = window.scrollY;
+            var rect = body.getBoundingClientRect();
+            bodyBottom = scrollY + rect.bottom;
+            documentHeight = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+            headingTops = tocEntries.map(function (entry) {
+                return scrollY + entry.heading.getBoundingClientRect().top;
+            });
+            railHeadingTops = railEntries.map(function (entry) {
+                return scrollY + entry.heading.getBoundingClientRect().top;
+            });
+            tocHeight = toc.clientHeight;
+            if (window.innerWidth >= 1100) {
+                var tocTop = toc.getBoundingClientRect().top;
+                var nodeCenter = function (item) {
+                    var node = item.firstElementChild;
+                    if (!node) return 5;
+                    var nodeRect = node.getBoundingClientRect();
+                    return nodeRect.top - tocTop + nodeRect.height / 2;
+                };
+                railNodeCenters = railEntries.map(function (entry) { return nodeCenter(entry.item); });
+                endNodeCenter = nodeCenter(endItem);
+            }
+            lastActiveIndex = null;
+            requestProgress();
+        }
+
+        function requestMetrics() {
+            if (metricsFrame !== null) return;
+            metricsFrame = window.requestAnimationFrame(refreshMetrics);
+        }
+
         function updateProgress() {
             frame = null;
-            var rect = body.getBoundingClientRect();
-            var bodyTop = window.scrollY + rect.top;
-            var bodyBottom = bodyTop + rect.height;
             var readingLine = window.scrollY + window.innerHeight * .24;
-            var documentHeight = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
             var maxReadingLine = Math.max(0, documentHeight - window.innerHeight) + window.innerHeight * .24;
             var progressEnd = Math.min(bodyBottom, maxReadingLine);
             var activeIndex = -1;
-            var headingTops = tocEntries.map(function (entry) {
-                return window.scrollY + entry.heading.getBoundingClientRect().top;
-            });
             headingTops.forEach(function (headingTop, index) {
                 if (headingTop <= readingLine + 1) activeIndex = index;
             });
@@ -790,51 +979,46 @@
             if (complete) {
                 value = 1;
             } else if (activeIndex >= 0) {
-                var activeRailItem = railItemFor(tocEntries[activeIndex].item);
-                activeRailIndex = railEntries.findIndex(function (entry) { return entry.item === activeRailItem; });
+                activeRailIndex = tocEntries[activeIndex].railIndex;
                 if (activeRailIndex >= 0) {
-                    var sectionStart = window.scrollY + railEntries[activeRailIndex].heading.getBoundingClientRect().top;
+                    var sectionStart = railHeadingTops[activeRailIndex];
                     var sectionEnd = activeRailIndex + 1 < railEntries.length
-                        ? window.scrollY + railEntries[activeRailIndex + 1].heading.getBoundingClientRect().top
+                        ? railHeadingTops[activeRailIndex + 1]
                         : progressEnd;
                     sectionProgress = Math.max(0, Math.min(1, (readingLine - sectionStart) / Math.max(1, sectionEnd - sectionStart)));
                     value = Math.min(1, (activeRailIndex + sectionProgress) / Math.max(1, railEntries.length));
                 }
             }
-            toc.classList.toggle('is-complete', complete);
-            toc.querySelectorAll('.toc-item.is-section-active').forEach(function (item) { item.classList.remove('is-section-active'); });
-            tocEntries.forEach(function (entry, index) {
-                var active = !complete && index === activeIndex;
-                var passed = complete || index < activeIndex;
-                entry.link.classList.toggle('is-active', active);
-                entry.link.classList.toggle('is-passed', passed);
-                entry.item.classList.toggle('is-passed', passed);
-                if (active) {
-                    var section = railItemFor(entry.item) || entry.item;
-                    section.classList.add('is-section-active');
-                }
-            });
-            var progressSize = Math.max(0, toc.clientHeight - 10) * value;
+            if (activeIndex !== lastActiveIndex || complete !== lastComplete) {
+                toc.classList.toggle('is-complete', complete);
+                toc.querySelectorAll('.toc-item.is-section-active').forEach(function (item) { item.classList.remove('is-section-active'); });
+                tocEntries.forEach(function (entry, index) {
+                    var active = !complete && index === activeIndex;
+                    var passed = complete || index < activeIndex;
+                    entry.link.classList.toggle('is-active', active);
+                    entry.link.classList.toggle('is-passed', passed);
+                    entry.item.classList.toggle('is-passed', passed);
+                    if (active) {
+                        var section = railItemFor(entry.item) || entry.item;
+                        section.classList.add('is-section-active');
+                    }
+                });
+                lastActiveIndex = activeIndex;
+                lastComplete = complete;
+            }
+            var progressSize = Math.max(0, tocHeight - 10) * value;
             if (window.innerWidth >= 1100) {
-                var tocTop = toc.getBoundingClientRect().top;
-                var nodeCenter = function (item) {
-                    var node = item.firstElementChild;
-                    if (!node) return 5;
-                    var nodeRect = node.getBoundingClientRect();
-                    return nodeRect.top - tocTop + nodeRect.height / 2;
-                };
                 if (complete) {
-                    progressSize = Math.max(0, nodeCenter(endItem) - 5);
+                    progressSize = Math.max(0, endNodeCenter - 5);
                 } else if (activeRailIndex >= 0) {
-                    var startCenter = nodeCenter(railEntries[activeRailIndex].item);
-                    var nextItem = activeRailIndex + 1 < railEntries.length ? railEntries[activeRailIndex + 1].item : endItem;
-                    var endCenter = nodeCenter(nextItem);
+                    var startCenter = railNodeCenters[activeRailIndex];
+                    var endCenter = activeRailIndex + 1 < railNodeCenters.length ? railNodeCenters[activeRailIndex + 1] : endNodeCenter;
                     progressSize = Math.max(0, startCenter + (endCenter - startCenter) * sectionProgress - 5);
                 } else {
                     progressSize = 0;
                 }
             }
-            toc.style.setProperty('--toc-progress', (value * 100).toFixed(2) + '%');
+            toc.style.setProperty('--toc-progress-scale', value.toFixed(4));
             toc.style.setProperty('--toc-progress-size', progressSize.toFixed(2) + 'px');
         }
         function requestProgress() {
@@ -842,13 +1026,20 @@
             frame = window.requestAnimationFrame(updateProgress);
         }
         window.addEventListener('scroll', requestProgress, { passive: true });
-        window.addEventListener('resize', requestProgress);
+        window.addEventListener('resize', requestMetrics);
+        window.addEventListener('load', requestMetrics, { once: true });
+        if ('ResizeObserver' in window) {
+            tocObserver = new ResizeObserver(requestMetrics);
+            tocObserver.observe(body);
+        }
         tocProgressCleanup = function () {
             window.removeEventListener('scroll', requestProgress);
-            window.removeEventListener('resize', requestProgress);
+            window.removeEventListener('resize', requestMetrics);
+            window.removeEventListener('load', requestMetrics);
             if (frame !== null) window.cancelAnimationFrame(frame);
+            if (metricsFrame !== null) window.cancelAnimationFrame(metricsFrame);
         };
-        updateProgress();
+        refreshMetrics();
     }
 
     function copyCodeText(text) {
@@ -922,6 +1113,261 @@
         });
     }
 
+    function initAttachmentDownloads(root) {
+        var form = root.querySelector('[data-attachment-download-form]');
+        if (!form || form.dataset.v2AttachmentReady === '1') return;
+        form.dataset.v2AttachmentReady = '1';
+
+        var captchaRequired = form.dataset.attachmentCaptchaRequired === '1';
+        var status = form.querySelector('[data-attachment-download-status]');
+        var attachmentInput = form ? form.querySelector('input[name="attachment_id"]') : null;
+        var contentInput = form ? form.querySelector('input[name="content_id"]') : null;
+        var downloadNameInput = form ? form.querySelector('input[name="download_name"]') : null;
+        if (!status || !attachmentInput || !contentInput || !downloadNameInput) return;
+
+        var currentTrigger = null;
+        var phase = '';
+        var fallbackTimer = null;
+
+        function setDownloadStatus(message, isError) {
+            status.textContent = message || '';
+            status.classList.toggle('is-error', Boolean(isError));
+        }
+
+        function setTriggerState(trigger, state, label) {
+            if (!trigger) return;
+            var card = trigger.closest('[data-attachment-card]');
+            var labelElement = trigger.querySelector('[data-attachment-button-label]');
+            ['is-verifying', 'is-downloading', 'is-complete', 'is-error'].forEach(function (className) {
+                if (card) card.classList.remove(className);
+            });
+            if (state && card) card.classList.add('is-' + state);
+            trigger.disabled = state === 'verifying' || state === 'downloading' || state === 'complete';
+            if (state === 'verifying' || state === 'downloading') trigger.setAttribute('aria-busy', 'true');
+            else trigger.removeAttribute('aria-busy');
+            if (state !== 'downloading' && state !== 'complete') {
+                trigger.style.removeProperty('--qiwi-attachment-progress');
+                if (card) card.classList.remove('is-download-indeterminate');
+            }
+            if (labelElement) labelElement.textContent = label || '下载';
+        }
+
+        function setDownloadProgress(trigger, percent, indeterminate) {
+            if (!trigger) return;
+            var card = trigger.closest('[data-attachment-card]');
+            var labelElement = trigger.querySelector('[data-attachment-button-label]');
+            if (card) card.classList.toggle('is-download-indeterminate', Boolean(indeterminate));
+            if (indeterminate) {
+                trigger.style.removeProperty('--qiwi-attachment-progress');
+                if (labelElement) labelElement.textContent = '下载中';
+                return;
+            }
+
+            percent = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+            trigger.style.setProperty('--qiwi-attachment-progress', percent + '%');
+            if (labelElement) labelElement.textContent = percent + '%';
+        }
+
+        function clearFallbackTimer() {
+            if (fallbackTimer === null) return;
+            window.clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+        }
+
+        function resetCaptcha() {
+            if (!captchaRequired) return;
+            form.dispatchEvent(new CustomEvent('qiwi:captcha-reset', { bubbles: false }));
+        }
+
+        function moveController(trigger) {
+            var attachmentRoot = trigger ? trigger.closest('[data-attachment-root]') : null;
+            if (!attachmentRoot || form.parentNode === attachmentRoot) return;
+            form.dispatchEvent(new CustomEvent('qiwi:captcha-relocation-start', { bubbles: false }));
+            attachmentRoot.appendChild(form);
+            form.dispatchEvent(new CustomEvent('qiwi:captcha-relocation-end', { bubbles: false }));
+        }
+
+        function showManualCaptcha(message, isError) {
+            if (!currentTrigger) return;
+            clearFallbackTimer();
+            phase = 'manual';
+            form.classList.add('is-manual');
+            setDownloadStatus(message || '请在这里完成人机验证。', isError);
+            setTriggerState(currentTrigger, isError ? 'error' : '', isError ? '重新验证' : '等待验证');
+        }
+
+        function showDownloadError(message) {
+            if (!currentTrigger) return;
+            clearFallbackTimer();
+            phase = 'error';
+            form.classList.add('is-manual');
+            setDownloadStatus(message || '附件下载失败，请重试。', true);
+            setTriggerState(currentTrigger, 'error', captchaRequired ? '重新验证' : '重试');
+        }
+
+        function blobText(blob, callback) {
+            if (!blob) {
+                callback('');
+                return;
+            }
+            if (typeof blob.text === 'function') {
+                blob.text().then(callback).catch(function () { callback(''); });
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function () { callback(typeof reader.result === 'string' ? reader.result : ''); };
+            reader.onerror = function () { callback(''); };
+            reader.readAsText(blob);
+        }
+
+        function responseErrorMessage(xhr, callback) {
+            blobText(xhr.response, function (text) {
+                var message = '';
+                try {
+                    var payload = JSON.parse(text || '{}');
+                    message = payload && payload.message ? String(payload.message) : '';
+                } catch (error) {}
+                callback(message || '附件下载请求失败。');
+            });
+        }
+
+        function completeDownload(blob) {
+            var completedTrigger = currentTrigger;
+            if (!completedTrigger) return;
+            setDownloadProgress(completedTrigger, 100, false);
+
+            var url = window.URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = completedTrigger.dataset.attachmentDownloadName || completedTrigger.dataset.attachmentName || 'attachment';
+            link.hidden = true;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 30000);
+
+            setDownloadStatus('附件已经接收完成，浏览器正在保存。', false);
+            resetCaptcha();
+            phase = 'complete';
+            setTriggerState(completedTrigger, 'complete', '完成');
+            window.setTimeout(function () {
+                setTriggerState(completedTrigger, '', '下载');
+                if (currentTrigger === completedTrigger) {
+                    currentTrigger = null;
+                    phase = '';
+                }
+            }, 1600);
+        }
+
+        function failDownload(message) {
+            resetCaptcha();
+            showDownloadError(message);
+        }
+
+        function startDownload() {
+            if (!currentTrigger || phase === 'downloading') return;
+
+            clearFallbackTimer();
+            phase = 'downloading';
+            form.classList.add('is-downloading');
+            form.classList.remove('is-manual');
+            setTriggerState(currentTrigger, 'downloading', '0%');
+            setDownloadProgress(currentTrigger, 0, false);
+            setDownloadStatus(captchaRequired ? '验证通过，正在下载附件…' : '正在下载附件…', false);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', form.action, true);
+            xhr.responseType = 'blob';
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.onprogress = function (event) {
+                if (!currentTrigger || phase !== 'downloading') return;
+                if (!event.lengthComputable || event.total <= 0) {
+                    setDownloadProgress(currentTrigger, 0, true);
+                    setDownloadStatus('正在下载附件…', false);
+                    return;
+                }
+
+                var percent = event.loaded / event.total * 100;
+                setDownloadProgress(currentTrigger, percent, false);
+                setDownloadStatus('正在下载附件… ' + Math.round(percent) + '%', false);
+            };
+            xhr.onload = function () {
+                form.classList.remove('is-downloading');
+                var attachmentHeader = String(xhr.getResponseHeader('X-Qiwi-Attachment') || '') === '1';
+                if (xhr.status >= 200 && xhr.status < 300 && attachmentHeader) {
+                    completeDownload(xhr.response);
+                    return;
+                }
+
+                responseErrorMessage(xhr, failDownload);
+            };
+            xhr.onerror = function () {
+                form.classList.remove('is-downloading');
+                failDownload('附件下载连接失败，请重试。');
+            };
+            xhr.onabort = function () {
+                form.classList.remove('is-downloading');
+                failDownload('附件下载已经取消。');
+            };
+            xhr.send(new FormData(form));
+        }
+
+        function beginDownload(trigger) {
+            if (!trigger || trigger.disabled || phase === 'verifying' || phase === 'downloading') return;
+            if (currentTrigger && currentTrigger !== trigger) {
+                setTriggerState(currentTrigger, '', '下载');
+                resetCaptcha();
+            }
+
+            currentTrigger = trigger;
+            moveController(trigger);
+            attachmentInput.value = trigger.dataset.attachmentId || '';
+            contentInput.value = trigger.dataset.contentId || '';
+            downloadNameInput.value = trigger.dataset.attachmentDownloadName || trigger.dataset.attachmentName || 'attachment';
+            form.classList.remove('is-manual');
+
+            if (!captchaRequired) {
+                startDownload();
+                return;
+            }
+
+            phase = 'verifying';
+            setDownloadStatus('正在进行人机验证…', false);
+            setTriggerState(trigger, 'verifying', '验证中');
+            clearFallbackTimer();
+            fallbackTimer = window.setTimeout(function () {
+                if (phase === 'verifying') showManualCaptcha('验证需要继续完成，请使用下方验证组件。', false);
+            }, 12000);
+            form.dispatchEvent(new CustomEvent('qiwi:captcha-execute', { bubbles: false }));
+        }
+
+        root.querySelectorAll('[data-attachment-download]').forEach(function (trigger) {
+            if (trigger.dataset.v2AttachmentTrigger === '1') return;
+            trigger.dataset.v2AttachmentTrigger = '1';
+            trigger.addEventListener('click', function () { beginDownload(trigger); });
+        });
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+        });
+
+        form.addEventListener('qiwi:captcha-manual-required', function (event) {
+            var message = event.detail && event.detail.message ? event.detail.message : '';
+            showManualCaptcha(message, false);
+        });
+
+        form.addEventListener('qiwi:captcha-error', function (event) {
+            var message = event.detail && event.detail.message ? event.detail.message : '人机验证暂时没有完成，请重试。';
+            showManualCaptcha(message, true);
+        });
+
+        form.addEventListener('qiwi:captcha-verified', function () {
+            if (!currentTrigger || phase === 'downloading') return;
+            startDownload();
+        });
+    }
+
     var backToTopFrame = null;
     function updateBackToTop() {
         backToTopFrame = null;
@@ -943,6 +1389,8 @@
         initLatestMoment(root);
         initToc(root);
         initCodeBlocks(root);
+        initMomentTextFolds(root);
+        initAttachmentDownloads(root);
         requestBackToTopUpdate();
         if (afterPjax) root.dataset.v2PjaxPage = '1';
         if (typeof window.initQiwiFolds === 'function') window.initQiwiFolds();
@@ -1302,6 +1750,7 @@
     });
     window.addEventListener('scroll', requestBackToTopUpdate, { passive: true });
     window.addEventListener('resize', requestBackToTopUpdate);
+    window.addEventListener('resize', requestMomentTextFoldRefresh);
 
     initGlobalNavigation();
     initPjaxPage(document, false);

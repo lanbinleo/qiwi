@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  Leo 里奥
- * @version 2.0.5
+ * @version 2.0.6
  * @link    https://bboreo.com/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
@@ -731,6 +731,8 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return '<a href="' . self::escapeHtml($href) . '">' . self::escapeHtml(strip_tags($label)) . '</a>';
         }, $html);
 
+        $html = preg_replace('/\[(?:attachment|file)\b[^\]]*\](?:\s*\[\/(?:attachment|file)\])?/iu', '<em>本文包含受保护附件，请访问原文下载。</em>', $html);
+
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '<div>$1</div>', $html);
             if ($next === $html) {
@@ -758,7 +760,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return '<span style="background-color:' . self::shortcodeColor($matches[3], true) . ';">';
         }, $html);
 
-        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|link|not-by-ai|notbyai|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
+        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|link|attachment|file|not-by-ai|notbyai|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
 
         return $html;
     }

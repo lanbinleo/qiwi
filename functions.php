@@ -1180,6 +1180,7 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         $text = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '$1', $text);
         $text = preg_replace('/\[button(?:\s+[^\]]*)?\]([\s\S]*?)\[\/button\]/iu', '$1', $text);
         $text = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '$1', $text);
+        $text = preg_replace('/\[(?:attachment|file)\b[^\]]*\](?:\s*\[\/(?:attachment|file)\])?/iu', ' 附件 ', $text);
 
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace_callback('/\[callout(?:\s+[^\]]*)?\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
@@ -1194,7 +1195,7 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         }
 
         $text = preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', $text);
-        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
+        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|attachment|file|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
 
         return $text;
     }
@@ -1824,6 +1825,306 @@ if (!function_exists('qiwiSanitizeShortcodeUrl')) {
     }
 }
 
+if (!function_exists('qiwiAttachmentFileType')) {
+    function qiwiAttachmentFileType($extension)
+    {
+        $extension = strtolower(trim((string) $extension));
+        $groups = [
+            'pdf' => ['pdf'],
+            'word' => ['doc', 'docx', 'odt', 'rtf'],
+            'excel' => ['xls', 'xlsx', 'ods', 'csv'],
+            'powerpoint' => ['ppt', 'pptx', 'odp'],
+            'text' => ['txt', 'md', 'log'],
+            'archive' => ['zip', 'rar', '7z', 'tar', 'gz'],
+            'code' => ['json', 'xml', 'yaml', 'yml', 'html', 'css', 'js', 'php'],
+            'image' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif'],
+            'audio' => ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'],
+            'video' => ['mp4', 'webm', 'mov', 'mkv', 'avi'],
+        ];
+
+        foreach ($groups as $type => $extensions) {
+            if (in_array($extension, $extensions, true)) {
+                return $type;
+            }
+        }
+
+        return 'file';
+    }
+}
+
+if (!function_exists('qiwiAttachmentIconClass')) {
+    function qiwiAttachmentIconClass($type)
+    {
+        $icons = [
+            'pdf' => 'fa-solid fa-file-pdf',
+            'word' => 'fa-solid fa-file-word',
+            'excel' => 'fa-solid fa-file-excel',
+            'powerpoint' => 'fa-solid fa-file-powerpoint',
+            'text' => 'fa-solid fa-file-lines',
+            'archive' => 'fa-solid fa-file-zipper',
+            'code' => 'fa-solid fa-file-code',
+            'image' => 'fa-solid fa-file-image',
+            'audio' => 'fa-solid fa-file-audio',
+            'video' => 'fa-solid fa-file-video',
+            'file' => 'fa-solid fa-file',
+        ];
+
+        return isset($icons[$type]) ? $icons[$type] : $icons['file'];
+    }
+}
+
+if (!function_exists('qiwiFormatAttachmentSize')) {
+    function qiwiFormatAttachmentSize($bytes)
+    {
+        $bytes = max(0, (int) $bytes);
+        if ($bytes < 1024) {
+            return $bytes . ' B';
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB'];
+        $value = $bytes / 1024;
+        foreach ($units as $index => $unit) {
+            if ($value < 1024 || $index === count($units) - 1) {
+                $precision = $value >= 100 ? 0 : ($value >= 10 ? 1 : 2);
+                return rtrim(rtrim(number_format($value, $precision, '.', ''), '0'), '.') . ' ' . $unit;
+            }
+            $value /= 1024;
+        }
+
+        return $bytes . ' B';
+    }
+}
+
+if (!function_exists('qiwiGetAttachmentRecord')) {
+    function qiwiGetAttachmentRecord($attachmentId, $contentId)
+    {
+        $attachmentId = (int) $attachmentId;
+        $contentId = (int) $contentId;
+        if ($attachmentId <= 0 || $contentId <= 0) {
+            return null;
+        }
+
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $row = $db->fetchRow($db->select('cid', 'title', 'text', 'parent', 'status')
+                ->from('table.contents')
+                ->where('cid = ?', $attachmentId)
+                ->where('type = ?', 'attachment')
+                ->where('parent = ?', $contentId)
+                ->where('status = ?', 'publish')
+                ->limit(1));
+            if (empty($row)) {
+                return null;
+            }
+
+            $attachment = json_decode(isset($row['text']) ? (string) $row['text'] : '', true);
+            if (!is_array($attachment) || empty($attachment['path'])) {
+                return null;
+            }
+
+            return [
+                'cid' => $attachmentId,
+                'parent' => $contentId,
+                'name' => isset($attachment['name']) && trim((string) $attachment['name']) !== ''
+                    ? trim((string) $attachment['name'])
+                    : trim((string) (isset($row['title']) ? $row['title'] : '附件')),
+                'path' => (string) $attachment['path'],
+                'type' => strtolower(trim((string) (isset($attachment['type']) ? $attachment['type'] : pathinfo((string) $attachment['path'], PATHINFO_EXTENSION)))),
+                'mime' => trim((string) (isset($attachment['mime']) ? $attachment['mime'] : 'application/octet-stream')),
+                'size' => max(0, (int) (isset($attachment['size']) ? $attachment['size'] : 0)),
+            ];
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('qiwiAttachmentDownloadEndpoint')) {
+    function qiwiAttachmentDownloadEndpoint($options = null)
+    {
+        return qiwiGetThemeActionEndpoint('attachment-download', $options);
+    }
+}
+
+if (!function_exists('qiwiSanitizeAttachmentName')) {
+    function qiwiSanitizeAttachmentName($name)
+    {
+        if (is_array($name) || is_object($name)) {
+            return '';
+        }
+
+        $name = html_entity_decode(strip_tags((string) $name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $name = preg_replace('/[\x00-\x1F\x7F]+/u', '', $name);
+        $name = str_replace(['/', '\\'], '-', $name);
+        $name = preg_replace('/\s+/u', ' ', $name);
+        return trim((string) $name, " .\t\n\r\0\x0B");
+    }
+}
+
+if (!function_exists('qiwiAttachmentDownloadName')) {
+    function qiwiAttachmentDownloadName($requested, $fallback, $extension)
+    {
+        $name = qiwiSanitizeAttachmentName($requested);
+        if ($name === '') {
+            $name = qiwiSanitizeAttachmentName($fallback);
+        }
+        if ($name === '') {
+            $name = 'attachment';
+        }
+
+        $extension = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '', (string) $extension));
+        if ($extension === '') {
+            return $name;
+        }
+
+        $currentExtension = strtolower((string) pathinfo($name, PATHINFO_EXTENSION));
+        if ($currentExtension === $extension) {
+            return $name;
+        }
+
+        if ($currentExtension !== '') {
+            $stem = substr($name, 0, -strlen($currentExtension) - 1);
+            $name = qiwiSanitizeAttachmentName($stem);
+        }
+
+        return ($name !== '' ? $name : 'attachment') . '.' . $extension;
+    }
+}
+
+if (!function_exists('qiwiAttachmentCaptchaState')) {
+    function qiwiAttachmentCaptchaState($options = null)
+    {
+        try {
+            if ($options === null) {
+                $options = Typecho_Widget::widget('Widget_Options');
+            }
+
+            if (!isset($options->enabledCaptcha) || (string) $options->enabledCaptcha !== '1') {
+                return ['mode' => 'disabled', 'message' => ''];
+            }
+
+            $activated = isset($options->plugins['activated']) && is_array($options->plugins['activated'])
+                ? $options->plugins['activated']
+                : [];
+            if (!empty($activated['QiwiCap'])) {
+                $available = class_exists('QiwiCap_Plugin')
+                    && method_exists('QiwiCap_Plugin', 'canRenderAttachmentCaptcha')
+                    && method_exists('QiwiCap_Plugin', 'attachmentCaptchaRender')
+                    && method_exists('QiwiCap_Plugin', 'verifyCaptcha')
+                    && QiwiCap_Plugin::canRenderAttachmentCaptcha();
+
+                return $available
+                    ? ['mode' => 'required', 'message' => '']
+                    : ['mode' => 'error', 'message' => 'Qiwi CAP 未完成配置，附件下载暂时不可用。'];
+            }
+
+            if (!empty($activated['Geetest'])) {
+                return ['mode' => 'disabled', 'message' => ''];
+            }
+
+            return ['mode' => 'error', 'message' => '已启用附件验证码，但没有可用的 Qiwi CAP 服务。'];
+        } catch (Exception $e) {
+            return ['mode' => 'error', 'message' => '附件验证码状态读取失败，下载暂时不可用。'];
+        } catch (Throwable $e) {
+            return ['mode' => 'error', 'message' => '附件验证码状态读取失败，下载暂时不可用。'];
+        }
+    }
+}
+
+if (!function_exists('qiwiAttachmentDownloadControllerHtml')) {
+    function qiwiAttachmentDownloadControllerHtml($endpoint, array $captchaState)
+    {
+        static $rendered = false;
+        if ($rendered) {
+            return '';
+        }
+        if ($endpoint === '') {
+            return false;
+        }
+
+        $captchaRequired = isset($captchaState['mode']) && $captchaState['mode'] === 'required';
+        $captchaHtml = '';
+        if ($captchaRequired) {
+            ob_start();
+            $captchaRendered = QiwiCap_Plugin::attachmentCaptchaRender();
+            $captchaHtml = ob_get_clean();
+            if (!$captchaRendered || trim($captchaHtml) === '') {
+                return false;
+            }
+        }
+
+        $rendered = true;
+        return '<form class="qiwi-attachment-download-form" data-attachment-download-form data-attachment-captcha-required="' . ($captchaRequired ? '1' : '0') . '" method="post" action="' . htmlspecialchars($endpoint, ENT_QUOTES, 'UTF-8') . '">'
+            . '<input type="hidden" name="attachment_id" value=""><input type="hidden" name="content_id" value=""><input type="hidden" name="download_name" value="">'
+            . ($captchaRequired ? '<div class="captcha-script qiwi-attachment-captcha">' . $captchaHtml . '</div>' : '')
+            . '<p class="qiwi-attachment-download-status" data-attachment-download-status role="status" aria-live="polite">' . ($captchaRequired ? '请在这里完成人机验证。' : '') . '</p>'
+            . '</form>';
+    }
+}
+
+if (!function_exists('qiwiAttachmentShortcodeHtml')) {
+    function qiwiAttachmentShortcodeHtml(array $attrs, array $context = [])
+    {
+        $attachmentId = isset($attrs['id']) ? (int) $attrs['id'] : 0;
+        $contentId = isset($context['content_cid']) ? (int) $context['content_cid'] : 0;
+        $record = qiwiGetAttachmentRecord($attachmentId, $contentId);
+        if (empty($record)) {
+            return '<span class="qiwi-attachment-error">附件不可用或不属于当前内容。</span>';
+        }
+
+        $endpoint = qiwiAttachmentDownloadEndpoint();
+        $captchaState = qiwiAttachmentCaptchaState();
+        if ($endpoint === '') {
+            $captchaState = ['mode' => 'error', 'message' => 'Qiwi Theme 下载接口不可用。'];
+        }
+        $description = isset($attrs['description']) ? trim(strip_tags((string) $attrs['description'])) : '';
+        if ($description === '' && isset($attrs['desc'])) {
+            $description = trim(strip_tags((string) $attrs['desc']));
+        }
+        $displayName = isset($attrs['name']) ? qiwiSanitizeAttachmentName($attrs['name']) : '';
+        if ($displayName === '') {
+            $displayName = $record['name'];
+        }
+        $downloadName = qiwiAttachmentDownloadName(
+            isset($attrs['download']) ? $attrs['download'] : '',
+            $record['name'],
+            $record['type']
+        );
+        $type = qiwiAttachmentFileType($record['type']);
+        $extension = $record['type'] !== '' ? strtoupper($record['type']) : 'FILE';
+        $meta = $extension . ' · ' . qiwiFormatAttachmentSize($record['size']);
+        if ($description !== '') {
+            $meta .= ' · ' . $description;
+        }
+
+        $controller = '';
+        if ($captchaState['mode'] !== 'error') {
+            $controller = qiwiAttachmentDownloadControllerHtml($endpoint, $captchaState);
+            if ($controller === false) {
+                $captchaState = ['mode' => 'error', 'message' => '附件验证组件输出失败，下载暂时不可用。'];
+                $controller = '';
+            }
+        }
+
+        $downloadAvailable = $captchaState['mode'] !== 'error';
+        $captchaRequired = $captchaState['mode'] === 'required';
+        $disabled = $downloadAvailable ? '' : ' disabled aria-disabled="true"';
+        $buttonLabel = $downloadAvailable ? '下载' : '下载不可用';
+        $buttonTooltip = $downloadAvailable
+            ? ($captchaRequired ? '验证并下载：' : '下载：') . $downloadName
+            : (isset($captchaState['message']) ? $captchaState['message'] : '附件下载暂时不可用');
+
+        return '<div class="qiwi-attachment-wrap qiwi-attachment-type-' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '" data-attachment-root>'
+            . '<div class="qiwi-attachment-card" data-attachment-card>'
+            . '<span class="qiwi-attachment-icon" aria-hidden="true"><i class="' . htmlspecialchars(qiwiAttachmentIconClass($type), ENT_QUOTES, 'UTF-8') . '"></i><em>' . htmlspecialchars($extension, ENT_QUOTES, 'UTF-8') . '</em></span>'
+            . '<span class="qiwi-attachment-info"><strong class="qiwi-attachment-tooltip" data-attachment-tooltip="' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . '" tabindex="0"><span>' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . '</span></strong><small class="qiwi-attachment-tooltip" data-attachment-tooltip="' . htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') . '" tabindex="0"><span>' . htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') . '</span></small></span>'
+            . '<button type="button" class="qiwi-attachment-button qiwi-attachment-tooltip" data-attachment-tooltip="' . htmlspecialchars($buttonTooltip, ENT_QUOTES, 'UTF-8') . '" data-attachment-download data-attachment-id="' . (int) $record['cid'] . '" data-content-id="' . (int) $contentId . '" data-attachment-name="' . htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') . '" data-attachment-download-name="' . htmlspecialchars($downloadName, ENT_QUOTES, 'UTF-8') . '"' . $disabled . '><i class="fa-solid fa-arrow-down qiwi-attachment-button-icon" aria-hidden="true"></i><span data-attachment-button-label>' . $buttonLabel . '</span><span class="qiwi-attachment-spinner" aria-hidden="true"></span></button>'
+            . '</div>' . $controller . '</div>';
+    }
+}
+
 if (!function_exists('qiwiRenderShortcodeSegment')) {
     function qiwiRenderShortcodeSegment($html, array $context = [])
     {
@@ -1831,6 +2132,7 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         $foldOpening = '\[fold(?:\s+[^\]]*)?\]';
         $calloutOpening = '\[callout(?:\s+[^\]]*)?\]';
         $buttonsOpening = '\[buttons(?:\s+[^\]]*)?\]';
+        $attachmentShortcode = '\[(?:attachment|file)\b[^\]]*\](?:\s*\[\/(?:attachment|file)\])?';
         $isCopyrightContext = !empty($context['copyright_context']);
         $copyrightOpening = '\[(?:default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)(?:\s+[^\]]*)?\]';
 
@@ -1846,6 +2148,7 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         $html = preg_replace('/<p>\s*(' . $buttonsOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/buttons\])\s*<\/p>/iu', '<span>$1</span>$2', $html);
         $html = preg_replace('/<p>\s*(\[\/buttons\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>\s*(' . $attachmentShortcode . ')\s*<\/p>/iu', '$1', $html);
         if ($isCopyrightContext) {
             $html = preg_replace('/<p>\s*(' . $copyrightOpening . ')\s*(?:<br\s*\/?>)?\s*<\/p>/iu', '$1', $html);
             $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/(?:default|thread|collection|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted)\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
@@ -1935,6 +2238,11 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
             $target = qiwiSanitizeShortcodeTarget(isset($attrs['target']) ? $attrs['target'] : '');
             $label = trim($matches[2]) !== '' ? $matches[2] : htmlspecialchars($href, ENT_QUOTES, 'UTF-8');
             return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '"' . $target . '>' . $label . '</a>';
+        }, $html);
+
+        $html = preg_replace_callback('/\[(?:attachment|file)\b([^\]]*)\](?:\s*\[\/(?:attachment|file)\])?/iu', function ($matches) use ($context) {
+            $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+            return qiwiAttachmentShortcodeHtml($attrs, $context);
         }, $html);
 
         if ($isCopyrightContext) {
@@ -2539,7 +2847,9 @@ if (!function_exists('qiwiGetContent')) {
     {
         ob_start();
         $widget->content();
-        return qiwiRenderShortcodes(ob_get_clean());
+        return qiwiRenderShortcodes(ob_get_clean(), [
+            'content_cid' => !empty($widget) && isset($widget->cid) ? (int) $widget->cid : 0,
+        ]);
     }
 }
 

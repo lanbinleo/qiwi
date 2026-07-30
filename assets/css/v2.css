@@ -662,6 +662,181 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .qiwi-callout,
 .qiwi-v2 .callout { margin: 0 0 2em; padding: 14px 18px; border: 1px solid var(--v2-border-soft); border-left: 3px solid var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-surface); color: var(--v2-text); line-height: 1.9; }
 .qiwi-v2 .qiwi-badge { display: inline-block; padding: 1px 7px; border-radius: 2px; background: color-mix(in srgb, var(--v2-accent) 18%, transparent); color: var(--v2-accent); font-size: .76em; }
+.qiwi-v2 .qiwi-attachment-wrap {
+    --qiwi-attachment-color: #6c7480;
+    --qiwi-attachment-soft: rgba(108, 116, 128, .12);
+    width: min(100%, 340px);
+    margin: 6px 0 1.8em;
+    box-sizing: border-box;
+}
+.qiwi-v2 .qiwi-attachment-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 66px;
+    padding: 8px 9px;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--v2-surface) 82%, transparent);
+    box-shadow: 0 8px 28px rgba(51, 42, 34, .045);
+    box-sizing: border-box;
+    color: var(--v2-text);
+    vertical-align: middle;
+}
+.qiwi-v2 .qiwi-attachment-type-pdf { --qiwi-attachment-color: #dc4c4c; --qiwi-attachment-soft: rgba(220, 76, 76, .13); }
+.qiwi-v2 .qiwi-attachment-type-word { --qiwi-attachment-color: #3678d4; --qiwi-attachment-soft: rgba(54, 120, 212, .13); }
+.qiwi-v2 .qiwi-attachment-type-excel { --qiwi-attachment-color: #2d9560; --qiwi-attachment-soft: rgba(45, 149, 96, .13); }
+.qiwi-v2 .qiwi-attachment-type-powerpoint { --qiwi-attachment-color: #dc7542; --qiwi-attachment-soft: rgba(220, 117, 66, .14); }
+.qiwi-v2 .qiwi-attachment-type-text { --qiwi-attachment-color: #6e65b7; --qiwi-attachment-soft: rgba(110, 101, 183, .13); }
+.qiwi-v2 .qiwi-attachment-type-archive { --qiwi-attachment-color: #b47c21; --qiwi-attachment-soft: rgba(180, 124, 33, .14); }
+.qiwi-v2 .qiwi-attachment-type-code { --qiwi-attachment-color: #536d7d; --qiwi-attachment-soft: rgba(83, 109, 125, .13); }
+.qiwi-v2 .qiwi-attachment-type-image { --qiwi-attachment-color: #9b5db2; --qiwi-attachment-soft: rgba(155, 93, 178, .13); }
+.qiwi-v2 .qiwi-attachment-type-audio { --qiwi-attachment-color: #d05e92; --qiwi-attachment-soft: rgba(208, 94, 146, .13); }
+.qiwi-v2 .qiwi-attachment-type-video { --qiwi-attachment-color: #3d8f9c; --qiwi-attachment-soft: rgba(61, 143, 156, .13); }
+.qiwi-v2 .qiwi-attachment-icon {
+    position: relative;
+    display: grid;
+    flex: 0 0 46px;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: var(--qiwi-attachment-soft);
+    color: var(--qiwi-attachment-color);
+}
+.qiwi-v2 .qiwi-attachment-icon i { font-size: 1.34rem; }
+.qiwi-v2 .qiwi-attachment-icon em {
+    position: absolute;
+    right: -4px;
+    bottom: -3px;
+    max-width: 42px;
+    padding: 1px 4px;
+    overflow: hidden;
+    border: 2px solid var(--v2-surface);
+    border-radius: 5px;
+    background: var(--qiwi-attachment-color);
+    color: #fff;
+    font: 600 .48rem/1.35 var(--font-mono);
+    font-style: normal;
+    letter-spacing: .02em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.qiwi-v2 .qiwi-attachment-info { display: grid; flex: 1 1 auto; min-width: 0; gap: 3px; }
+.qiwi-v2 .qiwi-attachment-info strong { min-width: 0; color: var(--v2-heading); font-size: .84rem; font-weight: 600; line-height: 1.45; }
+.qiwi-v2 .qiwi-attachment-info small { min-width: 0; color: var(--v2-muted); font-size: .67rem; line-height: 1.5; }
+.qiwi-v2 .qiwi-attachment-info strong > span,
+.qiwi-v2 .qiwi-attachment-info small > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qiwi-v2 .qiwi-attachment-tooltip { position: relative; }
+.qiwi-v2 .qiwi-attachment-tooltip::after {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    z-index: 25;
+    width: max-content;
+    max-width: min(280px, calc(100vw - 32px));
+    padding: 6px 8px;
+    border: 1px solid color-mix(in srgb, var(--v2-border-soft) 82%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--v2-heading) 94%, transparent);
+    box-shadow: 0 7px 20px rgba(27, 24, 22, .16);
+    color: var(--v2-bg);
+    content: attr(data-attachment-tooltip);
+    font-family: inherit;
+    font-size: .64rem;
+    font-weight: 500;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    opacity: 0;
+    pointer-events: none;
+    text-align: left;
+    transform: translateY(4px);
+    transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+    visibility: hidden;
+    white-space: normal;
+}
+.qiwi-v2 .qiwi-attachment-button.qiwi-attachment-tooltip::after { right: 0; left: auto; }
+.qiwi-v2 .qiwi-attachment-tooltip:hover::after,
+.qiwi-v2 .qiwi-attachment-tooltip:focus-visible::after { opacity: 1; transform: translateY(0); visibility: visible; }
+.qiwi-v2 .qiwi-attachment-info .qiwi-attachment-tooltip:focus-visible { outline: 1px dashed var(--qiwi-attachment-color); outline-offset: 2px; }
+.qiwi-v2 .qiwi-attachment-button {
+    --qiwi-attachment-progress: 0%;
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid color-mix(in srgb, var(--qiwi-attachment-color) 34%, var(--v2-border-soft));
+    border-radius: 999px;
+    background: var(--qiwi-attachment-soft);
+    color: var(--qiwi-attachment-color);
+    font-size: .7rem;
+    line-height: 1;
+    transition: border-color .18s ease, background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.qiwi-v2 .qiwi-attachment-button::before {
+    position: absolute;
+    inset: -4px;
+    padding: 2px;
+    border-radius: inherit;
+    background: conic-gradient(var(--qiwi-attachment-color) var(--qiwi-attachment-progress), transparent 0);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.qiwi-v2 .qiwi-attachment-card.is-downloading:not(.is-download-indeterminate) .qiwi-attachment-button::before,
+.qiwi-v2 .qiwi-attachment-card.is-complete .qiwi-attachment-button::before { opacity: 1; }
+.qiwi-v2 .qiwi-attachment-button:hover:not(:disabled) { border-color: var(--qiwi-attachment-color); background: color-mix(in srgb, var(--qiwi-attachment-color) 18%, transparent); transform: translateY(-1px); }
+.qiwi-v2 .qiwi-attachment-button:disabled { cursor: not-allowed; filter: grayscale(.6); opacity: .55; }
+.qiwi-v2 .qiwi-attachment-error { display: inline-block; margin: 0 0 1.5em; color: var(--v2-accent-strong); font-size: .78rem; }
+.qiwi-v2 .qiwi-attachment-spinner {
+    display: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(108, 116, 128, .28);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: qiwi-attachment-spin .72s linear infinite;
+}
+.qiwi-v2 .qiwi-attachment-card.is-verifying .qiwi-attachment-button-icon,
+.qiwi-v2 .qiwi-attachment-card.is-download-indeterminate .qiwi-attachment-button-icon { display: none; }
+.qiwi-v2 .qiwi-attachment-card.is-verifying .qiwi-attachment-spinner,
+.qiwi-v2 .qiwi-attachment-card.is-download-indeterminate .qiwi-attachment-spinner { display: inline-block; }
+.qiwi-v2 .qiwi-attachment-card.is-complete .qiwi-attachment-button { border-color: var(--qiwi-attachment-color); }
+.qiwi-v2 .qiwi-attachment-card.is-error .qiwi-attachment-button { border-color: var(--v2-accent-strong); color: var(--v2-accent-strong); }
+.qiwi-v2 .qiwi-attachment-download-form {
+    display: grid;
+    gap: 8px;
+    max-height: 0;
+    margin: 0;
+    padding: 0 10px;
+    overflow: hidden;
+    opacity: 0;
+    box-sizing: border-box;
+    transform: translateY(-4px);
+    transition: max-height .22s ease, margin .22s ease, padding .22s ease, opacity .18s ease, transform .22s ease;
+}
+.qiwi-v2 .qiwi-attachment-download-form.is-manual {
+    max-height: 260px;
+    margin-top: 7px;
+    padding: 10px;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--v2-surface) 74%, transparent);
+    opacity: 1;
+    transform: translateY(0);
+}
+.qiwi-v2 .qiwi-attachment-captcha { width: 100%; min-height: 44px; }
+.qiwi-v2 .qiwi-attachment-download-status { min-height: 1.5em; margin: 0; color: var(--v2-muted); font-size: .68rem; line-height: 1.55; }
+.qiwi-v2 .qiwi-attachment-download-status.is-error { color: var(--v2-accent-strong); }
+@keyframes qiwi-attachment-spin { to { transform: rotate(360deg); } }
 .qiwi-v2 .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 
 .qiwi-v2 .article-toc {
@@ -977,6 +1152,24 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .moment-owner-badge { padding: 1px 6px; border-radius: 2px; background: var(--v2-accent); color: var(--v2-bg); font-size: .62rem; }
 .qiwi-v2 .moment-text { color: var(--v2-text); font-size: .92rem; letter-spacing: .08em; line-height: 2; text-align: justify; }
 .qiwi-v2 .moment-text p { margin: 9px 0 13px; }
+.qiwi-v2 .qiwi-text-fold-segment { min-width: 0; }
+.qiwi-v2 .is-text-collapsed > .qiwi-text-fold-segment.is-text-fold-clamped { max-height: var(--qiwi-text-fold-height); overflow: hidden; }
+.qiwi-v2 .is-text-collapsed > .qiwi-text-fold-segment.is-text-fold-hidden { display: none; }
+.qiwi-v2 .qiwi-text-fold-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin: 1px 0 8px;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: var(--v2-accent-strong);
+    font-size: .72rem;
+    line-height: 1.5;
+}
+.qiwi-v2 .qiwi-text-fold-toggle:hover { color: var(--v2-accent); }
+.qiwi-v2 .qiwi-text-fold-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
+.qiwi-v2 .qiwi-text-fold-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .qiwi-v2 .moment-text img,
 .qiwi-v2 .moment-image { display: inline-block; width: auto; max-width: min(100%, 360px); max-height: 430px; margin: 6px 8px 6px 0; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); object-fit: cover; vertical-align: top; }
 .qiwi-v2 .moment-image-grid { display: grid; gap: 5px; width: min(100%, 450px); margin: 8px 0 12px; }
@@ -1258,7 +1451,6 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 /* 阅读轨道：占用侧栏与正文之间的空隙，不改变正文位置 */
 @media (min-width: 1100px) {
     .qiwi-v2 .article-toc {
-        --toc-progress: 0%;
         position: fixed;
         top: 50%;
         left: max(272px, calc(50% - 238px));
@@ -1413,7 +1605,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 }
 
 @media (max-width: 1099px) {
-    .qiwi-v2 .article-toc { --toc-progress: 0%; margin: 28px 0; padding: 0; border: 0; }
+    .qiwi-v2 .article-toc { margin: 28px 0; padding: 0; border: 0; }
     .qiwi-v2 .toc-title {
         display: flex;
         width: 100%;
@@ -1438,10 +1630,12 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
         left: 0;
         z-index: 120;
         display: block;
-        width: var(--toc-progress);
+        width: 100%;
         height: 2px;
         background: var(--v2-accent-strong);
         pointer-events: none;
+        transform: scaleX(var(--toc-progress-scale, 0));
+        transform-origin: left center;
         transition: none;
     }
 }
@@ -1679,6 +1873,13 @@ html.v2-lightbox-open,
 html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behavior: none; }
 
 @media (max-width: 700px) {
+    .qiwi-v2 .qiwi-attachment-wrap { width: 100%; }
+    .qiwi-v2 .qiwi-attachment-card { gap: 9px; min-height: 62px; padding: 8px; border-radius: 13px; }
+    .qiwi-v2 .qiwi-attachment-icon { flex-basis: 43px; width: 43px; height: 43px; border-radius: 11px; }
+    .qiwi-v2 .qiwi-attachment-info small { white-space: normal; }
+    .qiwi-v2 .qiwi-attachment-button { width: 36px; min-height: 36px; padding: 0; justify-content: center; }
+    .qiwi-v2 .qiwi-attachment-button [data-attachment-button-label] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .qiwi-v2 .qiwi-attachment-download-form.is-manual { max-height: 300px; border-radius: 11px; }
     .qiwi-v2 .comment-profile-modal { height: 162px; }
     .qiwi-v2 .comment-profile-modal.is-logged-profile { height: 80px; }
     .qiwi-v2 .comment-profile-panel { grid-template-columns: minmax(0, 1fr) auto; }
