@@ -659,27 +659,83 @@
         button.addEventListener('click', function () {
             var expanded = target.dataset.v2TextFoldExpanded !== '1';
             target.dataset.v2TextFoldExpanded = expanded ? '1' : '0';
-            target.classList.toggle('is-text-collapsed', !expanded);
-            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-            var label = button.querySelector('[data-fold-label]');
-            if (label) label.textContent = expanded ? '收起' : '展开';
+            animateMomentTextFold(target);
         });
         target.appendChild(button);
     }
 
-    function getMomentTextLines(segment) {
-        var rects = [];
-        var walker = document.createTreeWalker(segment, NodeFilter.SHOW_TEXT);
-        var node;
-        while ((node = walker.nextNode())) {
-            if (!node.textContent.trim()) continue;
-            var range = document.createRange();
-            range.selectNodeContents(node);
-            Array.prototype.forEach.call(range.getClientRects(), function (rect) {
-                if (rect.width > 0 && rect.height > 0) rects.push({ top: rect.top, bottom: rect.bottom });
-            });
-            range.detach();
+    var MOMENT_TEXT_FOLD_MAX_LINES = 4;
+    var MOMENT_TEXT_FOLD_ELLIPSIS = '…';
+
+    function restoreMomentTextFold(target) {
+        var backup = target._v2TextFoldBackup;
+        if (backup) {
+            backup.forEach(function (entry) { entry.node.data = entry.data; });
+            target._v2TextFoldBackup = null;
         }
+        var hidden = target._v2TextFoldHidden;
+        if (hidden) {
+            hidden.forEach(function (element) { element.classList.remove('is-text-fold-hidden'); });
+            target._v2TextFoldHidden = null;
+        }
+    }
+
+    function animateMomentTextFold(target) {
+        if (target._v2TextFoldAnimStop) target._v2TextFoldAnimStop();
+        if (prefersReducedMotion()) {
+            measureMomentTextFold(target);
+            return;
+        }
+
+        var startHeight = target.getBoundingClientRect().height;
+        target.style.height = startHeight + 'px';
+        target.style.overflow = 'hidden';
+
+        measureMomentTextFold(target);
+
+        var endHeight = target.scrollHeight;
+        target.classList.add('is-text-fold-animating');
+
+        var timer = null;
+        var finished = false;
+        function finish() {
+            if (finished) return;
+            finished = true;
+            target._v2TextFoldAnimStop = null;
+            window.clearTimeout(timer);
+            target.removeEventListener('transitionend', onEnd);
+            target.classList.remove('is-text-fold-animating');
+            target.style.removeProperty('height');
+            target.style.removeProperty('overflow');
+        }
+        function onEnd(event) {
+            if (event.propertyName === 'height') finish();
+        }
+        target._v2TextFoldAnimStop = finish;
+        target.addEventListener('transitionend', onEnd);
+        // 超时兜底，需要略大于 CSS transition 的 .26s，避免 transitionend 未触发时样式残留
+        timer = window.setTimeout(finish, 320);
+        window.requestAnimationFrame(function () {
+            target.style.height = endHeight + 'px';
+        });
+    }
+
+    function getMomentTextNodeRects(node) {
+        var range = document.createRange();
+        range.selectNodeContents(node);
+        var rects = Array.prototype.filter.call(range.getClientRects(), function (rect) {
+            return rect.width > 0 && rect.height > 0;
+        });
+        return rects;
+    }
+
+    function getMomentTextLines(textNodes) {
+        var rects = [];
+        textNodes.forEach(function (node) {
+            getMomentTextNodeRects(node).forEach(function (rect) {
+                rects.push({ node: node, top: rect.top, bottom: rect.bottom });
+            });
+        });
 
         rects.sort(function (a, b) { return a.top - b.top; });
         return rects.reduce(function (lines, rect) {
@@ -687,65 +743,107 @@
             if (current && rect.top < current.bottom - 1 && rect.bottom > current.top + 1) {
                 current.top = Math.min(current.top, rect.top);
                 current.bottom = Math.max(current.bottom, rect.bottom);
+                if (current.nodes.indexOf(rect.node) === -1) current.nodes.push(rect.node);
             } else {
-                lines.push({ top: rect.top, bottom: rect.bottom });
+                lines.push({ top: rect.top, bottom: rect.bottom, nodes: [rect.node] });
             }
             return lines;
         }, []);
     }
 
+    function truncateMomentTextNode(node, lineBottom) {
+        var chars = Array.from(node.data);
+        var low = 0;
+        var high = chars.length;
+        var best = 0;
+        while (low <= high) {
+            var mid = (low + high) >> 1;
+            node.data = chars.slice(0, mid).join('') + MOMENT_TEXT_FOLD_ELLIPSIS;
+            var overflows = Array.prototype.some.call(getMomentTextNodeRects(node), function (rect) {
+                return rect.top >= lineBottom - 1;
+            });
+            if (overflows) {
+                high = mid - 1;
+            } else {
+                best = mid;
+                low = mid + 1;
+            }
+        }
+        node.data = chars.slice(0, best).join('') + MOMENT_TEXT_FOLD_ELLIPSIS;
+    }
+
     function measureMomentTextFold(target) {
+        if (target._v2TextFoldAnimStop) target._v2TextFoldAnimStop();
         var segments = Array.prototype.slice.call(target.querySelectorAll(':scope > .qiwi-text-fold-segment'));
         var button = target.querySelector(':scope > .qiwi-text-fold-toggle');
         if (!segments.length || !button) return;
 
         var expanded = target.dataset.v2TextFoldExpanded === '1';
-        target.classList.remove('is-text-collapsed');
+        restoreMomentTextFold(target);
+
+        var textNodes = [];
         segments.forEach(function (segment) {
-            segment.classList.remove('is-text-fold-clamped', 'is-text-fold-hidden');
-            segment.style.removeProperty('--qiwi-text-fold-height');
+            var walker = document.createTreeWalker(segment, NodeFilter.SHOW_TEXT);
+            var node;
+            while ((node = walker.nextNode())) {
+                if (node.data.trim()) textNodes.push(node);
+            }
         });
 
-        var remainingLines = 4;
-        var overflow = false;
-        var clampSegment = null;
+        var lines = getMomentTextLines(textNodes);
+        var overflow = lines.length > MOMENT_TEXT_FOLD_MAX_LINES;
+        var cutSegment = null;
 
-        segments.forEach(function (segment) {
-            var lines = getMomentTextLines(segment);
-            if (overflow) {
-                segment.classList.add('is-text-fold-hidden');
-                return;
-            }
-            if (lines.length <= remainingLines) {
-                remainingLines -= lines.length;
-                return;
+        if (overflow && !expanded) {
+            var limitLine = lines[MOMENT_TEXT_FOLD_MAX_LINES - 1];
+            var cutNode = null;
+            var cutIndex = -1;
+            for (var i = textNodes.length - 1; i >= 0; i--) {
+                if (limitLine.nodes.indexOf(textNodes[i]) !== -1) {
+                    cutNode = textNodes[i];
+                    cutIndex = i;
+                    break;
+                }
             }
 
-            overflow = true;
-            clampSegment = segment;
-            if (remainingLines > 0) {
-                var segmentTop = segment.getBoundingClientRect().top;
-                var clampHeight = Math.max(1, lines[remainingLines - 1].bottom - segmentTop + 1);
-                segment.classList.add('is-text-fold-clamped');
-                segment.style.setProperty('--qiwi-text-fold-height', clampHeight.toFixed(2) + 'px');
-            } else {
-                segment.classList.add('is-text-fold-hidden');
+            if (cutNode) {
+                var backup = [{ node: cutNode, data: cutNode.data }];
+                truncateMomentTextNode(cutNode, limitLine.bottom);
+                for (i = cutIndex + 1; i < textNodes.length; i++) {
+                    backup.push({ node: textNodes[i], data: textNodes[i].data });
+                    textNodes[i].data = '';
+                }
+                target._v2TextFoldBackup = backup;
+
+                var hidden = [];
+                segments.forEach(function (segment) {
+                    Array.prototype.forEach.call(segment.children, function (child) {
+                        var afterCut = (cutNode.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+                        if (afterCut && !child.textContent.trim()) {
+                            child.classList.add('is-text-fold-hidden');
+                            hidden.push(child);
+                        }
+                    });
+                    if (segment.contains(cutNode)) cutSegment = segment;
+                });
+                target._v2TextFoldHidden = hidden;
             }
-        });
+        }
 
         button.hidden = !overflow;
-        target.classList.toggle('is-text-collapsed', overflow && !expanded);
         button.setAttribute('aria-expanded', expanded && overflow ? 'true' : 'false');
         var label = button.querySelector('[data-fold-label]');
         if (label) label.textContent = expanded && overflow ? '收起' : '展开';
-        if (clampSegment && button.previousElementSibling !== clampSegment) {
-            clampSegment.insertAdjacentElement('afterend', button);
+        if (cutSegment && button.previousElementSibling !== cutSegment) {
+            cutSegment.insertAdjacentElement('afterend', button);
+        } else if (!cutSegment) {
+            target.appendChild(button);
         }
     }
 
     function refreshMomentTextFolds() {
         momentTextFoldFrame = null;
-        document.querySelectorAll('.moment-text[data-v2-text-fold-ready="1"], .moment-comment-text[data-v2-text-fold-ready="1"]').forEach(measureMomentTextFold);
+        document.querySelectorAll('.moment-text[data-v2-text-fold-ready="1"], .moment-comment-text[data-v2-text-fold-ready="1"], .comment-text[data-v2-text-fold-ready="1"]').forEach(measureMomentTextFold);
     }
 
     function requestMomentTextFoldRefresh() {
@@ -754,7 +852,7 @@
     }
 
     function initMomentTextFolds(root) {
-        root.querySelectorAll('.moment-text, .moment-comment-text').forEach(function (target) {
+        root.querySelectorAll('.moment-text, .moment-comment-text, .comment-text').forEach(function (target) {
             prepareMomentTextFold(target);
             measureMomentTextFold(target);
         });

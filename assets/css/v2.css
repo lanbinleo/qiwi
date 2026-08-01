@@ -1153,8 +1153,8 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .moment-text { color: var(--v2-text); font-size: .92rem; letter-spacing: .08em; line-height: 2; text-align: justify; }
 .qiwi-v2 .moment-text p { margin: 9px 0 13px; }
 .qiwi-v2 .qiwi-text-fold-segment { min-width: 0; }
-.qiwi-v2 .is-text-collapsed > .qiwi-text-fold-segment.is-text-fold-clamped { max-height: var(--qiwi-text-fold-height); overflow: hidden; }
-.qiwi-v2 .is-text-collapsed > .qiwi-text-fold-segment.is-text-fold-hidden { display: none; }
+.qiwi-v2 .is-text-fold-hidden { display: none; }
+.qiwi-v2 .is-text-fold-animating { transition: height .26s ease; }
 .qiwi-v2 .qiwi-text-fold-toggle {
     display: inline-flex;
     align-items: center;
