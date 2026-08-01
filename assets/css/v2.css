@@ -6,6 +6,7 @@
     --v2-muted: #90909a;
     --v2-accent: #d4c4b0;
     --v2-accent-strong: #e0ad7d;
+    /* --v2-link: #6ab4f0; */
     --v2-surface: #1f1f22;
     --v2-border: #3f3f46;
     --v2-border-soft: rgba(63, 63, 70, .55);
@@ -37,6 +38,7 @@
     --v2-muted: #71717a;
     --v2-accent: #8b7355;
     --v2-accent-strong: #bf6b2f;
+    /* --v2-link: #0066cc; */
     --v2-surface: #fff;
     --v2-border: #d4d4d6;
     --v2-border-soft: #e4e4e7;
@@ -522,7 +524,7 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .archive-description a,
 .qiwi-v2 .friends-extra a {
     color: var(--v2-text);
-    border-bottom: 1px dashed var(--v2-border);
+    border-bottom: 1px solid var(--v2-accent);
     transition: color .2s ease, border-color .2s ease;
 }
 .qiwi-v2 .article-body a:hover,
