@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiSitemap
  * @author  Leo 里奥
- * @version 2.0.7
+ * @version 2.0.8
  * @link    https://bboreo.com/
  */
 class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
@@ -696,6 +696,39 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         }
 
         for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[gear([^\]]*)\]([\s\S]*?)\[\/gear\]/iu', function ($matches) {
+                $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                $body = preg_replace('/^(?:\s*<br\s*\/?>\s*)+/iu', '', $body);
+                $body = preg_replace('/(?:\s*<br\s*\/?>\s*)+$/iu', '', $body);
+                return self::feedBlock($title, $body);
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[reward([^\]]*)\]([\s\S]*?)\[\/reward\]/iu', function ($matches) {
+                $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $name = isset($attrs['name']) ? trim($attrs['name']) : '';
+                $amount = isset($attrs['amount']) ? trim($attrs['amount']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                return self::feedBlock(trim(($name !== '' ? $name : '匿名') . ' 打赏 ' . $amount . ' 元'), $body);
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        for ($i = 0; $i < 4; $i++) {
             $next = preg_replace_callback('/\[callout([^\]]*)\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
                 $attrs = self::parseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
                 $title = isset($attrs['title']) ? trim($attrs['title']) : '';
@@ -760,7 +793,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return '<span style="background-color:' . self::shortcodeColor($matches[3], true) . ';">';
         }, $html);
 
-        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|link|attachment|file|not-by-ai|notbyai|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
+        $html = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|link|attachment|file|gear|reward|not-by-ai|notbyai|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $html);
 
         return $html;
     }

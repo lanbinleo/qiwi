@@ -1176,6 +1176,37 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
             $text = $next;
         }
 
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[gear([^\]]*)\]([\s\S]*?)\[\/gear\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                return trim($title . ' ' . $body);
+            }, $text);
+
+            if ($next === $text) {
+                break;
+            }
+
+            $text = $next;
+        }
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[reward([^\]]*)\]([\s\S]*?)\[\/reward\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $name = isset($attrs['name']) ? trim($attrs['name']) : '';
+                $amount = isset($attrs['amount']) ? trim($attrs['amount']) : '';
+                $body = isset($matches[2]) ? $matches[2] : '';
+                return trim(($name !== '' ? $name : '匿名') . ' 打赏 ' . $amount . ' 元 ' . $body);
+            }, $text);
+
+            if ($next === $text) {
+                break;
+            }
+
+            $text = $next;
+        }
+
         $text = preg_replace('/\[mark(?:\s+color=(["\']?)[a-zA-Z]+\1)?\]([\s\S]*?)\[\/mark\]/iu', '$2', $text);
         $text = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '$1', $text);
         $text = preg_replace('/\[button(?:\s+[^\]]*)?\]([\s\S]*?)\[\/button\]/iu', '$1', $text);
@@ -1195,7 +1226,7 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         }
 
         $text = preg_replace('/\[(' . $colors . ')\]([\s\S]*?)\[\/\1\]/iu', '$2', $text);
-        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|attachment|file|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
+        $text = preg_replace('/\[\/?(?:mark|fold|badge|button|buttons|callout|attachment|file|gear|reward|' . $colors . ')(?:\s+[^\]]*)?\]/iu', '', $text);
 
         return $text;
     }
@@ -2140,6 +2171,11 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         $html = preg_replace('/<p>\s*(' . $foldOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/fold\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
         $html = preg_replace('/<p>\s*(\[\/fold\])\s*<\/p>/iu', '$1', $html);
+        $gearOpening = '\[gear(?:\s+[^\]]*)?\]';
+        $html = preg_replace('/<p>\s*(' . $gearOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
+        $html = preg_replace('/<p>\s*(' . $gearOpening . ')\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/gear\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/gear\])\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
         $html = preg_replace('/<p>\s*(' . $calloutOpening . ')\s*<\/p>/iu', '$1', $html);
         $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/callout\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
@@ -2192,6 +2228,128 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         }
 
         $html = preg_replace('/<p>\s*(<details class="qiwi-fold(?:\s+[^"]*)?"[\s\S]*?<\/details>)\s*<\/p>/iu', '$1', $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[gear([^\]]*)\]([\s\S]*?)\[\/gear\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $title = isset($attrs['title']) ? trim($attrs['title']) : '';
+                $image = isset($attrs['image']) ? trim($attrs['image']) : '';
+                if (isset($attrs['img'])) { $image = trim($attrs['img']); }
+                if (isset($attrs['src'])) { $image = trim($attrs['src']); }
+                $body = isset($matches[2]) ? trim($matches[2]) : '';
+                $body = preg_replace('/^(?:\s*<br\s*\/?>\s*)+/iu', '', $body);
+                $body = preg_replace('/(?:\s*<br\s*\/?>\s*)+$/iu', '', $body);
+                $body = preg_replace('/^(?:\s*<p>\s*<br\s*\/?>\s*<\/p>\s*)+/iu', '', $body);
+                $body = preg_replace('/(?:\s*<p>\s*<br\s*\/?>\s*<\/p>\s*)+$/iu', '', $body);
+
+                if ($title === '') {
+                    return htmlspecialchars($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                if ($image === '') {
+                    return '<div class="qiwi-gear-card"><div class="qiwi-gear-body"><h3 class="qiwi-gear-title">'
+                        . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8')
+                        . '</h3><div class="qiwi-gear-content">' . $body . '</div></div></div>';
+                }
+
+                return '<div class="qiwi-gear-card">'
+                    . '<div class="qiwi-gear-image"><img src="' . htmlspecialchars($image, ENT_QUOTES, 'UTF-8')
+                    . '" alt="' . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8') . '" loading="lazy"></div>'
+                    . '<div class="qiwi-gear-body"><h3 class="qiwi-gear-title">'
+                    . htmlspecialchars(strip_tags($title), ENT_QUOTES, 'UTF-8')
+                    . '</h3><div class="qiwi-gear-content">' . $body . '</div></div>'
+                    . '</div>';
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<div class="qiwi-gear-card">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>)\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/(<\/div>\s*<\/div>\s*<\/div>)\s*(?:<p><br\s*\/?><\/p>|<p>\s*<\/p>|<br\s*\/?>)*\s*(<div class="qiwi-gear-card">)/iu', '$1$2', $html);
+        $html = preg_replace_callback('/(?:<div class="qiwi-gear-card">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*)+/iu', function ($matches) {
+            return '<div class="qiwi-gear-grid">' . $matches[0] . '</div>';
+        }, $html);
+
+        $html = preg_replace('/<p>\s*(\[reward(?:\s+[^\]]*)?\])\s*<br\s*\/?>\s*([\s\S]*?)<\/p>/iu', '$1<p>$2</p>', $html);
+        $html = preg_replace('/<p>\s*(\[reward(?:\s+[^\]]*)?\])\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/<p>([\s\S]*?)<br\s*\/?>\s*(\[\/reward\])\s*<\/p>/iu', '<p>$1</p>$2', $html);
+        $html = preg_replace('/<p>\s*(\[\/reward\])\s*<\/p>/iu', '$1', $html);
+
+        for ($i = 0; $i < 4; $i++) {
+            $next = preg_replace_callback('/\[reward([^\]]*)\]([\s\S]*?)\[\/reward\]/iu', function ($matches) {
+                $attrs = qiwiParseShortcodeAttrs(isset($matches[1]) ? $matches[1] : '');
+                $name = isset($attrs['name']) ? trim($attrs['name']) : '';
+                $amountRaw = isset($attrs['amount']) ? trim($attrs['amount']) : '';
+                $note = isset($matches[2]) ? trim($matches[2]) : '';
+                $note = preg_replace('/^(?:\s*<br\s*\/?>\s*)+/iu', '', $note);
+                $note = preg_replace('/(?:\s*<br\s*\/?>\s*)+$/iu', '', $note);
+                $note = preg_replace('/<p>\s*<\/p>/iu', '', $note);
+                $time = isset($attrs['time']) ? trim($attrs['time']) : '';
+                $tag = isset($attrs['tag']) ? trim($attrs['tag']) : '';
+
+                if ($name === '' && $amountRaw === '') {
+                    return htmlspecialchars($note, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                if ($name === '') {
+                    $name = '匿名';
+                }
+                $amount = is_numeric($amountRaw)
+                    ? number_format((float) $amountRaw, 2, '.', '')
+                    : htmlspecialchars($amountRaw, ENT_QUOTES, 'UTF-8');
+
+                $html = '<article class="qiwi-reward-card">'
+                    . '<div class="qiwi-reward-head">'
+                    . '<span class="qiwi-reward-name">' . htmlspecialchars(strip_tags($name), ENT_QUOTES, 'UTF-8') . '</span>'
+                    . '<span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> ' . $amount . '</span>'
+                    . '</div>';
+                if ($note !== '') {
+                    $html .= '<div class="qiwi-reward-note">' . $note . '</div>';
+                }
+                if ($time !== '' || $tag !== '') {
+                    $html .= '<div class="qiwi-reward-meta">';
+                    if ($time !== '') {
+                        $html .= '<time>' . htmlspecialchars($time, ENT_QUOTES, 'UTF-8') . '</time>';
+                    }
+                    if ($tag !== '') {
+                        $html .= '<span class="qiwi-reward-tag">' . htmlspecialchars(strip_tags($tag), ENT_QUOTES, 'UTF-8') . '</span>';
+                    }
+                    $html .= '</div>';
+                }
+                $html .= '</article>';
+                return $html;
+            }, $html);
+
+            if ($next === $html) {
+                break;
+            }
+
+            $html = $next;
+        }
+
+        $html = preg_replace('/<p>\s*(<article class="qiwi-reward-card">[\s\S]*?<\/article>)\s*<\/p>/iu', '$1', $html);
+        $html = preg_replace('/(<\/article>)\s*(?:<p><br\s*\/?><\/p>|<p>\s*<\/p>|<br\s*\/?>)*\s*(<article class="qiwi-reward-card">)/iu', '$1$2', $html);
+        $rewardCount = 0;
+        $rewardTotal = 0.0;
+        if (preg_match_all('/<article class="qiwi-reward-card">/iu', $html, $rewardCards) !== false) {
+            $rewardCount = count($rewardCards[0]);
+        }
+        if (preg_match_all('/<span class="qiwi-reward-amount-cny">¥<\/span>\s*([\d.,]+)/iu', $html, $rewardAmounts) !== false) {
+            foreach ($rewardAmounts[1] as $rewardAmt) {
+                $rewardTotal += (float) str_replace(',', '', $rewardAmt);
+            }
+        }
+        $html = preg_replace_callback('/(?:<article class="qiwi-reward-card">[\s\S]*?<\/article>\s*)+/iu', function ($matches) {
+            return '<div class="qiwi-reward-grid">' . $matches[0] . '</div>';
+        }, $html);
+        if ($rewardCount > 0) {
+            $rewardStats = '<div class="qiwi-reward-stats"><ul class="qiwi-reward-stats-list">'
+                . '<li class="qiwi-reward-stats-item">已收到 <span class="qiwi-reward-stats-highlight">' . $rewardCount . '</span> 笔打赏，累计价值 <span class="qiwi-reward-stats-highlight">¥ ' . number_format($rewardTotal, 2, '.', ',') . '</span> 元</li>'
+                . '</ul></div>';
+            $html = preg_replace('/(<div class="qiwi-reward-grid">)/iu', $rewardStats . '$1', $html, 1);
+        }
 
         for ($i = 0; $i < 4; $i++) {
             $next = preg_replace_callback('/\[callout([^\]]*)\]([\s\S]*?)\[\/callout\]/iu', function ($matches) {
@@ -2479,7 +2637,7 @@ if (!function_exists('qiwiRenderFieldRichText')) {
 
             $escaped = htmlspecialchars($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $escaped = nl2br($escaped, false);
-            if (preg_match('/^\[(?:callout|buttons|fold)(?:\s+[^\]]*)?\]/iu', $block)
+            if (preg_match('/^\[(?:callout|buttons|fold|gear|reward)(?:\s+[^\]]*)?\]/iu', $block)
                 || (!empty($context['copyright_context']) && preg_match('/^\[(?:default|thread|collection|not-by-ai|notbyai|noai|no-repost|no-reprint|no-redistribute|ai-generated|ai-assisted|禁止转载|不能转载|不可转载)(?:\s+[^\]]*)?\]/iu', $block))) {
                 $html .= $escaped;
             } else {

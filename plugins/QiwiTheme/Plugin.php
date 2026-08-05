@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.0.7
+ * @version 2.0.8
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface

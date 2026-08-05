@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qiwi 2.0.8 · 赞赏 tab 设计稿 v2</title>
+<style>
+/* ============ 设计令牌（与 v2.css 对齐） ============ */
+:root {
+  --bg: #18181b;
+  --grid-line: rgba(228, 228, 231, 0.028);
+  --text: #c8c8cd;
+  --heading: #e4e4e7;
+  --muted: #90909a;
+  --accent: #d4c4b0;
+  --accent-strong: #e0ad7d;
+  --surface: #1f1f22;
+  --border: #3f3f46;
+  --border-soft: rgba(63, 63, 70, 0.55);
+  --radius: 4px;
+  --serif: "Noto Serif SC", "Songti SC", STSong, "SimSun", serif;
+}
+html.light {
+  --bg: #fafaf9;
+  --grid-line: rgba(63, 63, 70, 0.045);
+  --text: #3f3f46;
+  --heading: #27272a;
+  --muted: #71717a;
+  --accent: #8b7355;
+  --accent-strong: #bf6b2f;
+  --surface: #ffffff;
+  --border: #d4d4d6;
+  --border-soft: #e4e4e7;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 14px 14px;
+  color: var(--text);
+  min-height: 100vh;
+  padding: 64px 24px 120px;
+  -webkit-font-smoothing: antialiased;
+}
+.demo-label {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.theme-switch {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 9;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.theme-switch:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ============ 模拟关于页主体 ============ */
+.about-main {
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+.about-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  border: 1px solid var(--border-soft);
+}
+.about-name { color: var(--heading); font-size: 1.22rem; font-weight: 600; letter-spacing: 2px; }
+.about-bio { margin-top: 8px; color: var(--muted); font-size: .84rem; }
+
+/* ============ tab 头（模拟真实切换） ============ */
+.about-tabs { margin-top: 8px; position: relative; }
+.about-tabs-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-wrap: wrap;
+}
+.about-tab {
+  padding: 3px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: .8rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+.about-tab:hover { color: var(--accent); }
+.about-tab.is-active { border-bottom-color: var(--accent); color: var(--accent); }
+
+/* ============ 赞赏统计区（归档页 stats 风格） ============ */
+.qiwi-reward-stats { margin: 0 0 24px; padding: 0; }
+.qiwi-reward-stats-list { list-style: none; margin: 0; padding: 0; }
+.qiwi-reward-stats-item {
+  padding: 11px 2px;
+  border-bottom: 1px dashed var(--border-soft);
+  color: var(--text);
+  font-size: .9rem;
+  letter-spacing: 1px;
+}
+.qiwi-reward-stats-item:first-child { border-top: 1px dashed var(--border-soft); }
+.qiwi-reward-stats-highlight {
+  margin: 0 2px;
+  padding: 0 3px 1px;
+  color: var(--heading);
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-strong);
+}
+
+/* ============ 感谢文字（卡片前） ============ */
+.qiwi-reward-thanks {
+  margin: 0 0 30px;
+  color: var(--text);
+  font-size: .9rem;
+  line-height: 2;
+  letter-spacing: .6px;
+}
+.qiwi-reward-thanks p { margin: 0 0 1.2em; }
+.qiwi-reward-thanks strong { color: var(--heading); font-weight: 600; }
+
+/* ============ 赞赏卡片网格 ============ */
+.qiwi-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.qiwi-reward-card {
+  min-width: 0;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color .22s ease, transform .22s ease;
+}
+.qiwi-reward-card:hover { border-color: var(--border); transform: translateY(-1px); }
+
+.qiwi-reward-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.qiwi-reward-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--heading);
+  font-size: .9rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.qiwi-reward-amount {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: .98rem;
+  font-weight: 600;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.qiwi-reward-amount .qiwi-reward-amount-cny {
+  font-size: .66em;
+  font-weight: 400;
+  color: var(--muted);
+  margin-right: 1px;
+}
+
+.qiwi-reward-note {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: .8rem;
+  line-height: 1.75;
+  letter-spacing: .4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.qiwi-reward-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .7rem;
+  letter-spacing: 1px;
+}
+.qiwi-reward-meta .qiwi-reward-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  color: var(--accent);
+  font-size: .66rem;
+  letter-spacing: 1px;
+}
+
+/* ============ 卡片后后缀 ============ */
+.qiwi-reward-outro {
+  margin: 30px 0 0;
+  color: var(--text);
+  font-size: .9rem;
+  line-height: 2;
+  letter-spacing: .6px;
+}
+.qiwi-reward-outro p { margin: 0 0 1.2em; }
+.qiwi-reward-outro strong { color: var(--heading); font-weight: 600; }
+
+/* ============ 移动端 ============ */
+@media (max-width: 560px) {
+  .qiwi-reward-grid { grid-template-columns: 1fr; }
+  .about-tabs-head { gap: 16px; }
+}
+@media (max-width: 380px) {
+  .about-tabs-head { gap: 12px; }
+}
+</style>
+</head>
+<body>
+<button class="theme-switch" onclick="document.documentElement.classList.toggle('light')">日间 / 夜间</button>
+<span class="demo-label">赞赏 tab 设计稿 v2 · 无头像 · 归档统计风格</span>
+
+<div class="about-main">
+  <!-- 顶部个人信息（常驻） -->
+  <header class="about-header">
+    <img class="about-avatar" src="https://gravatar.loli.net/avatar/dd5e8f8d0a6e0f6b5a6c1f0a8a9b0c1d?s=240&d=mp" alt="avatar" />
+    <div class="about-identity">
+      <h1 class="about-name">Leo 里奥</h1>
+      <p class="about-bio">写字的人 · 代码与生活的记录者</p>
+    </div>
+  </header>
+
+  <div class="about-tabs">
+    <!-- tab 头：赞赏处于激活态 -->
+    <div class="about-tabs-head" role="tablist">
+      <button class="about-tab" type="button">介绍</button>
+      <button class="about-tab" type="button">装备</button>
+      <button class="about-tab" type="button">Q&amp;A</button>
+      <button class="about-tab" type="button">联系我</button>
+      <button class="about-tab is-active" type="button" aria-selected="true">赞赏</button>
+    </div>
+
+    <!-- 赞赏面板 -->
+    <div class="qiwi-reward-panel" role="tabpanel">
+      <!-- ① 统计区（归档页 stats 风格） -->
+      <div class="qiwi-reward-stats">
+        <ul class="qiwi-reward-stats-list">
+          <li class="qiwi-reward-stats-item">
+            已收到 <span class="qiwi-reward-stats-highlight">14</span> 笔打赏
+          </li>
+          <li class="qiwi-reward-stats-item">
+            累计价值 <span class="qiwi-reward-stats-highlight">¥ 888.00</span> 元
+          </li>
+        </ul>
+      </div>
+
+      <!-- ② 感谢文字（卡片前 · 第一行） -->
+      <div class="qiwi-reward-thanks">
+        <p>感谢每一位读到这里的你。<strong>每一笔打赏我都会认真记下来</strong>——它不只是数字，更是让我坚持写下去的理由。</p>
+        <p>如果你喜欢这个站的某篇文章、某个瞬间，欢迎请我喝一杯咖啡。金额随意，心意无价。打赏入口在每篇文章底部的「赞赏」按钮。</p>
+      </div>
+
+      <!-- ③ 打赏卡片 -->
+      <div class="qiwi-reward-grid">
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">晚风与旧信</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 66.66</span>
+          </div>
+          <p class="qiwi-reward-note">很喜欢你这篇关于秋天的文章，读完心里很安静。希望继续写下去。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-08-01</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">山有木兮</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 18.88</span>
+          </div>
+          <p class="qiwi-reward-note">技术文章帮了大忙，换了工作来还愿。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-07-28</time>
+            <span class="qiwi-reward-tag">支付宝</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">Kris</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 100.00</span>
+          </div>
+          <p class="qiwi-reward-note">Keep writing. The blog is a beautiful little corner of the internet.</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-07-20</time>
+            <span class="qiwi-reward-tag">PayPal</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">林深见鹿</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 6.66</span>
+          </div>
+          <p class="qiwi-reward-note">借楼感谢上次帮我看的报错，顺便补一杯奶茶。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-07-15</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">匿名访客</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 5.20</span>
+          </div>
+          <p class="qiwi-reward-note">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-07-02</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">Riddle</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 520.00</span>
+          </div>
+          <p class="qiwi-reward-note">谢谢你为中文独立博客做的一切。数字很小，心意很大。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-06-18</time>
+            <span class="qiwi-reward-tag">支付宝</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">阿澈</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 8.88</span>
+          </div>
+          <p class="qiwi-reward-note">从你的时光机看到你也在练字，握爪。祝这个站一直写下去。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-06-10</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">Ian</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 25.00</span>
+          </div>
+          <p class="qiwi-reward-note">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-05-30</time>
+            <span class="qiwi-reward-tag">PayPal</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">一颗螺丝钉</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 11.11</span>
+          </div>
+          <p class="qiwi-reward-note">干货好多，读了两遍才消化。一点小意思，支持服务器费用。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-05-22</time>
+            <span class="qiwi-reward-tag">支付宝</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">Luna</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 30.00</span>
+          </div>
+          <p class="qiwi-reward-note">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-05-12</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">木子李</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 1.00</span>
+          </div>
+          <p class="qiwi-reward-note">心意到就好。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-04-28</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">Harry</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 66.00</span>
+          </div>
+          <p class="qiwi-reward-note">Thanks for the RSS feed, it's been a daily read for months.</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-04-15</time>
+            <span class="qiwi-reward-tag">PayPal</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">南风知我意</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 9.99</span>
+          </div>
+          <p class="qiwi-reward-note">留个坐标：2026 年夏，从你的友链点进来，一发入坑。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-03-30</time>
+            <span class="qiwi-reward-tag">支付宝</span>
+          </div>
+        </article>
+
+        <article class="qiwi-reward-card">
+          <div class="qiwi-reward-head">
+            <span class="qiwi-reward-name">凌晨四点</span>
+            <span class="qiwi-reward-amount"><span class="qiwi-reward-amount-cny">¥</span> 88.88</span>
+          </div>
+          <p class="qiwi-reward-note">凌晨四点爬起来看你的新文章，是独属于我的仪式感。</p>
+          <div class="qiwi-reward-meta">
+            <time>2026-03-18</time>
+            <span class="qiwi-reward-tag">微信</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- ④ 后缀（卡片后） -->
+      <div class="qiwi-reward-outro">
+        <p>打赏记录持续更新中。如果你也想留下一笔，在文章页底部找到「赞赏」按钮即可。</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. 数字之外，更希望在评论区与你相遇。</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
