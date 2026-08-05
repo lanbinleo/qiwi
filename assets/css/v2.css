@@ -657,10 +657,63 @@ body.qiwi-lightbox-open { overflow: hidden; }
 :root[data-theme="light"] .qiwi-v2 .hljs-selector-attr,
 :root[data-theme="light"] .qiwi-v2 .hljs-selector-pseudo { color: #286f9b; }
 .qiwi-v2 .article-body details,
-.qiwi-v2 .qiwi-fold { margin: 0 0 2em; border-top: 1px dashed var(--v2-border-soft); border-bottom: 1px dashed var(--v2-border-soft); background: transparent; }
+.qiwi-v2 .qiwi-fold {
+    margin: 0 0 1.6em;
+    padding: 0;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: var(--v2-radius);
+    background: var(--v2-surface);
+    overflow: hidden;
+    transition: border-color .22s ease, background .22s ease;
+}
+.qiwi-v2 .article-body details:hover,
+.qiwi-v2 .qiwi-fold:hover { border-color: var(--v2-border); }
+.qiwi-v2 .article-body details + details,
+.qiwi-v2 .qiwi-fold + .qiwi-fold { margin-top: -.4em; }
+
 .qiwi-v2 .article-body summary,
-.qiwi-v2 .qiwi-fold > summary { padding: 11px 2px; color: var(--v2-heading); cursor: pointer; letter-spacing: 1px; }
-.qiwi-v2 .qiwi-fold-body { padding: 8px 2px 2px; }
+.qiwi-v2 .qiwi-fold > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    color: var(--v2-heading);
+    cursor: pointer;
+    letter-spacing: 1px;
+    font-weight: 500;
+    list-style: none;
+    user-select: none;
+    transition: color .22s ease, background .22s ease;
+}
+.qiwi-v2 .article-body summary::-webkit-details-marker,
+.qiwi-v2 .qiwi-fold > summary::-webkit-details-marker { display: none; }
+.qiwi-v2 .qiwi-fold > summary::after {
+    content: "";
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-right: 1.6px solid currentColor;
+    border-bottom: 1.6px solid currentColor;
+    transform: rotate(45deg);
+    color: var(--v2-muted);
+    transition: transform .26s cubic-bezier(0.22, 1, 0.36, 1), color .22s ease;
+}
+.qiwi-v2 .qiwi-fold[open]:not(.is-animating) > summary::after,
+.qiwi-v2 .qiwi-fold.is-open > summary::after { transform: rotate(-135deg); color: var(--v2-accent); }
+.qiwi-v2 .qiwi-fold > summary:hover { color: var(--v2-accent); background: color-mix(in srgb, var(--v2-accent) 4%, transparent); }
+.qiwi-v2 .qiwi-fold > summary:hover::after { color: var(--v2-accent); }
+
+.qiwi-v2 .qiwi-fold-body {
+    padding: 14px 16px 15px;
+    border-top: 1px solid var(--v2-border-soft);
+    margin-top: -1px;
+}
+.qiwi-v2 .article-body .qiwi-fold-body p:last-child { margin-bottom: 0; }
+
+.qiwi-v2 .qiwi-fold-no-divider { border: 0; background: transparent; }
+.qiwi-v2 .qiwi-fold-no-divider > summary { padding: 8px 2px; }
+.qiwi-v2 .qiwi-fold-no-divider > .qiwi-fold-body { padding: 0 2px 6px; border-top: 0; }
 .qiwi-v2 .qiwi-callout,
 .qiwi-v2 .callout { margin: 0 0 2em; padding: 14px 18px; border: 1px solid var(--v2-border-soft); border-left: 3px solid var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-surface); color: var(--v2-text); line-height: 1.9; }
 .qiwi-v2 .qiwi-badge { display: inline-block; padding: 1px 7px; border-radius: 2px; background: color-mix(in srgb, var(--v2-accent) 18%, transparent); color: var(--v2-accent); font-size: .76em; }
@@ -991,6 +1044,31 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .comment-respond.is-sticker-open { overflow-x: clip; overflow-y: visible; }
 .qiwi-v2 .comment-respond-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 0; }
 .qiwi-v2 .comment-respond-title { color: var(--v2-muted); font-size: .76rem; font-weight: 400; letter-spacing: 2px; }
+.qiwi-v2 .article-body .comment-respond-title {
+    margin: 0;
+    padding-left: 0;
+    border-left: 0;
+    color: var(--v2-muted);
+    font-size: .76rem;
+    font-weight: 400;
+    letter-spacing: 2px;
+}
+.qiwi-v2 .article-body .comments-title {
+    margin: 0;
+    padding-left: 0;
+    border-left: 0;
+    color: var(--v2-heading);
+    font-size: .92rem;
+    letter-spacing: 2px;
+}
+.qiwi-v2 .article-body .comment-profile-header h4 {
+    margin: 0;
+    padding-left: 0;
+    border-left: 0;
+    color: var(--v2-heading);
+    font-size: .94rem;
+    letter-spacing: 2px;
+}
 .qiwi-v2 .comment-respond-header a { color: var(--v2-muted); font-size: .72rem; }
 .qiwi-v2 .comment-form { padding: 0; }
 .qiwi-v2 .comment-text-field label { display: none; }
@@ -1342,6 +1420,179 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 .qiwi-v2 .about-avatar:hover { transform: none; filter: saturate(1.03); }
 .qiwi-v2 .about-name { color: var(--v2-heading); font-family: inherit; font-size: 1.22rem; font-weight: 600; letter-spacing: 2px; }
 .qiwi-v2 .about-bio { margin: 8px 0 0 !important; color: var(--v2-muted) !important; font-size: .84rem !important; }
+
+.qiwi-v2 .about-tabs { margin-top: 8px; position: relative; }
+.qiwi-v2 .about-tabs-head { display: flex; justify-content: flex-start; align-items: center; gap: 20px; margin-bottom: 32px; }
+.qiwi-v2 .about-tab-list { display: flex; flex-wrap: wrap; gap: 20px; }
+.qiwi-v2 .about-tab { padding: 3px 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--v2-muted); font-size: .8rem; letter-spacing: 2px; cursor: pointer; transition: color .2s ease, border-color .2s ease; }
+.qiwi-v2 .about-tab:hover { color: var(--v2-accent); }
+.qiwi-v2 .about-tab.is-active { border-bottom-color: var(--v2-accent); color: var(--v2-accent); }
+.qiwi-v2 .about-tab:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+.qiwi-v2 .about-tab-panel { display: block; }
+.qiwi-v2 .about-tab-panel[hidden] { display: none; }
+.qiwi-v2 .about-tab-panel .comments-wrapper { margin-top: 2.5em; }
+
+/* 装备卡 */
+.qiwi-v2 .qiwi-gear-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin: 0 0 2em;
+}
+.qiwi-v2 .qiwi-gear-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: var(--v2-radius);
+    background: var(--v2-surface);
+    transition: border-color .22s ease;
+}
+.qiwi-v2 .qiwi-gear-card:hover { border-color: var(--v2-border); }
+.qiwi-v2 .qiwi-gear-image {
+    flex: 0 0 auto;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--v2-bg);
+}
+.qiwi-v2 .qiwi-gear-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    cursor: zoom-in;
+    filter: saturate(.92);
+    transition: filter .25s ease, transform .45s cubic-bezier(.22, .61, .36, 1);
+}
+.qiwi-v2 .qiwi-gear-card:hover .qiwi-gear-image img { filter: saturate(1); transform: scale(1.03); }
+.qiwi-v2 .qiwi-gear-body { padding: 14px 16px 16px; }
+.qiwi-v2 .article-body .qiwi-gear-title {
+    margin: 2px 0 7px;
+    padding-left: 0;
+    border-left: 0;
+    color: var(--v2-heading);
+    font-family: inherit;
+    font-size: .92rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    line-height: 1.5;
+}
+.qiwi-v2 .article-body .qiwi-gear-content { color: var(--v2-muted); font-size: .84rem; line-height: 1.8; }
+.qiwi-v2 .article-body .qiwi-gear-content p { margin: 0 0 .6em; }
+.qiwi-v2 .article-body .qiwi-gear-content p:last-child { margin-bottom: 0; }
+.qiwi-v2 .article-body .qiwi-gear-content ul,
+.qiwi-v2 .article-body .qiwi-gear-content ol { margin: 0 0 .6em; padding-left: 1.4em; }
+.qiwi-v2 .article-body .qiwi-gear-content ul:last-child,
+.qiwi-v2 .article-body .qiwi-gear-content ol:last-child { margin-bottom: 0; }
+
+/* 打赏卡 */
+.qiwi-v2 .qiwi-reward-stats { margin: 0 0 26px; padding: 0; }
+.qiwi-v2 .article-body .qiwi-reward-stats-list { list-style: none; margin: 0; padding: 0; }
+.qiwi-v2 .article-body .qiwi-reward-stats-item {
+    padding: 11px 2px;
+    border-bottom: 1px dashed var(--v2-border-soft);
+    color: var(--v2-text);
+    font-size: .9rem;
+    letter-spacing: 1px;
+    line-height: 1.8;
+}
+.qiwi-v2 .article-body .qiwi-reward-stats-item:first-child { border-top: 1px dashed var(--v2-border-soft); }
+.qiwi-v2 .article-body .qiwi-reward-stats-highlight {
+    margin: 0 2px;
+    padding: 0 3px 1px;
+    color: var(--v2-heading);
+    font-family: var(--v2-serif);
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--v2-accent-strong);
+}
+.qiwi-v2 .qiwi-reward-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0 0 2em;
+}
+.qiwi-v2 .article-body .qiwi-reward-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    padding: 18px 20px 16px;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: 6px;
+    background: var(--v2-surface);
+    transition: border-color .22s ease, transform .22s ease;
+}
+.qiwi-v2 .article-body .qiwi-reward-card:hover { border-color: var(--v2-border); transform: translateY(-1px); }
+.qiwi-v2 .qiwi-reward-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+.qiwi-v2 .qiwi-reward-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--v2-heading);
+    font-size: .9rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+.qiwi-v2 .qiwi-reward-amount {
+    flex: 0 0 auto;
+    color: var(--v2-accent-strong);
+    font-family: var(--font-mono);
+    font-size: .98rem;
+    font-weight: 600;
+    letter-spacing: .5px;
+    white-space: nowrap;
+}
+.qiwi-v2 .qiwi-reward-amount-cny {
+    font-size: .66em;
+    font-weight: 400;
+    color: var(--v2-muted);
+    margin-right: 1px;
+}
+.qiwi-v2 .article-body .qiwi-reward-note {
+    margin: 8px 0 0;
+    color: var(--v2-text);
+    font-size: .8rem;
+    line-height: 1.75;
+    letter-spacing: .4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: calc(2 * 1.75em);
+}
+.qiwi-v2 .article-body .qiwi-reward-note p { margin: 0 0 .5em; }
+.qiwi-v2 .article-body .qiwi-reward-note p:last-child { margin-bottom: 0; }
+.qiwi-v2 .qiwi-reward-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+    color: var(--v2-muted);
+    font-size: .7rem;
+    letter-spacing: 1px;
+}
+.qiwi-v2 .qiwi-reward-meta .qiwi-reward-tag {
+    padding: 1px 6px;
+    border: 1px solid var(--v2-border-soft);
+    border-radius: 2px;
+    color: var(--v2-accent);
+    font-size: .66rem;
+    letter-spacing: 1px;
+}
 
 /* 分类、标签、通用页面 */
 .qiwi-v2 .taxonomy-cloud { display: flex; flex-wrap: wrap; gap: 12px 18px; }
@@ -1937,6 +2188,11 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     .qiwi-v2 .footer-content { flex-direction: column; align-items: flex-start; }
     .qiwi-v2 .footer-meta { text-align: left; }
     .qiwi-v2 .footer-links { justify-content: flex-start; }
+}
+
+@media (max-width: 380px) {
+    .qiwi-v2 .qiwi-gear-grid,
+    .qiwi-v2 .qiwi-reward-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

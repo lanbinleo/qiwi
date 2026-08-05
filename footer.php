@@ -971,58 +971,124 @@ function initQiwiFolds() {
         if (!summary || !body || fold.dataset.qiwiFoldEnhanced === '1') return;
 
         fold.dataset.qiwiFoldEnhanced = '1';
+        if (fold.hasAttribute('open')) {
+            fold.classList.add('is-open');
+            summary.setAttribute('aria-expanded', 'true');
+        } else {
+            summary.setAttribute('aria-expanded', 'false');
+        }
 
         summary.addEventListener('click', function(event) {
-            if (fold.classList.contains('is-animating')) {
-                event.preventDefault();
-                return;
+            event.preventDefault();
+
+            var isOpen = fold.classList.contains('is-open');
+            var targetOpen = !isOpen;
+
+            if (fold._qiwiFoldAnim) {
+                try {
+                    var rect = body.getBoundingClientRect();
+                    var liveCs = window.getComputedStyle(body);
+                    var liveH = Math.max(0, rect.height);
+                    var liveO = parseFloat(liveCs.opacity);
+                    var livePt = parseFloat(liveCs.paddingTop) || 0;
+                    var livePb = parseFloat(liveCs.paddingBottom) || 0;
+                    if (isNaN(liveO)) liveO = isOpen ? 1 : 0;
+                    fold._qiwiFoldAnim.cancel();
+                    body.style.height = liveH + 'px';
+                    body.style.opacity = String(liveO);
+                    body.style.paddingTop = livePt + 'px';
+                    body.style.paddingBottom = livePb + 'px';
+                } catch (err) {
+                    try { fold._qiwiFoldAnim.cancel(); } catch (e) {}
+                }
+                fold._qiwiFoldAnim = null;
+                fold.classList.remove('is-animating');
+                isOpen = !targetOpen ? fold.classList.contains('is-open') : !fold.classList.contains('is-open');
+            } else {
+                if (isOpen === targetOpen) return;
             }
 
-            event.preventDefault();
-            var isOpen = fold.hasAttribute('open');
-            var startHeight = body.offsetHeight;
-            var endHeight;
-
             fold.classList.add('is-animating');
+            fold.classList.toggle('is-open', targetOpen);
+            if (targetOpen) {
+                fold.setAttribute('open', '');
+                summary.setAttribute('aria-expanded', 'true');
+            } else {
+                summary.setAttribute('aria-expanded', 'false');
+            }
             body.style.overflow = 'hidden';
 
-            if (isOpen) {
-                endHeight = 0;
-            } else {
-                fold.setAttribute('open', '');
+            var startH = Math.max(0, body.getBoundingClientRect().height);
+            var startCs = window.getComputedStyle(body);
+            var startO = parseFloat(startCs.opacity);
+            if (isNaN(startO)) startO = targetOpen ? 0 : 1;
+            var startPt = parseFloat(startCs.paddingTop) || 0;
+            var startPb = parseFloat(startCs.paddingBottom) || 0;
+
+            var endH, endPt, endPb;
+            if (targetOpen) {
                 body.style.height = 'auto';
-                endHeight = body.scrollHeight;
-                body.style.height = '0px';
-                body.style.opacity = '0';
+                body.style.paddingTop = '';
+                body.style.paddingBottom = '';
+                body.style.opacity = '1';
+                var endCs = window.getComputedStyle(body);
+                endH = body.getBoundingClientRect().height;
+                endPt = parseFloat(endCs.paddingTop) || 0;
+                endPb = parseFloat(endCs.paddingBottom) || 0;
+                body.style.height = startH + 'px';
+                body.style.paddingTop = startPt + 'px';
+                body.style.paddingBottom = startPb + 'px';
+                body.style.opacity = String(startO);
+            } else {
+                endH = 0;
+                endPt = 0;
+                endPb = 0;
             }
 
             var animation = body.animate([
                 {
-                    height: startHeight + 'px',
-                    opacity: isOpen ? 1 : 0,
-                    transform: isOpen ? 'translateY(0) scaleY(1)' : 'translateY(-4px) scaleY(0.98)'
+                    height: startH + 'px',
+                    paddingTop: startPt + 'px',
+                    paddingBottom: startPb + 'px',
+                    opacity: targetOpen ? 0 : 1,
+                    transform: targetOpen ? 'translateY(-4px) scaleY(0.98)' : 'translateY(0) scaleY(1)'
                 },
                 {
-                    height: endHeight + 'px',
-                    opacity: isOpen ? 0 : 1,
-                    transform: isOpen ? 'translateY(-4px) scaleY(0.98)' : 'translateY(0) scaleY(1)'
+                    height: endH + 'px',
+                    paddingTop: endPt + 'px',
+                    paddingBottom: endPb + 'px',
+                    opacity: targetOpen ? 1 : 0,
+                    transform: targetOpen ? 'translateY(0) scaleY(1)' : 'translateY(-4px) scaleY(0.98)'
                 }
             ], {
-                duration: 320,
-                easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+                duration: 260,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                fill: 'forwards'
             });
+            fold._qiwiFoldAnim = animation;
 
             animation.onfinish = function() {
-                if (isOpen) {
-                    fold.removeAttribute('open');
-                }
+                fold._qiwiFoldAnim = null;
                 fold.classList.remove('is-animating');
-                body.style.removeProperty('height');
-                body.style.removeProperty('opacity');
-                body.style.removeProperty('overflow');
+                if (targetOpen) {
+                    animation.cancel();
+                    body.style.height = '';
+                    body.style.opacity = '';
+                    body.style.paddingTop = '';
+                    body.style.paddingBottom = '';
+                    body.style.removeProperty('overflow');
+                } else {
+                    fold.removeAttribute('open');
+                    animation.cancel();
+                    body.style.removeProperty('height');
+                    body.style.removeProperty('opacity');
+                    body.style.removeProperty('padding-top');
+                    body.style.removeProperty('padding-bottom');
+                    body.style.removeProperty('overflow');
+                }
             };
-
-            animation.oncancel = animation.onfinish;
+            animation.oncancel = function() {
+            };
         });
     });
 }
