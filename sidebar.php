@@ -17,27 +17,6 @@ if ($tagsPageUrl === '' && function_exists('qiwiGetPageUrlBySlug')) {
     $tagsPageUrl = qiwiGetPageUrlBySlug($this, ['tags', 'tag']);
 }
 
-$homeJikeData = isset($this->homeJikeData) ? $this->homeJikeData : null;
-$homeJikeTimeMode = isset($this->homeJikeTimeMode) ? $this->homeJikeTimeMode : 'absolute';
-$homeJikePosition = isset($this->homeJikePosition)
-    ? $this->homeJikePosition
-    : (isset($this->options->jikePosition) ? $this->options->jikePosition : 'sidebar');
-if ((string) $homeJikePosition === '1') {
-    $homeJikePosition = 'sidebar';
-} elseif ((string) $homeJikePosition === '0') {
-    $homeJikePosition = 'off';
-}
-if (in_array($homeJikePosition, ['top', 'inline'], true)) {
-    $homeJikePosition = 'sidebar';
-}
-$homeJikeTimeMode = in_array($homeJikeTimeMode, ['absolute', 'relative'], true) ? $homeJikeTimeMode : 'absolute';
-if ($homeJikePosition === 'sidebar' && empty($homeJikeData) && function_exists('qiwiGetHomepageJikeData')) {
-    $sidebarMomentCount = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'sidebarMomentCount', 4, 1, 8) : 4;
-    $homeJikeData = qiwiGetHomepageJikeData($sidebarMomentCount);
-}
-$showSidebarJike = $homeJikePosition === 'sidebar'
-    && !empty($homeJikeData['items'])
-    && !empty($homeJikeData['permalink']);
 $sidebarBlocks = isset($this->options->sidebarBlock)
     ? (array) $this->options->sidebarBlock
     : ['ShowRecentPosts', 'ShowCategory', 'ShowTags'];
@@ -105,26 +84,6 @@ $sidebarIconSvg = function($kind) {
             <li><a href="<?php $recent->permalink(); ?>" title="<?php $recent->title(); ?>"><?php $recent->title(); ?></a></li>
         <?php endwhile; ?>
     </ul>
-</div>
-<?php endif; ?>
-
-<?php if ($showSidebarJike): ?>
-<div class="sidebar-section sidebar-jike-section">
-    <h3 class="sidebar-title">
-        <a href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">闲言碎语</a>
-    </h3>
-    <ol class="sidebar-jike-list">
-        <?php foreach ($homeJikeData['items'] as $item): ?>
-            <?php $timeLabel = $homeJikeTimeMode === 'relative' ? $item['relative_date_label'] : $item['date_label']; ?>
-            <li class="sidebar-jike-item">
-                <a href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">
-                    <time datetime="<?php echo htmlspecialchars($item['datetime'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($timeLabel, ENT_QUOTES, 'UTF-8'); ?></time>
-                    <span><?php echo htmlspecialchars($item['excerpt'], ENT_QUOTES, 'UTF-8'); ?></span>
-                </a>
-            </li>
-        <?php endforeach; ?>
-    </ol>
-    <a class="sidebar-more-link" href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">查看更多</a>
 </div>
 <?php endif; ?>
 
