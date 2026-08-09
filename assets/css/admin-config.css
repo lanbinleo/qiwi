@@ -1691,6 +1691,84 @@
     color: #c94f4f;
 }
 
+.qiwi-category-visibility-editor {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    background: #fbfbfb;
+}
+
+.qiwi-category-visibility-head {
+    display: grid;
+    gap: 4px;
+}
+
+.qiwi-category-visibility-head strong {
+    color: #333;
+    font-size: 14px;
+}
+
+.qiwi-category-visibility-head span,
+.qiwi-category-visibility-name small {
+    color: #777;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.qiwi-category-visibility-columns,
+.qiwi-category-visibility-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px 72px;
+    gap: 12px;
+    align-items: center;
+}
+
+.qiwi-category-visibility-columns {
+    padding: 0 12px;
+    color: #777;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.qiwi-category-visibility-row {
+    padding: 10px 12px;
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.qiwi-category-visibility-row.is-child {
+    margin-left: 20px;
+}
+
+.qiwi-category-visibility-name {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.qiwi-category-visibility-name strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qiwi-category-visibility-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #555;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qiwi-category-visibility-row input[type="checkbox"] {
+    margin: 0;
+}
+
 .qiwi-raw-details {
     margin-bottom: 10px;
     border: 1px solid #e6e6e6;
@@ -2430,6 +2508,8 @@
 }
 
 .qiwi-admin-fields .qiwi-managed-field,
+.qiwi-category-visibility-editor,
+.qiwi-category-visibility-row,
 .qiwi-social-editor,
 .qiwi-nav-row,
 .qiwi-book-row,
@@ -2451,6 +2531,8 @@
 }
 
 .qiwi-admin-fields .qiwi-managed-field,
+.qiwi-category-visibility-editor,
+.qiwi-category-visibility-row,
 .qiwi-social-editor,
 .qiwi-nav-row,
 .qiwi-book-row,

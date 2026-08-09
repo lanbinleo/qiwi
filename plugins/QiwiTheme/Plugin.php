@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.0.8
+ * @version 2.1.0
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -34,6 +34,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         Helper::addPanel(1, self::SETTINGS_PANEL, 'Qiwi 设置', '快速进入 Qiwi 主题设置', 'administrator');
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
+        Typecho_Plugin::factory('Widget_Archive')->handleInit = array(__CLASS__, 'handleArchiveInit');
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'cacheCommentIpLocation');
         return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
     }
@@ -56,6 +57,23 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
 
     public static function personalConfig(Typecho_Widget_Helper_Form $form)
     {
+    }
+
+    public static function handleArchiveInit($archive, $select)
+    {
+        if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')
+            && !empty($archive)
+            && method_exists($archive, 'getThemeDir')) {
+            $themeDir = rtrim((string) $archive->getThemeDir(), '/\\');
+            $functionsFile = $themeDir . DIRECTORY_SEPARATOR . 'functions.php';
+            if (is_file($functionsFile)) {
+                require_once $functionsFile;
+            }
+        }
+
+        if (function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
+            qiwiApplyContentVisibilityToArchiveSelect($archive, $select);
+        }
     }
 
     public static function adminHeader($header)

@@ -12,6 +12,16 @@ if ($qiwiIsThreadArchive) {
     $this->need('footer.php');
     return;
 }
+$qiwiCategoryPresentation = array();
+if ($this->is('category') && function_exists('qiwiGetCategoryMetaBySlug') && function_exists('qiwiParseCategoryDescription')) {
+    $qiwiCategoryMeta = qiwiGetCategoryMetaBySlug($qiwiArchiveSlug);
+    if (!empty($qiwiCategoryMeta)) {
+        $qiwiCategoryPresentation = qiwiParseCategoryDescription(isset($qiwiCategoryMeta['description']) ? $qiwiCategoryMeta['description'] : '');
+        $qiwiCategoryPresentation['title'] = $qiwiCategoryPresentation['title'] !== ''
+            ? $qiwiCategoryPresentation['title']
+            : (isset($qiwiCategoryMeta['name']) ? (string) $qiwiCategoryMeta['name'] : $qiwiArchiveSlug);
+    }
+}
 ?>
 
 <div class="main-layout">
@@ -21,13 +31,23 @@ if ($qiwiIsThreadArchive) {
     <!-- 主要内容 -->
     <div class="main-content">
         <header class="archive-header">
-            <h1 class="archive-title">
-                <?php $this->archiveTitle([
-                    'category' => '分类: %s',
-                    'search'   => '搜索: %s',
-                    'tag'      => '标签: %s',
-                    'author'   => '作者: %s'
-                ], '', ''); ?>
+            <h1 class="archive-title<?php echo !empty($qiwiCategoryPresentation['color']) ? ' qiwi-category-title-' . htmlspecialchars($qiwiCategoryPresentation['color'], ENT_QUOTES, 'UTF-8') : ''; ?>">
+                <?php if (!empty($qiwiCategoryPresentation['hasMeta'])): ?>
+                    <?php if ($qiwiCategoryPresentation['label'] !== ''): ?>
+                        <span class="qiwi-category-title-label"><?php echo htmlspecialchars($qiwiCategoryPresentation['label'], ENT_QUOTES, 'UTF-8'); ?>:</span>
+                    <?php endif; ?>
+                    <?php if ($qiwiCategoryPresentation['icon'] !== ''): ?>
+                        <i class="fa-solid fa-<?php echo htmlspecialchars($qiwiCategoryPresentation['icon'], ENT_QUOTES, 'UTF-8'); ?> qiwi-category-title-icon" aria-hidden="true"></i>
+                    <?php endif; ?>
+                    <?php echo htmlspecialchars($qiwiCategoryPresentation['title'], ENT_QUOTES, 'UTF-8'); ?>
+                <?php else: ?>
+                    <?php $this->archiveTitle([
+                        'category' => '分类: %s',
+                        'search'   => '搜索: %s',
+                        'tag'      => '标签: %s',
+                        'author'   => '作者: %s'
+                    ], '', ''); ?>
+                <?php endif; ?>
             </h1>
         </header>
 

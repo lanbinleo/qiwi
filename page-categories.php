@@ -22,10 +22,13 @@ while ($categories->next()) {
     $categories->name();
     $name = trim(ob_get_clean());
 
-    $description = '';
-    if (!empty($categories->description)) {
-        $description = trim(strip_tags((string) $categories->description));
+    $categoryPresentation = function_exists('qiwiParseCategoryDescription')
+        ? qiwiParseCategoryDescription(isset($categories->description) ? $categories->description : '')
+        : array('title' => '', 'color' => '', 'icon' => '', 'description' => '');
+    if ($categoryPresentation['title'] !== '') {
+        $name = $categoryPresentation['title'];
     }
+    $description = $categoryPresentation['description'];
 
     $threadData = null;
     $displayCount = (int) $categories->count;
@@ -47,6 +50,8 @@ while ($categories->next()) {
         'permalink' => $permalink,
         'count' => $displayCount,
         'description' => $description,
+        'color' => $categoryPresentation['color'],
+        'icon' => $categoryPresentation['icon'],
         'threadData' => $threadData,
     ];
 
@@ -90,7 +95,8 @@ $pageContent = qiwiGetContent($this);
                 <ul class="archive-post-list taxonomy-list">
                     <?php foreach ($categoryItems as $category): ?>
                     <li class="archive-post-item taxonomy-list-item">
-                        <a href="<?php echo htmlspecialchars($category['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="post-title-link">
+                        <a href="<?php echo htmlspecialchars($category['permalink'], ENT_QUOTES, 'UTF-8'); ?>" class="post-title-link<?php echo !empty($category['color']) ? ' qiwi-category-link-' . htmlspecialchars($category['color'], ENT_QUOTES, 'UTF-8') : ''; ?>">
+                            <?php if (!empty($category['icon'])): ?><i class="fa-solid fa-<?php echo htmlspecialchars($category['icon'], ENT_QUOTES, 'UTF-8'); ?> qiwi-category-link-icon" aria-hidden="true"></i><?php endif; ?>
                             <?php echo htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8'); ?>
                         </a>
                         <?php if ($category['description'] !== ''): ?>

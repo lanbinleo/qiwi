@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 2.0.8
+ * @version 2.1.0
  * @link https://bboreo.com
  */
 
@@ -19,17 +19,6 @@ $hasContent = false;
 $sidebarMomentCount = function_exists('qiwiGetPositiveIntOption') ? qiwiGetPositiveIntOption($this, 'sidebarMomentCount', 4, 1, 8) : 4;
 $homeJikeData = function_exists('qiwiGetHomepageJikeData') ? qiwiGetHomepageJikeData($sidebarMomentCount) : null;
 $hasHomeJike = !empty($homeJikeData['items']);
-$jikePosition = $hasHomeJike ? ($this->options->jikePosition ?: 'sidebar') : 'off';
-if ((string) $jikePosition === '1') {
-    $jikePosition = 'sidebar';
-} elseif ((string) $jikePosition === '0') {
-    $jikePosition = 'off';
-}
-if (in_array($jikePosition, ['top', 'inline'], true)) {
-    $jikePosition = 'sidebar';
-}
-$jikeTimeMode = $hasHomeJike ? ($this->options->jikeTimeMode ?: 'absolute') : 'absolute';
-if ($jikePosition === 'off') $hasHomeJike = false;
 
 if ($currentPage == 1) {
     // === 首页：显示所有置顶文章 + 补充非置顶文章 ===
@@ -99,6 +88,10 @@ if ($currentPage == 1) {
 
                 $widget->fields = $fields;
 
+                if (function_exists('qiwiGetContentVisibility') && !qiwiGetContentVisibility($widget, 'home')) {
+                    continue;
+                }
+
                 $stickyPosts[] = [
                     'widget' => $widget,
                     'isSticky' => true
@@ -164,7 +157,7 @@ if (function_exists('qiwiPrimePostStatsCache')) {
     <!-- 主要内容 -->
     <div class="main-content">
         <?php if ($currentPage == 1 && $hasHomeJike && !empty($homeJikeData['items'][0])): ?>
-        <section class="latest-moment" aria-label="最近动态" data-latest-moment>
+        <a class="latest-moment" aria-label="最近动态" data-latest-moment href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">
             <span class="dot" aria-hidden="true"></span>
             <span class="latest-moment-items">
                 <?php foreach ($homeJikeData['items'] as $momentIndex => $latestMoment): ?>
@@ -174,8 +167,7 @@ if (function_exists('qiwiPrimePostStatsCache')) {
                 </b>
                 <?php endforeach; ?>
             </span>
-            <a href="<?php echo htmlspecialchars($homeJikeData['permalink'], ENT_QUOTES, 'UTF-8'); ?>">更多动态 →</a>
-        </section>
+        </a>
         <?php endif; ?>
         <?php if ($hasContent): ?>
         <ul class="article-list">
@@ -226,9 +218,6 @@ if (function_exists('qiwiPrimePostStatsCache')) {
 
     <!-- 侧边栏 -->
     <aside class="sidebar">
-        <?php $this->homeJikeData = $homeJikeData; ?>
-        <?php $this->homeJikeTimeMode = $jikeTimeMode; ?>
-        <?php $this->homeJikePosition = $jikePosition; ?>
         <?php $this->need('sidebar.php'); ?>
     </aside>
 

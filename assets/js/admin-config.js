@@ -531,6 +531,113 @@
         return first.value || '';
     }
 
+    function parseCategoryVisibility(text, categories) {
+        var parsed = {};
+        try {
+            var payload = JSON.parse(text || '{}');
+            var items = payload && Array.isArray(payload.items) ? payload.items : [];
+            items.forEach(function(item) {
+                if (!item || typeof item !== 'object') return;
+                var key = item.mid ? 'mid:' + String(item.mid) : 'slug:' + trim(item.slug);
+                if (key !== 'mid:0' && key !== 'slug:') parsed[key] = item;
+            });
+        } catch (error) {
+            parsed = {};
+        }
+
+        return (categories || []).map(function(category) {
+            category = category || {};
+            var mid = parseInt(category.mid, 10) || 0;
+            var slug = trim(category.slug);
+            var item = parsed['mid:' + mid] || parsed['slug:' + slug] || {};
+            return {
+                mid: mid,
+                name: category.name || slug || ('分类 #' + mid),
+                slug: slug,
+                parent: parseInt(category.parent, 10) || 0,
+                home: item.home === 'hide' ? 'hide' : 'show',
+                rss: item.rss === 'hide' ? 'hide' : 'show'
+            };
+        });
+    }
+
+    function categoryVisibilityToText(rows) {
+        return JSON.stringify({
+            schema: 'qiwi-category-visibility',
+            version: 1,
+            items: (rows || []).map(function(row) {
+                return {
+                    mid: row.mid,
+                    slug: row.slug,
+                    home: row.home === 'hide' ? 'hide' : 'show',
+                    rss: row.rss === 'hide' ? 'hide' : 'show'
+                };
+            })
+        }, null, 2);
+    }
+
+    function initCategoryVisibilityEditor(panel, textarea) {
+        var editor = $('[data-qiwi-category-visibility-editor]', panel);
+        var list = $('[data-qiwi-category-visibility-list]', panel);
+        var categories = window.QIWI_ADMIN_CONFIG && Array.isArray(window.QIWI_ADMIN_CONFIG.categories) ? window.QIWI_ADMIN_CONFIG.categories : [];
+        if (!editor || !list || !textarea) return null;
+        var isRendering = false;
+
+        function sync() {
+            var rows = $all('.qiwi-category-visibility-row', list).map(function(row) {
+                var home = $('[data-category-field="home"]', row);
+                var rss = $('[data-category-field="rss"]', row);
+                return {
+                    mid: parseInt(row.getAttribute('data-category-mid'), 10) || 0,
+                    slug: row.getAttribute('data-category-slug') || '',
+                    home: home && home.checked ? 'show' : 'hide',
+                    rss: rss && rss.checked ? 'show' : 'hide'
+                };
+            });
+            textarea.value = categoryVisibilityToText(rows);
+        }
+
+        function render(rows) {
+            isRendering = true;
+            list.innerHTML = '';
+            if (!rows.length) {
+                var empty = document.createElement('div');
+                empty.className = 'qiwi-admin-empty';
+                empty.textContent = '当前没有可管理的分类。';
+                list.appendChild(empty);
+                isRendering = false;
+                return;
+            }
+
+            rows.forEach(function(row) {
+                var item = document.createElement('div');
+                item.className = 'qiwi-category-visibility-row';
+                item.setAttribute('data-category-mid', String(row.mid));
+                item.setAttribute('data-category-slug', row.slug);
+                if (row.parent) item.classList.add('is-child');
+                item.innerHTML =
+                    '<div class="qiwi-category-visibility-name"><strong>' + escapeHtml(row.name) + '</strong><small>' + escapeHtml(row.slug) + '</small></div>' +
+                    '<label><input type="checkbox" data-category-field="home"' + (row.home === 'show' ? ' checked' : '') + '>首页</label>' +
+                    '<label><input type="checkbox" data-category-field="rss"' + (row.rss === 'show' ? ' checked' : '') + '>RSS</label>';
+                list.appendChild(item);
+            });
+            isRendering = false;
+        }
+
+        render(parseCategoryVisibility(textarea.value, categories));
+        textarea.addEventListener('input', function() {
+            if (!isRendering) render(parseCategoryVisibility(textarea.value, categories));
+        });
+        list.addEventListener('change', function() {
+            if (!isRendering) sync();
+        });
+
+        return {
+            refresh: function() { render(parseCategoryVisibility(textarea.value, categories)); },
+            sync: sync
+        };
+    }
+
     function initNavEditor(panel, textarea) {
         var list = $('[data-qiwi-nav-list]', panel);
         var isRendering = false;
@@ -2492,9 +2599,10 @@
         'sidebarAnnouncement',
         'enableBusuanzi',
         'sidebarBlock',
-        'jikePosition',
-        'jikeTimeMode',
         'sidebarMomentCount',
+        'homeVisibilityDefault',
+        'rssVisibilityDefault',
+        'categoryVisibilityData',
         'enableHitokoto',
         'footerInfo',
         'defaultCopyrightLicense',
@@ -3435,7 +3543,13 @@
                             '<pre class="qiwi-plog-template-code"><code data-plog-template-code># Plog\n用照片记录生活的碎片\nmode: masonry\nsort: date-desc\ndateDisplay: show\ndatePrecision: auto\n\n![玄武湖畔](https://example.com/photo-01.jpg)\ntitle: 玄武湖畔\ndesc: 傍晚沿湖跑步时拍的，光线刚好\nalbum: 南京游\ndate: 1781524213\nw: 4\nh: 3\n\n![先锋书店](https://example.com/photo-02.jpg)\ntitle: 先锋书店\ndesc: 地下停车场改造的书店，很有氛围\nalbum: 南京游\ndate: 2026-06-15 19:50\ndatePrecision: datetime\nw: 16\nh: 9</code></pre>' +
                         '</div>' +
                     '</section>' +
-                    '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="site"><div class="qiwi-admin-fields" data-qiwi-site-fields></div>' +
+                        '<section class="qiwi-category-visibility-editor" data-qiwi-category-visibility-editor>' +
+                            '<div class="qiwi-category-visibility-head"><strong>分类展示</strong><span>分别控制每个分类是否出现在首页和整站 RSS。文章自己的设置优先于这里。</span></div>' +
+                            '<div class="qiwi-category-visibility-columns"><span>分类</span><span>首页</span><span>RSS</span></div>' +
+                            '<div data-qiwi-category-visibility-list></div>' +
+                        '</section>' +
+                    '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="about"><div class="qiwi-admin-fields" data-qiwi-about-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="friends">' +
                         '<div class="qiwi-friends-admin-tabs" data-qiwi-friends-admin-tabs>' +
@@ -3509,8 +3623,8 @@
         navRow.parentNode.insertBefore(panel, navRow);
 
         moveFields(['logoUrl', 'v2EnglishTitle', 'v2SidebarSlogan', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
-        moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'jikePosition', 'jikeTimeMode', 'sidebarMomentCount', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
-        moveFields(['v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
+        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
@@ -3524,7 +3638,8 @@
         [
             ['navItems', '顶部导航配置'],
             ['friendsData', '友链数据'],
-            ['bookReference', '归档统计数据']
+            ['bookReference', '归档统计数据'],
+            ['categoryVisibilityData', '分类展示设置']
         ].forEach(function(item) {
             var row = moveField(item[0], rawPane);
             wrapRawField(row, item[1]);
@@ -3538,7 +3653,8 @@
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),
             books: initBookEditor(panel, bookInput),
-            sidebarSocial: initSidebarSocialEditor(panel, sidebarSocialTextarea)
+            sidebarSocial: initSidebarSocialEditor(panel, sidebarSocialTextarea),
+            categoryVisibility: initCategoryVisibilityEditor(panel, fieldByName('categoryVisibilityData'))
         };
         initExternalLinkStats(panel);
         initFriendFeedPanel(panel);

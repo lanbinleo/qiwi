@@ -168,6 +168,242 @@ if (!function_exists('qiwiGetStoredFieldValue')) {
     }
 }
 
+if (!function_exists('qiwiGetContentVisibilityDefault')) {
+    function qiwiGetContentVisibilityDefault($scope, $options = null)
+    {
+        $scope = $scope === 'rss' ? 'rss' : 'home';
+        $field = $scope === 'rss' ? 'rssVisibilityDefault' : 'homeVisibilityDefault';
+        $value = '';
+
+        try {
+            if ($options === null) {
+                $options = Typecho_Widget::widget('Widget_Options');
+            }
+            $value = isset($options->{$field}) ? strtolower(trim((string) $options->{$field})) : '';
+        } catch (Exception $e) {
+            $value = '';
+        } catch (Throwable $e) {
+            $value = '';
+        }
+
+        return $value !== 'hide';
+    }
+}
+
+if (!function_exists('qiwiGetContentVisibility')) {
+    function qiwiGetContentVisibility($widget, $scope = 'home', $options = null)
+    {
+        $scope = $scope === 'rss' ? 'rss' : 'home';
+        $field = $scope === 'rss' ? 'rssVisibility' : 'homeVisibility';
+        $override = strtolower(trim((string) qiwiGetFieldValue($widget, $field, 'default')));
+        if ($override === 'show') {
+            return true;
+        }
+        if ($override === 'hide') {
+            return false;
+        }
+
+        $categoryOverride = qiwiGetContentCategoryVisibility($widget, $scope, $options);
+        if ($categoryOverride === 'show') {
+            return true;
+        }
+        if ($categoryOverride === 'hide') {
+            return false;
+        }
+
+        return qiwiGetContentVisibilityDefault($scope, $options);
+    }
+}
+
+if (!function_exists('qiwiGetCategoryVisibilityMap')) {
+    function qiwiGetCategoryVisibilityMap($options = null)
+    {
+        $map = array('mid' => array(), 'slug' => array());
+        try {
+            if ($options === null) {
+                $options = Typecho_Widget::widget('Widget_Options');
+            }
+            $raw = isset($options->categoryVisibilityData) ? trim((string) $options->categoryVisibilityData) : '';
+            $decoded = $raw !== '' ? json_decode(html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8'), true) : array();
+            $items = is_array($decoded) && isset($decoded['items']) && is_array($decoded['items']) ? $decoded['items'] : array();
+            foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $normalized = array(
+                    'home' => isset($item['home']) && (string) $item['home'] === 'hide' ? 'hide' : 'show',
+                    'rss' => isset($item['rss']) && (string) $item['rss'] === 'hide' ? 'hide' : 'show',
+                );
+                $mid = isset($item['mid']) ? (int) $item['mid'] : 0;
+                $slug = isset($item['slug']) ? trim((string) $item['slug']) : '';
+                if ($mid > 0) {
+                    $map['mid'][$mid] = $normalized;
+                }
+                if ($slug !== '') {
+                    $map['slug'][$slug] = $normalized;
+                }
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return $map;
+    }
+}
+
+if (!function_exists('qiwiGetCategoryVisibilityOverride')) {
+    function qiwiGetCategoryVisibilityOverride($mid, $slug, $scope, $options = null)
+    {
+        $scope = $scope === 'rss' ? 'rss' : 'home';
+        $map = qiwiGetCategoryVisibilityMap($options);
+        $item = null;
+        $mid = (int) $mid;
+        $slug = trim((string) $slug);
+        if ($mid > 0 && isset($map['mid'][$mid])) {
+            $item = $map['mid'][$mid];
+        } elseif ($slug !== '' && isset($map['slug'][$slug])) {
+            $item = $map['slug'][$slug];
+        }
+
+        return $item && isset($item[$scope]) ? $item[$scope] : '';
+    }
+}
+
+if (!function_exists('qiwiGetContentCategoryVisibility')) {
+    function qiwiGetContentCategoryVisibility($widget, $scope = 'home', $options = null)
+    {
+        if (empty($widget) || !isset($widget->cid)) {
+            return '';
+        }
+
+        $cid = (int) $widget->cid;
+        if ($cid <= 0) {
+            return '';
+        }
+
+        static $cache = array();
+        $scope = $scope === 'rss' ? 'rss' : 'home';
+        $cacheKey = $cid . ':' . $scope;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $hasShow = false;
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $rows = $db->fetchAll($db->select('table.metas.mid', 'table.metas.slug')
+                ->from('table.relationships')
+                ->join('table.metas', 'table.relationships.mid = table.metas.mid')
+                ->where('table.relationships.cid = ?', $cid)
+                ->where('table.metas.type = ?', 'category'));
+            foreach ($rows as $row) {
+                $override = qiwiGetCategoryVisibilityOverride(
+                    isset($row['mid']) ? $row['mid'] : 0,
+                    isset($row['slug']) ? $row['slug'] : '',
+                    $scope,
+                    $options
+                );
+                if ($override === 'hide') {
+                    $cache[$cacheKey] = 'hide';
+                    return 'hide';
+                }
+                if ($override === 'show') {
+                    $hasShow = true;
+                }
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        $cache[$cacheKey] = $hasShow ? 'show' : '';
+        return $cache[$cacheKey];
+    }
+}
+
+if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
+    function qiwiApplyContentVisibilityToArchiveSelect($archive, $select)
+    {
+        if (empty($archive) || empty($select) || !method_exists($archive, 'is')) {
+            return;
+        }
+
+        $scope = null;
+        if ($archive->is('feed')) {
+            $scope = 'rss';
+        } elseif (!$archive->is('page') && ($archive->is('index') || (method_exists($archive, 'getArchiveType') && $archive->getArchiveType() === 'front'))) {
+            $scope = 'home';
+        }
+
+        if ($scope === null) {
+            return;
+        }
+
+        $fieldName = $scope === 'rss' ? 'rssVisibility' : 'homeVisibility';
+        $defaultVisible = qiwiGetContentVisibilityDefault($scope);
+        $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+        $fieldsTable = $db->getPrefix() . 'fields';
+        $relationshipsTable = $db->getPrefix() . 'relationships';
+        $metasTable = $db->getPrefix() . 'metas';
+        $fieldNameLiteral = addslashes($fieldName);
+        $articleOverrideSubquery = "SELECT qiwi_visibility.cid FROM {$fieldsTable} qiwi_visibility"
+            . " WHERE qiwi_visibility.name = '{$fieldNameLiteral}'"
+            . " AND qiwi_visibility.str_value IN ('show', 'hide')";
+        $articleShowSubquery = "SELECT qiwi_visibility.cid FROM {$fieldsTable} qiwi_visibility"
+            . " WHERE qiwi_visibility.name = '{$fieldNameLiteral}'"
+            . " AND qiwi_visibility.str_value = 'show'";
+        $categoryMap = qiwiGetCategoryVisibilityMap();
+        $categoryShowMids = array();
+        $categoryHideMids = array();
+        foreach ($categoryMap['mid'] as $mid => $visibility) {
+            $visibilityValue = isset($visibility[$scope]) ? $visibility[$scope] : '';
+            if ($visibilityValue === 'show') {
+                $categoryShowMids[] = (int) $mid;
+            } elseif ($visibilityValue === 'hide') {
+                $categoryHideMids[] = (int) $mid;
+            }
+        }
+        $categoryShowMids = array_values(array_unique(array_filter($categoryShowMids)));
+        $categoryHideMids = array_values(array_unique(array_filter($categoryHideMids)));
+        $categoryShowSubquery = '';
+        if (!empty($categoryShowMids)) {
+            $categoryShowSubquery = "SELECT qiwi_category_rel.cid FROM {$relationshipsTable} qiwi_category_rel"
+                . " INNER JOIN {$metasTable} qiwi_category_meta ON qiwi_category_meta.mid = qiwi_category_rel.mid"
+                . " WHERE qiwi_category_meta.type = 'category'"
+                . " AND qiwi_category_meta.mid IN (" . implode(',', $categoryShowMids) . ")";
+        }
+        $categoryHideSubquery = '';
+        if (!empty($categoryHideMids)) {
+            $categoryHideSubquery = "SELECT qiwi_category_rel.cid FROM {$relationshipsTable} qiwi_category_rel"
+                . " INNER JOIN {$metasTable} qiwi_category_meta ON qiwi_category_meta.mid = qiwi_category_rel.mid"
+                . " WHERE qiwi_category_meta.type = 'category'"
+                . " AND qiwi_category_meta.mid IN (" . implode(',', $categoryHideMids) . ")";
+        }
+
+        $articleDefaultCondition = 'table.contents.cid NOT IN (' . $articleOverrideSubquery . ')';
+        $articleShowCondition = 'table.contents.cid IN (' . $articleShowSubquery . ')';
+
+        if ($defaultVisible) {
+            $conditions = array($articleShowCondition);
+            if ($categoryHideSubquery !== '') {
+                $conditions[] = $articleDefaultCondition . ' AND table.contents.cid NOT IN (' . $categoryHideSubquery . ')';
+            } else {
+                $conditions[] = $articleDefaultCondition;
+            }
+        } else {
+            $conditions = array($articleShowCondition);
+            if ($categoryShowSubquery !== '') {
+                $categoryCondition = 'table.contents.cid IN (' . $categoryShowSubquery . ')';
+                if ($categoryHideSubquery !== '') {
+                    $categoryCondition .= ' AND table.contents.cid NOT IN (' . $categoryHideSubquery . ')';
+                }
+                $conditions[] = $articleDefaultCondition . ' AND ' . $categoryCondition;
+            }
+        }
+
+        $select->where('(' . implode(' OR ', $conditions) . ')');
+    }
+}
+
 if (!function_exists('qiwiShouldRenderLatex')) {
     function qiwiShouldRenderLatex($widget)
     {
@@ -431,6 +667,27 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
         $js = htmlspecialchars(qiwiGetMappedAssetUrl('assets/js/admin-config.js') . '?v=' . $adminConfigJsVersion, ENT_QUOTES, 'UTF-8');
         $fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
         $metadata = qiwiGetLocalUpdateMetadata();
+        $categories = [];
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $rows = $db->fetchAll($db->select('mid', 'name', 'slug', 'parent')
+                ->from('table.metas')
+                ->where('type = ?', 'category')
+                ->order('mid', 'ASC'));
+            foreach ($rows as $row) {
+                $categories[] = [
+                    'mid' => isset($row['mid']) ? (int) $row['mid'] : 0,
+                    'name' => isset($row['name']) ? (string) $row['name'] : '',
+                    'slug' => isset($row['slug']) ? (string) $row['slug'] : '',
+                    'parent' => isset($row['parent']) ? (int) $row['parent'] : 0,
+                ];
+            }
+        } catch (Exception $e) {
+            $categories = [];
+        } catch (Throwable $e) {
+            $categories = [];
+        }
+
         $config = [
             'currentVersion' => isset($metadata['version']) ? (string) $metadata['version'] : '',
             'updateEndpoint' => 'https://api.github.com/repos/lanbinleo/qiwi/contents/update.json',
@@ -446,6 +703,7 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'postLikeRecords' => function_exists('qiwiGetPostLikeRecords') ? qiwiGetPostLikeRecords(100) : [],
             'postLikeArticleStats' => function_exists('qiwiGetPostLikeArticleStats') ? qiwiGetPostLikeArticleStats(100) : [],
             'ipLocationRebuildEndpoint' => qiwiGetThemeActionEndpoint('rebuild-ip-locations'),
+            'categories' => $categories,
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
@@ -670,6 +928,39 @@ function themeConfig($form)
 
     $form->addInput($sidebarBlock->multiMode());
 
+    $homeVisibilityDefault = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeVisibilityDefault',
+        array(
+            'show' => _t('显示'),
+            'hide' => _t('隐藏')
+        ),
+        'show',
+        _t('文章默认 - 首页展示'),
+        _t('文章没有单独设置时，是否显示在首页。分类设置和文章字段都可以单独覆盖这个默认值。')
+    );
+    $form->addInput($homeVisibilityDefault);
+
+    $rssVisibilityDefault = new Typecho_Widget_Helper_Form_Element_Radio(
+        'rssVisibilityDefault',
+        array(
+            'show' => _t('进入 RSS'),
+            'hide' => _t('不进入 RSS')
+        ),
+        'show',
+        _t('文章默认 - RSS 展示'),
+        _t('文章没有单独设置时，是否进入整站 RSS / Atom。分类设置和文章字段都可以单独覆盖这个默认值。')
+    );
+    $form->addInput($rssVisibilityDefault);
+
+    $categoryVisibilityData = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'categoryVisibilityData',
+        null,
+        null,
+        _t('分类展示设置 - 原始数据'),
+        _t('分类级“首页展示 / RSS 展示”由网站信息里的结构化编辑器管理。这里保留 JSON 作为兼容和导入导出的原始数据。')
+    );
+    $form->addInput($categoryVisibilityData);
+
     $sidebarSocialLinks = new Typecho_Widget_Helper_Form_Element_Textarea(
         'sidebarSocialLinks',
         null,
@@ -785,37 +1076,12 @@ function themeConfig($form)
     );
     $form->addInput($navItems);
 
-    // 说说展示位置
-    $jikePosition = new Typecho_Widget_Helper_Form_Element_Radio(
-        'jikePosition',
-        array(
-            'off'    => _t('关闭'),
-            'sidebar' => _t('右侧栏（说说时间线）'),
-        ),
-        'sidebar',
-        _t('侧边栏说说'),
-        _t('在全站侧边栏展示时光机页面的最新说说。需要已发布一个使用“时间机器”模板的独立页面。')
-    );
-    $form->addInput($jikePosition);
-
-    $jikeTimeMode = new Typecho_Widget_Helper_Form_Element_Radio(
-        'jikeTimeMode',
-        array(
-            'absolute' => _t('纯日期'),
-            'relative' => _t('相对时间'),
-        ),
-        'absolute',
-        _t('侧边栏说说 - 时间显示'),
-        _t('纯日期显示为 MM-DD；相对时间支持“刚刚 / X分钟前 / X小时前 / X天前”，超过 3 天后自动回退为 MM-DD。')
-    );
-    $form->addInput($jikeTimeMode);
-
     $sidebarMomentCount = new Typecho_Widget_Helper_Form_Element_Text(
         'sidebarMomentCount',
         null,
         '4',
-        _t('侧边栏说说 - 展示数量'),
-        _t('侧边栏展示的最新说说数量，建议 3-6 条。')
+        _t('首页最近动态 - 展示数量'),
+        _t('首页顶部最近动态轮播的数量，建议 3-6 条。')
     );
     $form->addInput($sidebarMomentCount);
 
@@ -1025,6 +1291,30 @@ function themeFields($layout) {
               0 => _t('否')),
         0, _t('文章 - 置顶文章'), _t('置顶的文章将在首页优先显示。'));
 
+    $homeVisibility = new Typecho_Widget_Helper_Form_Element_Radio(
+        'homeVisibility',
+        array(
+            'default' => _t('跟随主题设置'),
+            'show' => _t('显示在首页'),
+            'hide' => _t('不显示在首页')
+        ),
+        'default',
+        _t('文章 - 首页展示'),
+        _t('单篇文章可以覆盖主题设置中的首页展示默认值。')
+    );
+
+    $rssVisibility = new Typecho_Widget_Helper_Form_Element_Radio(
+        'rssVisibility',
+        array(
+            'default' => _t('跟随主题设置'),
+            'show' => _t('进入 RSS'),
+            'hide' => _t('不进入 RSS')
+        ),
+        'default',
+        _t('文章 - RSS 展示'),
+        _t('单篇文章可以覆盖主题设置中的 RSS 展示默认值。')
+    );
+
     $layout->addItem($isLatex);
     $layout->addItem($tocDisplay);
 
@@ -1034,6 +1324,8 @@ function themeFields($layout) {
         $layout->addItem($showThumbnail);
         $layout->addItem($thumbnail);
         $layout->addItem($isSticky);
+        $layout->addItem($homeVisibility);
+        $layout->addItem($rssVisibility);
     }
 
     if ($isPageEditor || $isUnknownEditor) {
@@ -1238,6 +1530,86 @@ if (!function_exists('qiwiSanitizeShortcodeColor')) {
         $color = strtolower(trim((string) $color));
         $allowed = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple'];
         return in_array($color, $allowed, true) ? $color : 'yellow';
+    }
+}
+
+if (!function_exists('qiwiParseCategoryDescription')) {
+    function qiwiParseCategoryDescription($description)
+    {
+        $raw = (string) $description;
+        $result = array(
+            'hasMeta' => false,
+            'title' => '',
+            'label' => '分类',
+            'color' => '',
+            'icon' => '',
+            'description' => trim(strip_tags($raw)),
+        );
+
+        $matches = array();
+        if (!preg_match('/^\s*\[qiwi-meta\]\s*(.*?)\s*\[\/qiwi-meta\](?:[ \t]*\r\n|[ \t]*\r|[ \t]*\n)?([\s\S]*)$/isu', $raw, $matches)) {
+            return $result;
+        }
+
+        $result['hasMeta'] = true;
+        $metaText = isset($matches[1]) ? $matches[1] : '';
+        $body = isset($matches[2]) ? $matches[2] : '';
+        $allowedKeys = array('title', 'label', 'color', 'icon');
+        foreach (preg_split('/\r\n|\r|\n/', $metaText) as $line) {
+            if (!preg_match('/^\s*([a-z][a-z0-9_-]*)\s*=\s*(.*?)\s*$/i', $line, $lineMatches)) {
+                continue;
+            }
+
+            $key = strtolower($lineMatches[1]);
+            if (!in_array($key, $allowedKeys, true)) {
+                continue;
+            }
+
+            $value = trim($lineMatches[2]);
+            if ($key === 'title') {
+                $result['title'] = trim(strip_tags($value));
+            } elseif ($key === 'label') {
+                $result['label'] = strtolower($value) === 'none' ? '' : trim(strip_tags($value));
+            } elseif ($key === 'color') {
+                $result['color'] = in_array(strtolower($value), qiwiGetTermColorNames(), true) ? strtolower($value) : '';
+            } elseif ($key === 'icon' && preg_match('/^[a-z0-9-]+$/i', $value)) {
+                $result['icon'] = strtolower($value);
+            }
+        }
+
+        $result['description'] = trim(strip_tags($body));
+        return $result;
+    }
+}
+
+if (!function_exists('qiwiGetCategoryMetaBySlug')) {
+    function qiwiGetCategoryMetaBySlug($slug)
+    {
+        static $cache = array();
+        $slug = trim((string) $slug);
+        if ($slug === '') {
+            return array();
+        }
+        if (array_key_exists($slug, $cache)) {
+            return $cache[$slug];
+        }
+
+        $cache[$slug] = array();
+        try {
+            $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
+            $row = $db->fetchRow($db->select('mid', 'name', 'slug', 'description')
+                ->from('table.metas')
+                ->where('type = ?', 'category')
+                ->where('slug = ?', $slug)
+                ->limit(1));
+            if (!empty($row)) {
+                $cache[$slug] = $row;
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return $cache[$slug];
     }
 }
 
