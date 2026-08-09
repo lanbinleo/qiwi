@@ -258,7 +258,7 @@ if ($qiwiHomeNavTitle === '') {
 $qiwiSiteDescription = trim((string) $this->options->description);
 $qiwiEnglishTitle = trim((string) qiwiGetOptionValue($this, 'v2EnglishTitle', 'QIWI JOURNAL'));
 $qiwiSidebarSlogan = trim((string) qiwiGetOptionValue($this, 'v2SidebarSlogan', '向内求索 · ON AIR'));
-$qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePostsUrl) {
+$qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePostsUrl, $qiwiHomeNavTitle) {
     $prefix = $mobile ? 'mobile' : 'desktop';
     ?>
     <a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current" aria-current="page"<?php endif; ?>><?php echo htmlspecialchars($qiwiHomeNavTitle, ENT_QUOTES, 'UTF-8'); ?></a>
