@@ -52,6 +52,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 
 - Treat this as a production theme: prefer small, focused edits over large rewrites.
 - Before any development change, check the current Git branch. If it is not a `dev/x.x.x` branch, for example if it is `main`, ask the user which version number should carry the work before making code changes.
+- Before creating or switching to a development branch, run `git fetch origin`, confirm the intended base branch is up to date, and create the branch from the remote-tracking base (for example, `git switch -c dev/x.x.x origin/main`) rather than from a stale local branch. Do not switch with uncommitted changes unless they have been explicitly reviewed and preserved.
 - When committing changes, use Conventional Commits style with the correct type prefix, such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`, or `perf:`.
 - When preparing a theme release, keep every public version surface synchronized: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and the `@version` headers for every companion plugin under `plugins/*/Plugin.php`.
 - Keep Typecho template calls intact. When changing markup, preserve PHP conditions and widget output.
@@ -72,7 +73,7 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 
 When publishing a new Qiwi version, use a controlled release workflow:
 
-1. Confirm the working branch and workspace status. Release work should happen from the matching `dev/x.x.x` branch, and any pre-existing local changes must be understood before editing.
+1. Fetch remotes and confirm the working branch, workspace status, and release baseline. Create or switch to the matching `dev/x.x.x` branch only after verifying it was based on the latest target stable branch (normally `origin/main`); any pre-existing local changes must be understood before editing.
 2. Run the lightweight verification checks first, including PHP linting with the bundled phpstudy PHP runtimes and any targeted JavaScript or configuration checks required by the changed files.
 3. Update all public version surfaces together: `version.php`, `update.json`, `CHANGELOG.md`, the `@version` header in `index.php`, and every companion plugin header under `plugins/*/Plugin.php`.
 4. Write release notes in consistent language across `CHANGELOG.md`, `update.json`, and the `$releaseNotes` entry in `version.php`. The notes should describe user-visible fixes or behavior changes, not internal implementation trivia.
