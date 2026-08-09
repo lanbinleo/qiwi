@@ -2626,6 +2626,7 @@
         'showVersionDrawer',
         'enabledCaptcha',
         'navItems',
+        'homeNavTitle',
         'sidebarSocialLinks'
     ];
 
@@ -2655,6 +2656,7 @@
         friendFeedLimit: '10',
         bookReference: '留空时归档页不显示书籍参考统计',
         navItems: '留空时自动显示可见独立页面',
+        homeNavTitle: '首页',
         sidebarSocialLinks: ''
     };
 
@@ -3622,7 +3624,7 @@
 
         navRow.parentNode.insertBefore(panel, navRow);
 
-        moveFields(['logoUrl', 'v2EnglishTitle', 'v2SidebarSlogan', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
+        moveFields(['logoUrl', 'v2EnglishTitle', 'v2SidebarSlogan', 'homeNavTitle', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
         moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
         moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));

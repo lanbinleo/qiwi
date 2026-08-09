@@ -341,16 +341,49 @@ if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
         $fieldName = $scope === 'rss' ? 'rssVisibility' : 'homeVisibility';
         $defaultVisible = qiwiGetContentVisibilityDefault($scope);
         $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
-        $fieldsTable = $db->getPrefix() . 'fields';
-        $relationshipsTable = $db->getPrefix() . 'relationships';
-        $metasTable = $db->getPrefix() . 'metas';
-        $fieldNameLiteral = addslashes($fieldName);
-        $articleOverrideSubquery = "SELECT qiwi_visibility.cid FROM {$fieldsTable} qiwi_visibility"
-            . " WHERE qiwi_visibility.name = '{$fieldNameLiteral}'"
-            . " AND qiwi_visibility.str_value IN ('show', 'hide')";
-        $articleShowSubquery = "SELECT qiwi_visibility.cid FROM {$fieldsTable} qiwi_visibility"
-            . " WHERE qiwi_visibility.name = '{$fieldNameLiteral}'"
-            . " AND qiwi_visibility.str_value = 'show'";
+
+        $fetchFieldCids = function ($value) use ($db, $fieldName) {
+            $query = $db->select('cid')
+                ->from('table.fields')
+                ->where('name = ?', $fieldName);
+            if ($value === 'show') {
+                $query->where('str_value = ?', 'show');
+            } else {
+                $query->where('str_value IN ?', array('show', 'hide'));
+            }
+
+            $cids = array();
+            foreach ($db->fetchAll($query) as $row) {
+                $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                if ($cid > 0) {
+                    $cids[$cid] = $cid;
+                }
+            }
+            return array_values($cids);
+        };
+
+        $fetchCategoryCids = function (array $mids) use ($db) {
+            if (empty($mids)) {
+                return array();
+            }
+
+            $cids = array();
+            $query = $db->select('table.relationships.cid')
+                ->from('table.relationships')
+                ->join('table.metas', 'table.metas.mid = table.relationships.mid')
+                ->where('table.metas.type = ?', 'category')
+                ->where('table.metas.mid IN ?', $mids);
+            foreach ($db->fetchAll($query) as $row) {
+                $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+                if ($cid > 0) {
+                    $cids[$cid] = $cid;
+                }
+            }
+            return array_values($cids);
+        };
+
+        $articleOverrideCids = $fetchFieldCids('override');
+        $articleShowCids = $fetchFieldCids('show');
         $categoryMap = qiwiGetCategoryVisibilityMap();
         $categoryShowMids = array();
         $categoryHideMids = array();
@@ -364,43 +397,54 @@ if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
         }
         $categoryShowMids = array_values(array_unique(array_filter($categoryShowMids)));
         $categoryHideMids = array_values(array_unique(array_filter($categoryHideMids)));
-        $categoryShowSubquery = '';
-        if (!empty($categoryShowMids)) {
-            $categoryShowSubquery = "SELECT qiwi_category_rel.cid FROM {$relationshipsTable} qiwi_category_rel"
-                . " INNER JOIN {$metasTable} qiwi_category_meta ON qiwi_category_meta.mid = qiwi_category_rel.mid"
-                . " WHERE qiwi_category_meta.type = 'category'"
-                . " AND qiwi_category_meta.mid IN (" . implode(',', $categoryShowMids) . ")";
-        }
-        $categoryHideSubquery = '';
-        if (!empty($categoryHideMids)) {
-            $categoryHideSubquery = "SELECT qiwi_category_rel.cid FROM {$relationshipsTable} qiwi_category_rel"
-                . " INNER JOIN {$metasTable} qiwi_category_meta ON qiwi_category_meta.mid = qiwi_category_rel.mid"
-                . " WHERE qiwi_category_meta.type = 'category'"
-                . " AND qiwi_category_meta.mid IN (" . implode(',', $categoryHideMids) . ")";
+        $categoryShowCids = $fetchCategoryCids($categoryShowMids);
+        $categoryHideCids = $fetchCategoryCids($categoryHideMids);
+
+        $conditions = array();
+        $conditionArgs = array();
+        if (!empty($articleShowCids)) {
+            $conditions[] = 'table.contents.cid IN ?';
+            $conditionArgs[] = $articleShowCids;
         }
 
-        $articleDefaultCondition = 'table.contents.cid NOT IN (' . $articleOverrideSubquery . ')';
-        $articleShowCondition = 'table.contents.cid IN (' . $articleShowSubquery . ')';
+        $defaultConditions = array();
+        $defaultArgs = array();
+        if (!empty($articleOverrideCids)) {
+            $defaultConditions[] = 'table.contents.cid NOT IN ?';
+            $defaultArgs[] = $articleOverrideCids;
+        }
 
         if ($defaultVisible) {
-            $conditions = array($articleShowCondition);
-            if ($categoryHideSubquery !== '') {
-                $conditions[] = $articleDefaultCondition . ' AND table.contents.cid NOT IN (' . $categoryHideSubquery . ')';
-            } else {
-                $conditions[] = $articleDefaultCondition;
+            if (!empty($categoryHideCids)) {
+                $defaultConditions[] = 'table.contents.cid NOT IN ?';
+                $defaultArgs[] = $categoryHideCids;
             }
-        } else {
-            $conditions = array($articleShowCondition);
-            if ($categoryShowSubquery !== '') {
-                $categoryCondition = 'table.contents.cid IN (' . $categoryShowSubquery . ')';
-                if ($categoryHideSubquery !== '') {
-                    $categoryCondition .= ' AND table.contents.cid NOT IN (' . $categoryHideSubquery . ')';
-                }
-                $conditions[] = $articleDefaultCondition . ' AND ' . $categoryCondition;
+            if (empty($defaultConditions)) {
+                $defaultConditions[] = '1 = 1';
             }
+            $conditions[] = '(' . implode(' AND ', $defaultConditions) . ')';
+            $conditionArgs = array_merge($conditionArgs, $defaultArgs);
+        } elseif (!empty($categoryShowCids)) {
+            $defaultConditions[] = 'table.contents.cid IN ?';
+            $defaultArgs[] = $categoryShowCids;
+            if (!empty($categoryHideCids)) {
+                $defaultConditions[] = 'table.contents.cid NOT IN ?';
+                $defaultArgs[] = $categoryHideCids;
+            }
+            $conditions[] = '(' . implode(' AND ', $defaultConditions) . ')';
+            $conditionArgs = array_merge($conditionArgs, $defaultArgs);
         }
 
-        $select->where('(' . implode(' OR ', $conditions) . ')');
+        if (empty($conditions)) {
+            $conditions[] = '1 = 0';
+        }
+
+        $condition = '(' . implode(' OR ', $conditions) . ')';
+        if (empty($conditionArgs)) {
+            $select->where($condition);
+        } else {
+            $select->where($condition, ...$conditionArgs);
+        }
     }
 }
 
@@ -1075,6 +1119,15 @@ function themeConfig($form)
         _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。") . qiwiAdminConfigEnhancerAssets()
     );
     $form->addInput($navItems);
+
+    $homeNavTitle = new Typecho_Widget_Helper_Form_Element_Text(
+        'homeNavTitle',
+        null,
+        '首页',
+        _t('首页导航名称'),
+        _t('首页导航始终显示且不能删除；留空时恢复为“首页”。')
+    );
+    $form->addInput($homeNavTitle);
 
     $sidebarMomentCount = new Typecho_Widget_Helper_Form_Element_Text(
         'sidebarMomentCount',

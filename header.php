@@ -251,13 +251,17 @@ $qiwiNavbarAvatar = function_exists('qiwiGetSidebarProfileAvatar')
     ? trim((string) qiwiGetSidebarProfileAvatar($this))
     : trim((string) $this->options->logoUrl);
 $qiwiHomePostsUrl = rtrim((string) $this->options->siteUrl, '/') . '/';
+$qiwiHomeNavTitle = trim((string) qiwiGetOptionValue($this, 'homeNavTitle', '首页'));
+if ($qiwiHomeNavTitle === '') {
+    $qiwiHomeNavTitle = '首页';
+}
 $qiwiSiteDescription = trim((string) $this->options->description);
 $qiwiEnglishTitle = trim((string) qiwiGetOptionValue($this, 'v2EnglishTitle', 'QIWI JOURNAL'));
 $qiwiSidebarSlogan = trim((string) qiwiGetOptionValue($this, 'v2SidebarSlogan', '向内求索 · ON AIR'));
 $qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePostsUrl) {
     $prefix = $mobile ? 'mobile' : 'desktop';
     ?>
-    <a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current" aria-current="page"<?php endif; ?>>首页</a>
+    <a href="<?php echo htmlspecialchars($qiwiHomePostsUrl, ENT_QUOTES, 'UTF-8'); ?>"<?php if ($this->is('index')): ?> class="current" aria-current="page"<?php endif; ?>><?php echo htmlspecialchars($qiwiHomeNavTitle, ENT_QUOTES, 'UTF-8'); ?></a>
     <?php foreach ($qiwiNavItems as $index => $item): ?>
         <?php
         $children = isset($item['children']) ? (array) $item['children'] : [];
