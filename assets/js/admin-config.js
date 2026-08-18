@@ -545,11 +545,16 @@
             parsed = {};
         }
 
-        return (categories || []).map(function(category) {
+        var consumed = {};
+        var rows = (categories || []).map(function(category) {
             category = category || {};
             var mid = parseInt(category.mid, 10) || 0;
             var slug = trim(category.slug);
-            var item = parsed['mid:' + mid] || parsed['slug:' + slug] || {};
+            var midKey = mid ? 'mid:' + mid : '';
+            var slugKey = slug ? 'slug:' + slug : '';
+            var item = (midKey && parsed[midKey]) || (slugKey && parsed[slugKey]) || {};
+            if (midKey && parsed[midKey]) consumed[midKey] = true;
+            if (slugKey && parsed[slugKey]) consumed[slugKey] = true;
             return {
                 mid: mid,
                 name: category.name || slug || ('分类 #' + mid),
@@ -559,6 +564,24 @@
                 rss: item.rss === 'hide' ? 'hide' : 'show'
             };
         });
+
+        // 已删除分类或分类列表加载失败时，未知条目暂存起来，
+        // 结构化编辑器任一次同步都要原样写回，避免静默清空历史配置。
+        var unknown = [];
+        Object.keys(parsed).forEach(function(key) {
+            if (consumed[key]) return;
+            var item = parsed[key];
+            var mid = parseInt(item.mid, 10) || 0;
+            if (!mid && !trim(item.slug)) return;
+            unknown.push({
+                mid: mid,
+                slug: trim(item.slug),
+                home: item.home === 'hide' ? 'hide' : 'show',
+                rss: item.rss === 'hide' ? 'hide' : 'show'
+            });
+        });
+
+        return { rows: rows, unknown: unknown };
     }
 
     function categoryVisibilityToText(rows) {
@@ -582,6 +605,16 @@
         var categories = window.QIWI_ADMIN_CONFIG && Array.isArray(window.QIWI_ADMIN_CONFIG.categories) ? window.QIWI_ADMIN_CONFIG.categories : [];
         if (!editor || !list || !textarea) return null;
         var isRendering = false;
+        var unknownItems = [];
+
+        if (window.QIWI_ADMIN_CONFIG && window.QIWI_ADMIN_CONFIG.visibilityHookActive === false) {
+            var warning = document.createElement('div');
+            warning.className = 'qiwi-category-visibility-warning';
+            warning.innerHTML =
+                '<strong>首页 / RSS 展示过滤当前未生效</strong>' +
+                '<span>过滤依赖 QiwiTheme 伴生插件的归档钩子，而钩子只在插件激活时注册。请到后台「插件」页面禁用再启用 QiwiTheme，然后重新保存主题设置。</span>';
+            editor.insertBefore(warning, editor.firstChild);
+        }
 
         function sync() {
             var rows = $all('.qiwi-category-visibility-row', list).map(function(row) {
@@ -594,13 +627,14 @@
                     rss: rss && rss.checked ? 'show' : 'hide'
                 };
             });
-            textarea.value = categoryVisibilityToText(rows);
+            textarea.value = categoryVisibilityToText(rows.concat(unknownItems));
         }
 
-        function render(rows) {
+        function render(parsed) {
             isRendering = true;
+            unknownItems = parsed.unknown || [];
             list.innerHTML = '';
-            if (!rows.length) {
+            if (!parsed.rows.length) {
                 var empty = document.createElement('div');
                 empty.className = 'qiwi-admin-empty';
                 empty.textContent = '当前没有可管理的分类。';
@@ -609,7 +643,7 @@
                 return;
             }
 
-            rows.forEach(function(row) {
+            parsed.rows.forEach(function(row) {
                 var item = document.createElement('div');
                 item.className = 'qiwi-category-visibility-row';
                 item.setAttribute('data-category-mid', String(row.mid));
@@ -2716,9 +2750,16 @@
     }
 
     function applyConfigPayload(payload, editors) {
-        var settings = payload && payload.settings ? payload.settings : payload;
-        if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
             throw new Error('配置格式不正确。');
+        }
+        if (payload.schema !== 'qiwi-theme-config') {
+            throw new Error('不是 Qiwi 主题配置（schema 不匹配），已取消导入。请使用「整包配置导入 / 导出」生成的 JSON 或 Base64。');
+        }
+
+        var settings = payload.settings && typeof payload.settings === 'object' && !Array.isArray(payload.settings) ? payload.settings : null;
+        if (!settings) {
+            throw new Error('配置缺少 settings 数据，已取消导入。');
         }
 
         CONFIG_FIELD_NAMES.forEach(function(name) {

@@ -1701,6 +1701,26 @@
     background: #fbfbfb;
 }
 
+.qiwi-category-visibility-warning {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #e8c9a0;
+    border-radius: 6px;
+    background: #fdf6ec;
+}
+
+.qiwi-category-visibility-warning strong {
+    color: #9a5b1f;
+    font-size: 13px;
+}
+
+.qiwi-category-visibility-warning span {
+    color: #7a6a55;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
 .qiwi-category-visibility-head {
     display: grid;
     gap: 4px;

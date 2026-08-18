@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 2.1.0
+ * @version 2.1.1
  * @link https://bboreo.com
  */
 
@@ -62,6 +62,7 @@ if ($currentPage == 1) {
             $missingSelect = $this->select()->where('table.contents.cid IN ?', $missingStickyCids)
                 ->where('table.contents.type = ?', 'post')
                 ->where('table.contents.status = ?', 'publish')
+                ->where('table.contents.created < ?', $this->options->time)
                 ->order('table.contents.created', Typecho_Db::SORT_DESC);
 
             $missingQuery = $db->fetchAll($missingSelect);
