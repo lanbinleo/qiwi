@@ -320,6 +320,30 @@ if (!function_exists('qiwiGetContentCategoryVisibility')) {
     }
 }
 
+if (!function_exists('qiwiIsHomeArchiveRequest')) {
+    function qiwiIsHomeArchiveRequest($archive)
+    {
+        // handleInit 触发时 archiveType 还是默认的 index，尚未被 categoryHandle 等
+        // handle 方法特化，is('index') 会误命中所有列表页，因此必须读路由参数。
+        $parameterType = '';
+        try {
+            if (isset($archive->parameter) && isset($archive->parameter->type)) {
+                $parameterType = strtolower(trim((string) $archive->parameter->type));
+            }
+        } catch (Exception $e) {
+            $parameterType = '';
+        } catch (Throwable $e) {
+            $parameterType = '';
+        }
+
+        if ($parameterType === 'index' || $parameterType === 'index_page') {
+            return true;
+        }
+
+        return method_exists($archive, 'getArchiveType') && $archive->getArchiveType() === 'front';
+    }
+}
+
 if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
     function qiwiApplyContentVisibilityToArchiveSelect($archive, $select)
     {
@@ -330,7 +354,7 @@ if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
         $scope = null;
         if ($archive->is('feed')) {
             $scope = 'rss';
-        } elseif (!$archive->is('page') && ($archive->is('index') || (method_exists($archive, 'getArchiveType') && $archive->getArchiveType() === 'front'))) {
+        } elseif (qiwiIsHomeArchiveRequest($archive)) {
             $scope = 'home';
         }
 
@@ -342,25 +366,30 @@ if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
         $defaultVisible = qiwiGetContentVisibilityDefault($scope);
         $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
 
-        $fetchFieldCids = function ($value) use ($db, $fieldName) {
-            $query = $db->select('cid')
+        $articleOverrideCids = array();
+        $articleShowCids = array();
+        try {
+            $fieldRows = $db->fetchAll($db->select('cid', 'str_value')
                 ->from('table.fields')
-                ->where('name = ?', $fieldName);
-            if ($value === 'show') {
-                $query->where('str_value = ?', 'show');
-            } else {
-                $query->where('str_value IN ?', array('show', 'hide'));
+                ->where('name = ?', $fieldName)
+                ->where('str_value IN ?', array('show', 'hide')));
+        } catch (Exception $e) {
+            $fieldRows = array();
+        } catch (Throwable $e) {
+            $fieldRows = array();
+        }
+        foreach ($fieldRows as $row) {
+            $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
+            if ($cid <= 0) {
+                continue;
             }
-
-            $cids = array();
-            foreach ($db->fetchAll($query) as $row) {
-                $cid = isset($row['cid']) ? (int) $row['cid'] : 0;
-                if ($cid > 0) {
-                    $cids[$cid] = $cid;
-                }
+            $articleOverrideCids[$cid] = $cid;
+            if (isset($row['str_value']) && (string) $row['str_value'] === 'show') {
+                $articleShowCids[$cid] = $cid;
             }
-            return array_values($cids);
-        };
+        }
+        $articleOverrideCids = array_values($articleOverrideCids);
+        $articleShowCids = array_values($articleShowCids);
 
         $fetchCategoryCids = function (array $mids) use ($db) {
             if (empty($mids)) {
@@ -382,8 +411,6 @@ if (!function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
             return array_values($cids);
         };
 
-        $articleOverrideCids = $fetchFieldCids('override');
-        $articleShowCids = $fetchFieldCids('show');
         $categoryMap = qiwiGetCategoryVisibilityMap();
         $categoryShowMids = array();
         $categoryHideMids = array();
@@ -702,6 +729,42 @@ if (!function_exists('qiwiGetAdminEditingContentType')) {
     }
 }
 
+if (!function_exists('qiwiArchiveVisibilityHookRegistered')) {
+    function qiwiArchiveVisibilityHookRegistered()
+    {
+        // 钩子注册记录只在插件激活时写入数据库；只更新插件文件不重新激活时，
+        // 首页/RSS 可见性过滤会静默失效，这里读注册表以便后台给出提示。
+        // handles 的键是 "类名:事件名"，值是回调数组或按优先级键包装的回调集合。
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            $plugins = isset($options->plugins) && is_array($options->plugins) ? $options->plugins : array();
+            $handles = isset($plugins['handles']) && is_array($plugins['handles']) ? $plugins['handles'] : array();
+            foreach (array('Widget_Archive:handleInit', 'Typecho_Widget_Archive:handleInit') as $eventKey) {
+                if (!isset($handles[$eventKey]) || !is_array($handles[$eventKey])) {
+                    continue;
+                }
+                foreach ($handles[$eventKey] as $callback) {
+                    if (!is_array($callback)
+                        || !isset($callback[0], $callback[1])
+                        || !is_string($callback[0])) {
+                        continue;
+                    }
+                    if (ltrim($callback[0], '\\') === 'QiwiTheme_Plugin'
+                        && (string) $callback[1] === 'handleArchiveInit') {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
     function qiwiAdminConfigEnhancerAssets()
     {
@@ -748,6 +811,7 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'postLikeArticleStats' => function_exists('qiwiGetPostLikeArticleStats') ? qiwiGetPostLikeArticleStats(100) : [],
             'ipLocationRebuildEndpoint' => qiwiGetThemeActionEndpoint('rebuild-ip-locations'),
             'categories' => $categories,
+            'visibilityHookActive' => qiwiArchiveVisibilityHookRegistered(),
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 

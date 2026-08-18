@@ -396,7 +396,7 @@
                     invalid.reportValidity();
                     return;
                 }
-                try { localStorage.setItem('qiwi-comment-profile', JSON.stringify({ author: author.value.trim(), mail: mail.value.trim(), url: url ? url.value.trim() : '' })); } catch (error) {}
+                try { localStorage.setItem('qiwi-comment-profile', JSON.stringify({ author: author ? author.value.trim() : '', mail: mail ? mail.value.trim() : '', url: url ? url.value.trim() : '' })); } catch (error) {}
                 setOpen(false);
             });
             fields.forEach(function (field) {
@@ -1568,7 +1568,9 @@
                     initLatex(container, nextDocument);
                     var scrollY = requestedScrollY;
                     if (target.hash) {
-                        var anchor = document.getElementById(decodeURIComponent(target.hash.slice(1)));
+                        var anchorId = target.hash.slice(1);
+                        try { anchorId = decodeURIComponent(anchorId); } catch (error) {}
+                        var anchor = document.getElementById(anchorId);
                         if (anchor) anchor.scrollIntoView({ behavior: 'auto', block: 'start' });
                         else window.scrollTo(0, scrollY);
                     } else {
