@@ -48,38 +48,23 @@ Qiwi 2.0 使用 `.v2-side` 作为桌面侧栏，旧版 `sidebar.php` 在 v2 页�
 - 后续确认文档、发布包和外部引用均不依赖该文件后，可考虑整体归档或删除，不必逐段迁移到 `v2.css`。
 - 项目说明中将 `style.css` 描述为主样式的内容已经过时，后续应同步更新开发文档。
 
-## 待修复的已知问题（2.1.1 排查遗留）
+## 已知问题记录（2.1.1 排查遗留）
 
-以下问题在 2.1.1 bugfix 排查中确认存在，但改动面或回归风险较高，未随该版本一起修复。处理时应逐项单独开分支验证，不与无关功能调整同时进行。
+以下条目在 2.1.2 中已处理或确认为设计行为，仅作记录。
 
-### PJAX 监听器猴补竞态与泄漏（中危）
+### 站点根资源映射（已文档化）
 
-- `assets/js/v2.js` 的 `executeScripts` 在异步脚本加载期间全局替换 `EventTarget.prototype.addEventListener`，把窗口期内注册的监听器记入 `dynamicPageListeners` 并在下次导航时移除。
-- 快速连续导航时，前一次导航的脚本 promise 链不会被 AbortController 取消，其稍后注册的监听器永远不会被清理，造成重复绑定与内存泄漏；同时窗口期内无关代码注册的监听器也会被误伤移除。
-- 建议方向：给 `executeScripts` 加互斥或导航链取消，且只记录 PJAX 容器子树内元素的监听器。
+- `qiwiGetMappedAssetUrl`（`functions.php`）把主题资源映射到站点根 `/assets/`，这是 f9f9632 以来的部署约定。
+- 部署需把站点根 `/assets/` 镜像或反代到 `usr/themes/qiwi/assets/`，要求与 nginx 示例已写入 `README.md` 的「静态资源站点根映射」。
+- 不做运行时自动回退：生产环境通过 nginx 反代 `/assets/` 提供缓存，站点根没有物理文件，`file_exists` 探测会误判并绕过缓存层。
 
-### 同页锚点点击触发整页 PJAX 重载（中危）
+### getArchiveSlug 的 Typecho 1.2 退化（保留守卫）
 
-- 点击同页 `#锚点` 链接不被 click 拦截，浏览器 hash 导航触发 `popstate`，`v2.js` 的 popstate 处理器一律走 `navigate()` 重新拉取整页。
-- 初次加载的页面有 `initCommentTargetHighlight` 兜底（preventDefault + pushState），PJAX 加载的页面没有，表现为评论回复锚点每次点击整页重载、滚动重置。
-- 建议方向：popstate 处理器在仅 hash 变化（`event.state == null` 且 pathname/search 相同）时直接定位锚点并返回。
+- `getArchiveSlug()` 仅 Typecho 1.3 存在；1.2 下 `method_exists` 守卫使 slug 为空，thread- 伪分类退化为普通分类页。
+- 经确认保留 1.2 兼容守卫，该退化行为为已知设计。
 
-### 站点根资源映射无回退（按部署约定评估）
+### 管理员自定义输出为存储型 XSS 面（备查）
 
-- `qiwiGetMappedAssetUrl`（`functions.php`）把所有主题资源映射到站点根 `/assets/`（`f9f9632` 的部署约定，生产环境镜像该目录）。
-- 部署未镜像时 `v2.css`、`v2.js`、后台增强脚本全部 404 且无提示；本地 phpstudy 测试站的 `D:\phpstudy_pro\WWW\localhost\assets\` 目前只有 `fonts/`。
-- 建议方向：根路径探测不到文件时回退 `themeUrl`，或至少在文档中写明部署要求。
-
-### navItems 结构化编辑器双向同步有损（低危）
-
-- `admin-config.js` 的 `parseNav`/`navToText` 会把标题中的 `|` 替换、行尾 `|` 剥离、纯 `-` 行丢弃；`functions.php` 的 PHP 解析会把无父项的子项当父项渲染，与后台所见不一致。
-- 建议方向：引入 `\|` 转义，PHP/JS 对首个子项统一处理。
-
-### 低危杂项
-
-- `qiwiRecordPostView` 为每篇文章写独立 cookie `qiwi_post_viewed_{cid}`，多文浏览后 cookie 膨胀，可考虑合并为单一有序队列。
-- `getArchiveSlug()` 仅 Typecho 1.3 存在，1.2 下 thread- 伪装分类有 `method_exists` 守卫但会静默退化为普通分类页；若不再支持 1.2 可移除守卫并在文档声明。
-- `index.php` 置顶聚合的注释称“总数不超过 pageSize”，实际置顶数超限时总数以置顶数为准，与 `getTotal()` 分页口径不一致。
 - `customCSS`/`customJS`/`trackingCode`/`footerInfo` 原样输出，属管理员输入的存储型 XSS 面，为 Typecho 主题惯例，记录备查。
 
 ## 完成条件
