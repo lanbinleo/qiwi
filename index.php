@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 2.1.1
+ * @version 2.1.2
  * @link https://bboreo.com
  */
 
@@ -109,7 +109,7 @@ if ($currentPage == 1) {
         return $b['widget']->created - $a['widget']->created;
     });
 
-    // 5. 合并：置顶在前，总数不超过 pageSize
+    // 5. 合并：置顶全量在前，非置顶补足剩余名额；置顶数超过 pageSize 时首页总数以置顶数为准
     $stickyCount = count($stickyPosts);
     $normalCount = max(0, $pageSize - $stickyCount);
 

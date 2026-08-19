@@ -5,6 +5,7 @@
     var activeRequest = null;
     var navigationId = 0;
     var dynamicPageListeners = [];
+    var lastKnownUrl = window.location.href;
     var tocObserver = null;
     var tocProgressCleanup = null;
     var momentTextFoldFrame = null;
@@ -93,6 +94,33 @@
         return true;
     }
 
+    function locateAnchorTarget(hash) {
+        if (!hash) return null;
+        var anchorId = hash.charAt(0) === '#' ? hash.slice(1) : hash;
+        if (anchorId === '') return null;
+        try { anchorId = decodeURIComponent(anchorId); } catch (error) {}
+        return document.getElementById(anchorId);
+    }
+
+    function highlightCommentItem(item) {
+        if (!item) return;
+        item.classList.remove('is-highlighted');
+        void item.offsetHeight;
+        item.classList.add('is-highlighted');
+        item.addEventListener('animationend', function handler(event) {
+            if (event.animationName !== 'qiwiCommentHighlight') return;
+            item.removeEventListener('animationend', handler);
+            item.classList.remove('is-highlighted');
+        });
+    }
+
+    function revealAnchorFromHistory() {
+        var anchor = locateAnchorTarget(window.location.hash);
+        if (!anchor) return;
+        anchor.scrollIntoView({ behavior: 'auto', block: anchor.classList.contains('comment-item') ? 'center' : 'start' });
+        if (anchor.classList.contains('comment-item')) highlightCommentItem(anchor);
+    }
+
     function updateNavigation(url) {
         var target = normalizeUrl(url);
         if (!target) return;
@@ -176,21 +204,48 @@
         });
     }
 
-    function executeScripts(root) {
+    var listenerPatchDepth = 0;
+    var listenerPatchNative = null;
+
+    // 记录范围必须包含 document/window：Typecho 反垃圾 token 脚本每次 PJAX
+    // 执行都会往 window 挂 scroll/mousemove/keyup/touchstart 监听器，只能靠
+    // dynamicPageListeners 在下次导航时移除，收窄到容器子树会让它们累积泄漏。
+    function installListenerPatch() {
+        if (listenerPatchDepth === 0) {
+            listenerPatchNative = EventTarget.prototype.addEventListener;
+            EventTarget.prototype.addEventListener = function (type, listener, options) {
+                if (this === document && type === 'DOMContentLoaded' && document.readyState !== 'loading') {
+                    Promise.resolve().then(function () { listener.call(document, new Event('DOMContentLoaded')); });
+                    return;
+                }
+                dynamicPageListeners.push({ target: this, type: type, listener: listener, options: options });
+                return listenerPatchNative.call(this, type, listener, options);
+            };
+        }
+        listenerPatchDepth++;
+    }
+
+    function uninstallListenerPatch() {
+        listenerPatchDepth = Math.max(0, listenerPatchDepth - 1);
+        if (listenerPatchDepth === 0 && listenerPatchNative) {
+            EventTarget.prototype.addEventListener = listenerPatchNative;
+            listenerPatchNative = null;
+        }
+    }
+
+    function executeScripts(root, requestId) {
         var scripts = Array.prototype.slice.call(root.querySelectorAll('script'));
         var chain = Promise.resolve();
-        var nativeAddEventListener = EventTarget.prototype.addEventListener;
-        EventTarget.prototype.addEventListener = function (type, listener, options) {
-            if (this === document && type === 'DOMContentLoaded' && document.readyState !== 'loading') {
-                Promise.resolve().then(function () { listener.call(document, new Event('DOMContentLoaded')); });
-                return;
-            }
-            dynamicPageListeners.push({ target: this, type: type, listener: listener, options: options });
-            return nativeAddEventListener.call(this, type, listener, options);
-        };
+        installListenerPatch();
         scripts.forEach(function (oldScript) {
             chain = chain.then(function () {
                 return new Promise(function (resolve) {
+                    // 过期导航的脚本链直接终止，避免旧链继续执行脚本、注册监听器
+                    if (requestId !== undefined && requestId !== navigationId) {
+                        try { oldScript.remove(); } catch (error) {}
+                        resolve();
+                        return;
+                    }
                     var script = document.createElement('script');
                     Array.prototype.slice.call(oldScript.attributes).forEach(function (attribute) {
                         script.setAttribute(attribute.name, attribute.value);
@@ -202,8 +257,17 @@
                             resolve();
                             return;
                         }
-                        script.addEventListener('load', resolve, { once: true });
-                        script.addEventListener('error', resolve, { once: true });
+                        var timerId = null;
+                        var settle = function () {
+                            if (timerId !== null) window.clearTimeout(timerId);
+                            resolve();
+                        };
+                        // 挂起的外部脚本加载加兜底超时，避免补丁窗口被无限拉长
+                        timerId = window.setTimeout(settle, 10000);
+                        script.addEventListener('load', settle, { once: true });
+                        script.addEventListener('error', settle, { once: true });
+                        // 按插入顺序执行；否则超时兜底放行后续脚本后，慢脚本可能晚于依赖它的脚本执行
+                        if (!script.hasAttribute('async')) script.async = false;
                         oldScript.replaceWith(script);
                     } else {
                         script.textContent = oldScript.textContent;
@@ -213,9 +277,7 @@
                 });
             });
         });
-        return chain.finally(function () {
-            EventTarget.prototype.addEventListener = nativeAddEventListener;
-        });
+        return chain.finally(uninstallListenerPatch);
     }
 
     function cleanupDynamicPageListeners() {
@@ -1559,11 +1621,14 @@
                 container.innerHTML = nextContainer.innerHTML;
                 appendTypechoCommentTokenScript(nextDocument, container);
                 if (!options.popstate) history.pushState({ qiwiPjax: true, qiwiScrollY: 0 }, '', target.href);
+                lastKnownUrl = window.location.href;
                 updateNavigation(target.href);
 
                 return headReady.then(function () {
-                    return executeScripts(container);
+                    return executeScripts(container, requestId);
                 }).then(function () {
+                    // 过期导航不收尾，避免滚动、状态与 page-loaded 事件作用到较新导航的内容
+                    if (requestId !== navigationId) return;
                     initPjaxPage(container, true);
                     initLatex(container, nextDocument);
                     var scrollY = requestedScrollY;
@@ -1585,7 +1650,8 @@
                 });
             });
         }).catch(function (error) {
-            if (error && error.name === 'AbortError' && requestId !== navigationId) return;
+            // 过期导航的任何失败都直接放弃；非过期失败（含 12 秒超时中断）回退整页加载
+            if (requestId !== navigationId) return;
             window.location.assign(target.href);
         }).finally(function () {
             window.clearTimeout(timeout);
@@ -1825,6 +1891,24 @@
             return;
         }
 
+        var commentAnchor = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+            ? event.target.closest('.comment-reply-target[href^="#"]')
+            : null;
+        if (commentAnchor && !event.defaultPrevented) {
+            var anchorHash = commentAnchor.getAttribute('href') || '';
+            var anchorTarget = locateAnchorTarget(anchorHash);
+            if (anchorTarget) {
+                event.preventDefault();
+                try {
+                    history.pushState(null, '', anchorHash);
+                    lastKnownUrl = window.location.href;
+                } catch (error) {}
+                anchorTarget.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+                if (anchorTarget.classList.contains('comment-item')) highlightCommentItem(anchorTarget);
+                return;
+            }
+        }
+
         var link = event.target.closest('a[href]');
         if (!shouldHandleLink(event, link)) return;
         event.preventDefault();
@@ -1846,6 +1930,15 @@
 
     window.addEventListener('popstate', function () {
         if (!pjaxReady) return;
+        var previousUrl = lastKnownUrl;
+        lastKnownUrl = window.location.href;
+        var previous = normalizeUrl(previousUrl);
+        var current = normalizeUrl(window.location.href);
+        // 同一页面的 hash 前后退只需定位锚点，不必重新拉取整页
+        if (previous && current && previous.pathname === current.pathname && previous.search === current.search) {
+            revealAnchorFromHistory();
+            return;
+        }
         navigate(window.location.href, { popstate: true });
     });
     window.addEventListener('scroll', requestBackToTopUpdate, { passive: true });

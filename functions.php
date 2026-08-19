@@ -1180,7 +1180,7 @@ function themeConfig($form)
         null,
         null,
         _t('顶部导航配置'),
-        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。") . qiwiAdminConfigEnhancerAssets()
+        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。标题里的 | 写成 \\|、\\ 写成 \\\\ 可以原样保留。") . qiwiAdminConfigEnhancerAssets()
     );
     $form->addInput($navItems);
 
@@ -4006,6 +4006,37 @@ if (!function_exists('qiwiSanitizeIconClass')) {
     }
 }
 
+if (!function_exists('qiwiSplitNavLine')) {
+    /**
+     * 按未转义的 | 分割导航行，\| 表示字面 |，\\ 表示字面 \。
+     * 与 assets/js/admin-config.js 的 navSplitFields 保持一致。
+     */
+    function qiwiSplitNavLine($line)
+    {
+        $parts = [];
+        $current = '';
+        $length = strlen($line);
+        for ($i = 0; $i < $length; $i++) {
+            $char = $line[$i];
+            if ($char === '\\' && $i + 1 < $length) {
+                $next = $line[$i + 1];
+                $current .= ($next === '|' || $next === '\\') ? $next : $char . $next;
+                $i++;
+                continue;
+            }
+            if ($char === '|') {
+                $parts[] = $current;
+                $current = '';
+                continue;
+            }
+            $current .= $char;
+        }
+        $parts[] = $current;
+
+        return $parts;
+    }
+}
+
 if (!function_exists('qiwiGetNavigationItems')) {
     function qiwiGetNavigationItems($widget)
     {
@@ -4043,10 +4074,11 @@ if (!function_exists('qiwiGetNavigationItems')) {
                 $line = trim(substr($line, 1));
             }
 
-            $parts = array_map('trim', explode('|', $line, 3));
-            $title = $parts[0];
-            $target = isset($parts[1]) ? $parts[1] : '#';
-            $icon = isset($parts[2]) ? qiwiSanitizeIconClass($parts[2]) : '';
+            // 与 admin-config.js 的 parseNav 对齐：标题/链接单独 trim，图标先拼接再整体 trim
+            $parts = qiwiSplitNavLine($line);
+            $title = trim($parts[0]);
+            $target = isset($parts[1]) ? trim($parts[1]) : '#';
+            $icon = isset($parts[2]) ? qiwiSanitizeIconClass(trim(implode('|', array_slice($parts, 2)))) : '';
             if ($title === '') {
                 continue;
             }
@@ -4501,14 +4533,31 @@ if (!function_exists('qiwiRecordPostView')) {
             return $currentViews;
         }
 
-        $cookieName = 'qiwi_post_viewed_' . $cid;
-        if (isset($_COOKIE[$cookieName])) {
+        // 单一 cookie 记录已计数的文章（最新在前，容量 50，1 小时滑动过期），
+        // 避免旧方案每篇文章一个 qiwi_post_viewed_{cid} cookie 造成膨胀；
+        // 过渡期内旧 cookie 仍参与去重判断，但不再写入。
+        $queueCookie = 'qiwi_post_viewed';
+        $viewed = [];
+        if (isset($_COOKIE[$queueCookie]) && is_string($_COOKIE[$queueCookie])) {
+            foreach (explode(',', $_COOKIE[$queueCookie]) as $viewedCid) {
+                $viewedCid = (int) trim($viewedCid);
+                if ($viewedCid > 0) {
+                    $viewed[] = $viewedCid;
+                }
+            }
+        }
+
+        if (in_array($cid, $viewed, true) || isset($_COOKIE['qiwi_post_viewed_' . $cid])) {
             return $currentViews;
         }
 
+        array_unshift($viewed, $cid);
+        $viewed = array_slice(array_values(array_unique($viewed)), 0, 50);
+        $queueValue = implode(',', $viewed);
+
         $updatedViews = qiwiSetPostViews($cid, $currentViews + 1);
-        setcookie($cookieName, '1', time() + 3600, '/');
-        $_COOKIE[$cookieName] = '1';
+        setcookie($queueCookie, $queueValue, time() + 3600, '/');
+        $_COOKIE[$queueCookie] = $queueValue;
 
         return $updatedViews;
     }

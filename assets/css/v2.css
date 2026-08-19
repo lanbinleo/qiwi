@@ -1176,6 +1176,13 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .comment-footnote button:hover { color: var(--v2-accent); }
 .qiwi-v2 .comment-status-note { color: var(--v2-muted); font-size: .7rem; }
 .qiwi-v2 .comment-item.is-waiting { opacity: .68; }
+.qiwi-v2 .comment-item.is-highlighted > .comment-main { animation: qiwiCommentHighlight 1.1s ease-out; }
+@keyframes qiwiCommentHighlight {
+    0%,
+    55% { background: color-mix(in srgb, var(--v2-accent) 14%, transparent); }
+
+    100% { background: transparent; }
+}
 .qiwi-v2 .comments-closed { padding: 28px 0; color: var(--v2-muted); font-size: .82rem; text-align: center; }
 .qiwi-v2 .comment-profile-modal {
     position: fixed;

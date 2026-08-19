@@ -136,6 +136,28 @@ bash update.sh
 
 如果同时升级 Typecho 核心，例如从 `1.2.1` 升级到 `1.3.0`，需要先备份数据库和完整站点目录，再替换 Typecho 核心文件并执行 Typecho 的数据库升级流程。核心升级完成后，再运行上面的 `update.sh`，确保主题和伴生插件版本一致。
 
+### 静态资源站点根映射
+
+主题前端和后台增强脚本通过 `qiwiGetMappedAssetUrl` 把 `assets/css`、`assets/js`、`assets/fonts`、`assets/emoji` 等资源统一映射到站点根 `/assets/` 路径（例如 `/assets/css/v2.css`），便于边缘缓存和统一过期策略。**部署时必须把站点根的 `/assets/` 指向主题的 `usr/themes/qiwi/assets/` 目录**（镜像或反向代理均可），否则这些资源会 404，页面没有样式和脚本。
+
+nginx 反向代理示例（ upstream 换成你的 PHP 站点源站）：
+
+```nginx
+location ^~ /assets/ {
+    proxy_pass http://127.0.0.1:8080/usr/themes/qiwi/assets/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_http_version 1.1;
+    access_log off;
+    expires 30d;
+}
+```
+
+也可以直接把主题 `assets/` 目录同步/软链到站点根的 `assets/`。本地调试环境如果没有做这层映射，直接访问主题路径 `usr/themes/qiwi/assets/css/v2.css` 能打开即说明文件本身存在，只是根映射未配置。
+
 ## 文章与页面字段
 
 文章字段：
