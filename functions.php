@@ -4074,10 +4074,11 @@ if (!function_exists('qiwiGetNavigationItems')) {
                 $line = trim(substr($line, 1));
             }
 
-            $parts = array_map('trim', qiwiSplitNavLine($line));
-            $title = $parts[0];
-            $target = isset($parts[1]) ? $parts[1] : '#';
-            $icon = isset($parts[2]) ? qiwiSanitizeIconClass(implode('|', array_slice($parts, 2))) : '';
+            // 与 admin-config.js 的 parseNav 对齐：标题/链接单独 trim，图标先拼接再整体 trim
+            $parts = qiwiSplitNavLine($line);
+            $title = trim($parts[0]);
+            $target = isset($parts[1]) ? trim($parts[1]) : '#';
+            $icon = isset($parts[2]) ? qiwiSanitizeIconClass(trim(implode('|', array_slice($parts, 2)))) : '';
             if ($title === '') {
                 continue;
             }
