@@ -5,6 +5,7 @@
     var activeRequest = null;
     var navigationId = 0;
     var dynamicPageListeners = [];
+    var lastKnownUrl = window.location.href;
     var tocObserver = null;
     var tocProgressCleanup = null;
     var momentTextFoldFrame = null;
@@ -91,6 +92,33 @@
         if (/\.(?:xml|rss|atom|json|zip|pdf|jpe?g|png|gif|webp|svg|mp4|mp3)$/i.test(url.pathname)) return false;
         if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return false;
         return true;
+    }
+
+    function locateAnchorTarget(hash) {
+        if (!hash) return null;
+        var anchorId = hash.charAt(0) === '#' ? hash.slice(1) : hash;
+        if (anchorId === '') return null;
+        try { anchorId = decodeURIComponent(anchorId); } catch (error) {}
+        return document.getElementById(anchorId);
+    }
+
+    function highlightCommentItem(item) {
+        if (!item) return;
+        item.classList.remove('is-highlighted');
+        void item.offsetHeight;
+        item.classList.add('is-highlighted');
+        item.addEventListener('animationend', function handler(event) {
+            if (event.animationName !== 'qiwiCommentHighlight') return;
+            item.removeEventListener('animationend', handler);
+            item.classList.remove('is-highlighted');
+        });
+    }
+
+    function revealAnchorFromHistory() {
+        var anchor = locateAnchorTarget(window.location.hash);
+        if (!anchor) return;
+        anchor.scrollIntoView({ behavior: 'auto', block: anchor.classList.contains('comment-item') ? 'center' : 'start' });
+        if (anchor.classList.contains('comment-item')) highlightCommentItem(anchor);
     }
 
     function updateNavigation(url) {
@@ -1559,6 +1587,7 @@
                 container.innerHTML = nextContainer.innerHTML;
                 appendTypechoCommentTokenScript(nextDocument, container);
                 if (!options.popstate) history.pushState({ qiwiPjax: true, qiwiScrollY: 0 }, '', target.href);
+                lastKnownUrl = window.location.href;
                 updateNavigation(target.href);
 
                 return headReady.then(function () {
@@ -1825,6 +1854,24 @@
             return;
         }
 
+        var commentAnchor = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+            ? event.target.closest('.comment-reply-target[href^="#"]')
+            : null;
+        if (commentAnchor && !event.defaultPrevented) {
+            var anchorHash = commentAnchor.getAttribute('href') || '';
+            var anchorTarget = locateAnchorTarget(anchorHash);
+            if (anchorTarget) {
+                event.preventDefault();
+                try {
+                    history.pushState(null, '', anchorHash);
+                    lastKnownUrl = window.location.href;
+                } catch (error) {}
+                anchorTarget.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+                if (anchorTarget.classList.contains('comment-item')) highlightCommentItem(anchorTarget);
+                return;
+            }
+        }
+
         var link = event.target.closest('a[href]');
         if (!shouldHandleLink(event, link)) return;
         event.preventDefault();
@@ -1846,6 +1893,15 @@
 
     window.addEventListener('popstate', function () {
         if (!pjaxReady) return;
+        var previousUrl = lastKnownUrl;
+        lastKnownUrl = window.location.href;
+        var previous = normalizeUrl(previousUrl);
+        var current = normalizeUrl(window.location.href);
+        // 同一页面的 hash 前后退只需定位锚点，不必重新拉取整页
+        if (previous && current && previous.pathname === current.pathname && previous.search === current.search) {
+            revealAnchorFromHistory();
+            return;
+        }
         navigate(window.location.href, { popstate: true });
     });
     window.addEventListener('scroll', requestBackToTopUpdate, { passive: true });
