@@ -266,6 +266,8 @@
                         timerId = window.setTimeout(settle, 10000);
                         script.addEventListener('load', settle, { once: true });
                         script.addEventListener('error', settle, { once: true });
+                        // 按插入顺序执行；否则超时兜底放行后续脚本后，慢脚本可能晚于依赖它的脚本执行
+                        if (!script.hasAttribute('async')) script.async = false;
                         oldScript.replaceWith(script);
                     } else {
                         script.textContent = oldScript.textContent;
@@ -1625,6 +1627,8 @@
                 return headReady.then(function () {
                     return executeScripts(container, requestId);
                 }).then(function () {
+                    // 过期导航不收尾，避免滚动、状态与 page-loaded 事件作用到较新导航的内容
+                    if (requestId !== navigationId) return;
                     initPjaxPage(container, true);
                     initLatex(container, nextDocument);
                     var scrollY = requestedScrollY;
@@ -1646,7 +1650,8 @@
                 });
             });
         }).catch(function (error) {
-            if (error && error.name === 'AbortError' && requestId !== navigationId) return;
+            // 过期导航的任何失败都直接放弃；非过期失败（含 12 秒超时中断）回退整页加载
+            if (requestId !== navigationId) return;
             window.location.assign(target.href);
         }).finally(function () {
             window.clearTimeout(timeout);
