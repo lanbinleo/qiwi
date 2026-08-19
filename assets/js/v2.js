@@ -204,21 +204,48 @@
         });
     }
 
-    function executeScripts(root) {
+    var listenerPatchDepth = 0;
+    var listenerPatchNative = null;
+
+    // 记录范围必须包含 document/window：Typecho 反垃圾 token 脚本每次 PJAX
+    // 执行都会往 window 挂 scroll/mousemove/keyup/touchstart 监听器，只能靠
+    // dynamicPageListeners 在下次导航时移除，收窄到容器子树会让它们累积泄漏。
+    function installListenerPatch() {
+        if (listenerPatchDepth === 0) {
+            listenerPatchNative = EventTarget.prototype.addEventListener;
+            EventTarget.prototype.addEventListener = function (type, listener, options) {
+                if (this === document && type === 'DOMContentLoaded' && document.readyState !== 'loading') {
+                    Promise.resolve().then(function () { listener.call(document, new Event('DOMContentLoaded')); });
+                    return;
+                }
+                dynamicPageListeners.push({ target: this, type: type, listener: listener, options: options });
+                return listenerPatchNative.call(this, type, listener, options);
+            };
+        }
+        listenerPatchDepth++;
+    }
+
+    function uninstallListenerPatch() {
+        listenerPatchDepth = Math.max(0, listenerPatchDepth - 1);
+        if (listenerPatchDepth === 0 && listenerPatchNative) {
+            EventTarget.prototype.addEventListener = listenerPatchNative;
+            listenerPatchNative = null;
+        }
+    }
+
+    function executeScripts(root, requestId) {
         var scripts = Array.prototype.slice.call(root.querySelectorAll('script'));
         var chain = Promise.resolve();
-        var nativeAddEventListener = EventTarget.prototype.addEventListener;
-        EventTarget.prototype.addEventListener = function (type, listener, options) {
-            if (this === document && type === 'DOMContentLoaded' && document.readyState !== 'loading') {
-                Promise.resolve().then(function () { listener.call(document, new Event('DOMContentLoaded')); });
-                return;
-            }
-            dynamicPageListeners.push({ target: this, type: type, listener: listener, options: options });
-            return nativeAddEventListener.call(this, type, listener, options);
-        };
+        installListenerPatch();
         scripts.forEach(function (oldScript) {
             chain = chain.then(function () {
                 return new Promise(function (resolve) {
+                    // 过期导航的脚本链直接终止，避免旧链继续执行脚本、注册监听器
+                    if (requestId !== undefined && requestId !== navigationId) {
+                        try { oldScript.remove(); } catch (error) {}
+                        resolve();
+                        return;
+                    }
                     var script = document.createElement('script');
                     Array.prototype.slice.call(oldScript.attributes).forEach(function (attribute) {
                         script.setAttribute(attribute.name, attribute.value);
@@ -230,8 +257,15 @@
                             resolve();
                             return;
                         }
-                        script.addEventListener('load', resolve, { once: true });
-                        script.addEventListener('error', resolve, { once: true });
+                        var timerId = null;
+                        var settle = function () {
+                            if (timerId !== null) window.clearTimeout(timerId);
+                            resolve();
+                        };
+                        // 挂起的外部脚本加载加兜底超时，避免补丁窗口被无限拉长
+                        timerId = window.setTimeout(settle, 10000);
+                        script.addEventListener('load', settle, { once: true });
+                        script.addEventListener('error', settle, { once: true });
                         oldScript.replaceWith(script);
                     } else {
                         script.textContent = oldScript.textContent;
@@ -241,9 +275,7 @@
                 });
             });
         });
-        return chain.finally(function () {
-            EventTarget.prototype.addEventListener = nativeAddEventListener;
-        });
+        return chain.finally(uninstallListenerPatch);
     }
 
     function cleanupDynamicPageListeners() {
@@ -1591,7 +1623,7 @@
                 updateNavigation(target.href);
 
                 return headReady.then(function () {
-                    return executeScripts(container);
+                    return executeScripts(container, requestId);
                 }).then(function () {
                     initPjaxPage(container, true);
                     initLatex(container, nextDocument);
