@@ -119,30 +119,64 @@
         });
     }
 
+    // 与 functions.php 的 qiwiSplitNavLine 保持一致：按未转义的 | 分割，\| 表示字面 |，\\ 表示字面 \
+    function navSplitFields(line) {
+        var parts = [];
+        var current = '';
+        for (var i = 0; i < line.length; i++) {
+            var ch = line.charAt(i);
+            if (ch === '\\' && i + 1 < line.length) {
+                var next = line.charAt(i + 1);
+                current += next === '|' || next === '\\' ? next : ch + next;
+                i++;
+            } else if (ch === '|') {
+                parts.push(current);
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+        parts.push(current);
+        return parts;
+    }
+
+    function navEscapeField(value) {
+        return String(value || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+    }
+
     function parseNav(text) {
-        return String(text || '').split(/\r\n|\r|\n/).map(function(rawLine) {
+        var rows = [];
+        var seenParent = false;
+        String(text || '').split(/\r\n|\r|\n/).forEach(function(rawLine) {
             var line = trim(rawLine);
-            if (!line || line.charAt(0) === '#') return null;
+            if (!line || line.charAt(0) === '#') return;
             var level = line.charAt(0) === '-' ? 'child' : 'parent';
             if (level === 'child') line = trim(line.slice(1));
-            var parts = line.split('|');
-            return {
+            var parts = navSplitFields(line);
+            var title = trim(parts[0] || '');
+            // 与前台解析一致：空标题行忽略，没有父项的子菜单按主导航处理
+            if (title === '') return;
+            if (level === 'child' && !seenParent) level = 'parent';
+            if (level === 'parent') seenParent = true;
+            rows.push({
                 level: level,
-                title: parts[0] || '',
-                target: parts[1] || '',
-                icon: parts.slice(2).join('|') || ''
-            };
-        }).filter(Boolean);
+                title: title,
+                target: trim(parts[1] || ''),
+                icon: trim(parts.slice(2).join('|') || '')
+            });
+        });
+        return rows;
     }
 
     function navToText(rows) {
         return rows.map(function(row) {
             var prefix = row.level === 'child' ? '- ' : '';
-            return prefix + [row.title, row.target, row.icon].map(function(value) {
-                return String(value || '').replace(/\|/g, ' ');
-            }).join('|').replace(/\|+$/g, '');
+            var fields = [navEscapeField(row.title)];
+            if (row.target || row.icon) fields.push(navEscapeField(row.target));
+            if (row.icon) fields.push(navEscapeField(row.icon));
+            return prefix + fields.join('|');
         }).filter(function(line) {
-            return line.replace(/[-|\s]/g, '') !== '';
+            return line.replace(/[-|\\\s]/g, '') !== '';
         }).join('\n');
     }
 

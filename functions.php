@@ -1180,7 +1180,7 @@ function themeConfig($form)
         null,
         null,
         _t('顶部导航配置'),
-        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。") . qiwiAdminConfigEnhancerAssets()
+        _t("留空则自动显示所有独立页面。每行一个导航项：标题|链接|Font Awesome 图标类。二级菜单在行首加 -，例如：\n归档|template:page-archives.php|fa-solid fa-box-archive\n- 分类|template:page-categories.php|fa-solid fa-folder\n- 标签|template:page-tags.php|fa-solid fa-tags\n外链|https://example.com|fa-solid fa-arrow-up-right-from-square\n链接支持完整 URL、/path、slug、slug:about、page:about、template:page-tags.php。标题里的 | 写成 \\|、\\ 写成 \\\\ 可以原样保留。") . qiwiAdminConfigEnhancerAssets()
     );
     $form->addInput($navItems);
 
@@ -4006,6 +4006,37 @@ if (!function_exists('qiwiSanitizeIconClass')) {
     }
 }
 
+if (!function_exists('qiwiSplitNavLine')) {
+    /**
+     * 按未转义的 | 分割导航行，\| 表示字面 |，\\ 表示字面 \。
+     * 与 assets/js/admin-config.js 的 navSplitFields 保持一致。
+     */
+    function qiwiSplitNavLine($line)
+    {
+        $parts = [];
+        $current = '';
+        $length = strlen($line);
+        for ($i = 0; $i < $length; $i++) {
+            $char = $line[$i];
+            if ($char === '\\' && $i + 1 < $length) {
+                $next = $line[$i + 1];
+                $current .= ($next === '|' || $next === '\\') ? $next : $char . $next;
+                $i++;
+                continue;
+            }
+            if ($char === '|') {
+                $parts[] = $current;
+                $current = '';
+                continue;
+            }
+            $current .= $char;
+        }
+        $parts[] = $current;
+
+        return $parts;
+    }
+}
+
 if (!function_exists('qiwiGetNavigationItems')) {
     function qiwiGetNavigationItems($widget)
     {
@@ -4043,10 +4074,10 @@ if (!function_exists('qiwiGetNavigationItems')) {
                 $line = trim(substr($line, 1));
             }
 
-            $parts = array_map('trim', explode('|', $line, 3));
+            $parts = array_map('trim', qiwiSplitNavLine($line));
             $title = $parts[0];
             $target = isset($parts[1]) ? $parts[1] : '#';
-            $icon = isset($parts[2]) ? qiwiSanitizeIconClass($parts[2]) : '';
+            $icon = isset($parts[2]) ? qiwiSanitizeIconClass(implode('|', array_slice($parts, 2))) : '';
             if ($title === '') {
                 continue;
             }
