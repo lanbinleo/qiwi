@@ -4532,14 +4532,31 @@ if (!function_exists('qiwiRecordPostView')) {
             return $currentViews;
         }
 
-        $cookieName = 'qiwi_post_viewed_' . $cid;
-        if (isset($_COOKIE[$cookieName])) {
+        // 单一 cookie 记录已计数的文章（最新在前，容量 50，1 小时滑动过期），
+        // 避免旧方案每篇文章一个 qiwi_post_viewed_{cid} cookie 造成膨胀；
+        // 过渡期内旧 cookie 仍参与去重判断，但不再写入。
+        $queueCookie = 'qiwi_post_viewed';
+        $viewed = [];
+        if (isset($_COOKIE[$queueCookie]) && is_string($_COOKIE[$queueCookie])) {
+            foreach (explode(',', $_COOKIE[$queueCookie]) as $viewedCid) {
+                $viewedCid = (int) trim($viewedCid);
+                if ($viewedCid > 0) {
+                    $viewed[] = $viewedCid;
+                }
+            }
+        }
+
+        if (in_array($cid, $viewed, true) || isset($_COOKIE['qiwi_post_viewed_' . $cid])) {
             return $currentViews;
         }
 
+        array_unshift($viewed, $cid);
+        $viewed = array_slice(array_values(array_unique($viewed)), 0, 50);
+        $queueValue = implode(',', $viewed);
+
         $updatedViews = qiwiSetPostViews($cid, $currentViews + 1);
-        setcookie($cookieName, '1', time() + 3600, '/');
-        $_COOKIE[$cookieName] = '1';
+        setcookie($queueCookie, $queueValue, time() + 3600, '/');
+        $_COOKIE[$queueCookie] = $queueValue;
 
         return $updatedViews;
     }
