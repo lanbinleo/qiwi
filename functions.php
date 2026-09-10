@@ -891,37 +891,25 @@ if (!function_exists('qiwiGetPostLikeArticleStats')) {
     }
 }
 
-if (!function_exists('qiwiGetExternalLinkGotoBase')) {
-    function qiwiGetExternalLinkGotoBase($options = null)
+if (!function_exists('qiwiGetOwnCommentIds')) {
+    /**
+     * 当前浏览器提交过的评论 coid（来自 QiwiTheme 插件签发的签名 cookie）。
+     * 用于向访客展示"自己的待审核评论"，未启用插件时返回空数组即不展示。
+     */
+    function qiwiGetOwnCommentIds()
     {
-        if (!class_exists('QiwiTheme_Plugin') || !method_exists('QiwiTheme_Plugin', 'decodeGotoUrl')) {
-            return '';
+        if (!class_exists('QiwiTheme_Plugin') || !method_exists('QiwiTheme_Plugin', 'ownCommentIds')) {
+            return [];
         }
 
         try {
-            if ($options === null) {
-                $options = Typecho_Widget::widget('Widget_Options');
-            }
-
-            if (Typecho_Router::get('qiwi_theme_goto_route') !== null) {
-                return Typecho_Router::url('qiwi_theme_goto_route', [], $options->index);
-            }
-
-            $actionTable = [];
-            if (isset($options->actionTable)) {
-                $actionTable = qiwiDecodeTypechoTableOption($options->actionTable);
-            }
-
-            if (isset($actionTable['qiwi-theme']) && $actionTable['qiwi-theme'] === 'QiwiTheme_Action') {
-                return Typecho_Common::url('/action/qiwi-theme?do=goto', $options->index);
-            }
+            $ids = QiwiTheme_Plugin::ownCommentIds();
+            return is_array($ids) ? array_values(array_map('intval', $ids)) : [];
         } catch (Exception $e) {
-            return '';
+            return [];
         } catch (Throwable $e) {
-            return '';
+            return [];
         }
-
-        return '';
     }
 }
 
@@ -1022,20 +1010,6 @@ function themeConfig($form)
 
     $form->addInput($enabledCaptcha);
 
-    $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
-        'sidebarBlock',
-        [
-            'ShowRecentPosts'    => _t('显示最新文章'),
-            'ShowCategory'       => _t('显示分类'),
-            'ShowArchive'        => _t('显示归档'),
-            'ShowTags'           => _t('显示标签'),
-        ],
-        ['ShowRecentPosts', 'ShowCategory', 'ShowTags'],
-        _t('侧边栏显示')
-    );
-
-    $form->addInput($sidebarBlock->multiMode());
-
     $homeVisibilityDefault = new Typecho_Widget_Helper_Form_Element_Radio(
         'homeVisibilityDefault',
         array(
@@ -1069,53 +1043,14 @@ function themeConfig($form)
     );
     $form->addInput($categoryVisibilityData);
 
-    $sidebarSocialLinks = new Typecho_Widget_Helper_Form_Element_Textarea(
-        'sidebarSocialLinks',
-        null,
-        null,
-        _t('侧边栏社交链接 - 原始数据'),
-        _t("结构化编辑器会自动同步到这里。每行一个链接：标题|链接|Font Awesome 图标类。可用于手动微调或兼容旧版配置。")
-    );
-    $form->addInput($sidebarSocialLinks);
-
     $sidebarProfileAvatar = new Typecho_Widget_Helper_Form_Element_Text(
         'sidebarProfileAvatar',
         null,
         null,
-        _t('侧边栏 - 头像'),
-        _t('侧边栏顶部展示的头像 URL。留空时兼容旧版“关于页面头像”，再留空则使用默认头像。')
+        _t('导航栏 - 头像'),
+        _t('桌面侧栏顶部展示的头像 URL。留空时兼容旧版“关于页面头像”，再留空则使用默认头像。')
     );
     $form->addInput($sidebarProfileAvatar);
-
-    $sidebarProfileText = new Typecho_Widget_Helper_Form_Element_Textarea(
-        'sidebarProfileText',
-        null,
-        null,
-        _t('侧边栏 - 文字'),
-        _t('显示在侧边栏头像下方的一小段文字。留空时兼容旧版“关于页面简介”。')
-    );
-    $form->addInput($sidebarProfileText);
-
-    $showSidebarAnnouncement = new Typecho_Widget_Helper_Form_Element_Radio(
-        'showSidebarAnnouncement',
-        array(
-            1 => _t('显示'),
-            0 => _t('不显示')
-        ),
-        0,
-        _t('侧边栏 - 公告显示'),
-        _t('关闭或公告内容留空时，前台不会输出公告区域。')
-    );
-    $form->addInput($showSidebarAnnouncement);
-
-    $sidebarAnnouncement = new Typecho_Widget_Helper_Form_Element_Textarea(
-        'sidebarAnnouncement',
-        null,
-        '',
-        _t('侧边栏 - 公告'),
-        _t('显示在个人信息下方。支持魔法标签：[PV]、[UV]、[TODAY_PV]、[TODAY_UV]、[PAGE_PV]、[PAGE_UV]、[province]。')
-    );
-    $form->addInput($sidebarAnnouncement);
 
     $enableBusuanzi = new Typecho_Widget_Helper_Form_Element_Radio(
         'enableBusuanzi',
@@ -1128,17 +1063,6 @@ function themeConfig($form)
         _t('开启后主题会加载 busuanzi.cc 的统计脚本；如果你已通过“JS 追踪代码”手动加入，可保持关闭。')
     );
     $form->addInput($enableBusuanzi);
-
-    // 一言打字机效果
-    $enableHitokoto = new Typecho_Widget_Helper_Form_Element_Radio(
-        'enableHitokoto',
-        array(1 => _t('启用'),
-              0 => _t('关闭')),
-        1,
-        _t('一言打字机效果'),
-        _t('在侧边栏个人简介处启用一言打字机效果，默认启用')
-    );
-    $form->addInput($enableHitokoto);
 
     // 开往功能
     $enableTravellings = new Typecho_Widget_Helper_Form_Element_Radio(
@@ -1211,7 +1135,7 @@ function themeConfig($form)
 
     // 自定义CSS / JS / 页脚信息 / JS追踪代码
     $customCSS = new Typecho_Widget_Helper_Form_Element_Textarea('customCSS', null, null, _t('自定义 CSS'), _t('在这里填写自定义 CSS 代码'));
-    $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS代码'));
+    $customJS = new Typecho_Widget_Helper_Form_Element_Textarea('customJS', null, null, _t('自定义 JS'), _t('在这里填写自定义 JS 代码'));
     $trackingCode = new Typecho_Widget_Helper_Form_Element_Text('trackingCode', null, null, _t('JS 追踪代码'), _t('在这里填写第三方统计 JS 代码'));
     $footerInfo = new Typecho_Widget_Helper_Form_Element_Text('footerInfo', null, null, _t('页脚信息'), _t('在这里填写页脚信息，支持 HTML'));
     $defaultCopyrightInfo = new Typecho_Widget_Helper_Form_Element_Textarea(
@@ -3746,88 +3670,10 @@ if (!function_exists('qiwiGetSidebarProfileAvatar')) {
     }
 }
 
-if (!function_exists('qiwiGetSidebarProfileText')) {
-    function qiwiGetSidebarProfileText($widget)
-    {
-        $text = trim((string) qiwiGetOptionValue($widget, 'sidebarProfileText', ''));
-        if ($text === '') {
-            $text = trim((string) qiwiGetOptionValue($widget, 'aboutBio', ''));
-        }
-
-        return $text;
-    }
-}
-
 if (!function_exists('qiwiBusuanziScriptEnabled')) {
     function qiwiBusuanziScriptEnabled($widget = null)
     {
         return (string) qiwiGetOptionValue($widget, 'enableBusuanzi', '0') === '1';
-    }
-}
-
-if (!function_exists('qiwiGetCurrentVisitorLocationLabel')) {
-    function qiwiGetCurrentVisitorLocationLabel()
-    {
-        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'currentVisitorLocationLabelFromCache')) {
-            $label = QiwiTheme_Plugin::currentVisitorLocationLabelFromCache();
-            return $label !== '' ? $label : '未知';
-        }
-
-        if (class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'currentVisitorLocationLabel')) {
-            $label = QiwiTheme_Plugin::currentVisitorLocationLabel();
-            return $label !== '' ? $label : '未知';
-        }
-
-        return '未知';
-    }
-}
-
-if (!function_exists('qiwiRenderSidebarAnnouncement')) {
-    function qiwiRenderSidebarAnnouncement($widget)
-    {
-        if ((string) qiwiGetOptionValue($widget, 'showSidebarAnnouncement', '0') !== '1') {
-            return '';
-        }
-
-        $text = trim((string) qiwiGetOptionValue($widget, 'sidebarAnnouncement', ''));
-        if ($text === '') {
-            return '';
-        }
-
-        $tokens = [
-            '[PV]' => '<span id="busuanzi_site_pv">--</span>',
-            '[UV]' => '<span id="busuanzi_site_uv">--</span>',
-            '[TODAY_PV]' => '<span id="busuanzi_today_site_pv">--</span>',
-            '[TODAY_UV]' => '<span id="busuanzi_today_site_uv">--</span>',
-            '[PAGE_PV]' => '<span id="busuanzi_page_pv">--</span>',
-            '[PAGE_UV]' => '<span id="busuanzi_page_uv">--</span>',
-            '[province]' => htmlspecialchars(qiwiGetCurrentVisitorLocationLabel(), ENT_QUOTES, 'UTF-8'),
-        ];
-
-        $parts = [];
-        foreach (preg_split('/\R/u', $text) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-
-            $escaped = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
-            $parts[] = '<p>' . strtr($escaped, $tokens) . '</p>';
-        }
-
-        return implode('', $parts);
-    }
-}
-
-if (!function_exists('qiwiNormalizeSidebarEmailUrl')) {
-    function qiwiNormalizeSidebarEmailUrl($value)
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return '';
-        }
-
-        return stripos($value, 'mailto:') === 0 ? $value : 'mailto:' . $value;
     }
 }
 
@@ -4123,71 +3969,44 @@ if (!function_exists('qiwiNavigationUsesFontAwesome')) {
     }
 }
 
-if (!function_exists('qiwiGetSidebarSocialLinks')) {
-    function qiwiGetSidebarSocialLinks($widget)
+if (!function_exists('qiwiCurrentTime')) {
+    /**
+     * 与 Typecho 核心比较 created 时使用的 options->time 保持同一口径。
+     * 当前 1.3 核心里它等于 time()，但旧版核心中二者相差站点时区偏移，
+     * 直接用裸 time() 会让相对时间整体偏移。
+     */
+    function qiwiCurrentTime()
     {
-        $config = trim((string) qiwiGetOptionValue($widget, 'sidebarSocialLinks', ''));
-        $links = [];
-
-        foreach (preg_split('/\r\n|\r|\n/', $config) as $line) {
-            $line = trim($line);
-            if ($line === '' || strpos($line, '#') === 0) {
-                continue;
-            }
-
-            $parts = array_map('trim', explode('|', $line, 3));
-            $title = isset($parts[0]) ? $parts[0] : '';
-            $target = isset($parts[1]) ? $parts[1] : '';
-            $icon = isset($parts[2]) ? qiwiSanitizeIconClass($parts[2]) : '';
-
-            if ($title === '' || $target === '') {
-                continue;
-            }
-
-            if (strpos($target, '@') !== false && !preg_match('/^[a-z][a-z0-9+.-]*:/i', $target)) {
-                $target = qiwiNormalizeSidebarEmailUrl($target);
-            }
-
-            $resolved = qiwiResolveNavigationTarget($widget, $target);
-            $links[] = [
-                'title' => $title,
-                'url' => $resolved['url'],
-                'external' => $resolved['external'] && !preg_match('/^(mailto|tel):/i', $resolved['url']),
-                'icon' => $icon,
-                'kind' => '',
-            ];
-
-            if (count($links) >= 12) {
-                break;
-            }
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
         }
 
-        return $links;
-    }
-}
-
-if (!function_exists('qiwiSidebarSocialUsesFontAwesome')) {
-    function qiwiSidebarSocialUsesFontAwesome($widget)
-    {
-        foreach (qiwiGetSidebarSocialLinks($widget) as $link) {
-            if (!empty($link['icon'])) {
-                return true;
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            if (isset($options->time) && (int) $options->time > 0) {
+                $cached = (int) $options->time;
+                return $cached;
             }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
         }
 
-        return false;
+        $cached = time();
+        return $cached;
     }
 }
 
 if (!function_exists('qiwiFormatJikeRelativeTime')) {
-    function qiwiFormatJikeRelativeTime($timestamp)
+    function qiwiFormatJikeRelativeTime($timestamp, $now = null)
     {
         $timestamp = (int) $timestamp;
         if ($timestamp <= 0) {
             return '';
         }
 
-        $diff = max(0, time() - $timestamp);
+        $now = $now === null ? qiwiCurrentTime() : (int) $now;
+        $diff = max(0, $now - $timestamp);
 
         if ($diff < 300) {
             return '刚刚';
@@ -4210,14 +4029,14 @@ if (!function_exists('qiwiFormatJikeRelativeTime')) {
 }
 
 if (!function_exists('qiwiFormatPostRelativeTime')) {
-    function qiwiFormatPostRelativeTime($timestamp)
+    function qiwiFormatPostRelativeTime($timestamp, $now = null)
     {
         $timestamp = (int) $timestamp;
         if ($timestamp <= 0) {
             return '';
         }
 
-        $now = time();
+        $now = $now === null ? qiwiCurrentTime() : (int) $now;
         $diff = max(0, $now - $timestamp);
 
         if ($diff < 300) {

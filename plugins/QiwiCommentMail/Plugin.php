@@ -12,7 +12,7 @@ use \Typecho\Widget\Helper\Form\Element\{Password, Text, Radio, Checkbox, Textar
  *
  * @package QiwiCommentMail
  * @author  Leo 里奥
- * @version 2.1.2
+ * @version 2.1.3
  * @link https://bboreo.com/
  * @LastEditDate 20260623
  */
@@ -24,6 +24,7 @@ require_once 'Log.php';
 class Plugin implements PluginInterface
 {
     const TABLE = 'qiwi_comment_mail_queue';
+    const CONFIG_BACKUP_OPTION = 'qiwi_comment_mail_config_backup';
 
     /**
      * action name
@@ -64,8 +65,91 @@ class Plugin implements PluginInterface
 
     public static function deactivate()
     {
+        self::backupConfig();
         Helper::removeAction(self::$_action);
         Helper::removePanel(1, self::$_panel);
+    }
+
+    /**
+     * Typecho 停用插件时会直接删除 plugin:QiwiCommentMail 配置行（Widget\Plugins\Edit::deactivate），
+     * 重新启用只会写回表单默认值，SMTP 等邮件配置因此"重启即丢"。
+     * 这里接管核心的配置写入：启用初始化时用停用前的备份覆盖默认值，日常保存时同步刷新备份。
+     */
+    public static function configHandle(array $settings, bool $isInit)
+    {
+        if ($isInit) {
+            $backup = self::readConfigBackup();
+            if (!empty($backup)) {
+                $settings = array_merge($settings, $backup);
+            }
+        }
+
+        Helper::configPlugin('QiwiCommentMail', $settings);
+        self::writeConfigBackup($settings);
+    }
+
+    private static function backupConfig()
+    {
+        try {
+            $config = Helper::options()->plugin('QiwiCommentMail');
+            $data = method_exists($config, 'toArray') ? $config->toArray() : (array) $config;
+        } catch (\Exception $e) {
+            return;
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        if (!empty($data)) {
+            self::writeConfigBackup($data);
+        }
+    }
+
+    private static function writeConfigBackup(array $data)
+    {
+        if (empty($data)) {
+            return;
+        }
+
+        try {
+            $db = Db::get();
+            $value = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $exists = $db->fetchRow($db->select('name')->from('table.options')
+                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                ->where('user = ?', 0));
+            if ($exists) {
+                $db->query($db->update('table.options')->rows(['value' => $value])
+                    ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                    ->where('user = ?', 0));
+            } else {
+                $db->query($db->insert('table.options')->rows([
+                    'name' => self::CONFIG_BACKUP_OPTION,
+                    'user' => 0,
+                    'value' => $value,
+                ]));
+            }
+        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private static function readConfigBackup()
+    {
+        try {
+            $db = Db::get();
+            $row = $db->fetchRow($db->select('value')->from('table.options')
+                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                ->where('user = ?', 0));
+            if (empty($row['value'])) {
+                return [];
+            }
+
+            $data = json_decode((string) $row['value'], true);
+            return is_array($data) ? $data : [];
+        } catch (\Exception $e) {
+            return [];
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     public static function config(\Typecho\Widget\Helper\Form $form)

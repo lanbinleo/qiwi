@@ -62,10 +62,10 @@ Qiwi 主题内部通过 `qiwiCanRenderCaptcha()` 和 `qiwiRenderCaptcha()` 选�
 
 ## Widget Script
 
-默认地址为：
+默认地址为固定版本，避免 `@latest` 浮动版本带来的供应链风险：
 
 ```text
-https://cdn.jsdelivr.net/npm/cap-widget@latest
+https://cdn.jsdelivr.net/npm/cap-widget@0.1.57
 ```
 
-正式部署建议填写固定版本地址，或将 widget 脚本放在自己的服务器上。
+如需升级 widget 版本，请在插件设置中填写新的固定版本地址，或将 widget 脚本放在自己的服务器上。

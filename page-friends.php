@@ -18,19 +18,18 @@ if ($friendFeedLimit <= 0) {
 }
 $friendFeedLimit = min(100, max(1, $friendFeedLimit));
 $friendFeedReady = $friendFeedEnabled && $friendFeedBaseUrl !== '';
-$friendsRememberAuthor = trim((string) $this->remember('author', true));
-$friendsRememberMail = trim((string) $this->remember('mail', true));
 $friendsWaitingCount = 0;
+// 待审核计数只统计本浏览器提交过的申请（QiwiTheme 签名 cookie），不按可伪造的昵称/邮箱匹配。
+$friendsOwnCommentIds = function_exists('qiwiGetOwnCommentIds') ? qiwiGetOwnCommentIds() : [];
 
-if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRememberMail !== '') {
+if (!$this->user->hasLogin() && !empty($friendsOwnCommentIds)) {
     $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
     $prefix = $db->getPrefix();
     $friendsWaitingCount = (int) $db->fetchObject($db->select('COUNT(coid) AS total')
         ->from($prefix . 'comments')
         ->where('cid = ?', $this->cid)
         ->where('status = ?', 'waiting')
-        ->where('author = ?', $friendsRememberAuthor)
-        ->where('mail = ?', $friendsRememberMail))->total;
+        ->where('coid IN ?', $friendsOwnCommentIds))->total;
 }
 ?>
 
@@ -82,18 +81,26 @@ if (!$this->user->hasLogin() && $friendsRememberAuthor !== '' && $friendsRemembe
                 <h2 class="category-title"><?php echo htmlspecialchars($category); ?></h2>
                 <div class="friends-grid">
                     <?php foreach ($friends as $friend): ?>
-                    <a href="<?php echo htmlspecialchars($friend['url']); ?>"
+                    <?php
+                    // 原始 JSON 允许手工微调，缺键时逐字段归一化，避免 PHP 8 下产生 Undefined array key 警告。
+                    $friend = is_array($friend) ? $friend : [];
+                    $friendUrl = isset($friend['url']) ? (string) $friend['url'] : '';
+                    $friendAvatar = isset($friend['avatar']) ? (string) $friend['avatar'] : '';
+                    $friendName = isset($friend['name']) ? (string) $friend['name'] : '';
+                    $friendDescription = isset($friend['description']) ? (string) $friend['description'] : '';
+                    ?>
+                    <a href="<?php echo htmlspecialchars($friendUrl); ?>"
                        target="_blank"
                        rel="noopener"
                        class="friend-card">
                         <div class="friend-avatar">
-                            <img src="<?php echo htmlspecialchars($friend['avatar']); ?>"
-                                 alt="<?php echo htmlspecialchars($friend['name']); ?>"
+                            <img src="<?php echo htmlspecialchars($friendAvatar); ?>"
+                                 alt="<?php echo htmlspecialchars($friendName); ?>"
                                  onerror="this.src='https://gravatar.loli.net/avatar/default?s=96&d=mp'">
                         </div>
                         <div class="friend-info">
-                            <h3 class="friend-name"><?php echo htmlspecialchars($friend['name']); ?></h3>
-                            <p class="friend-desc"><?php echo htmlspecialchars($friend['description']); ?></p>
+                            <h3 class="friend-name"><?php echo htmlspecialchars($friendName); ?></h3>
+                            <p class="friend-desc"><?php echo htmlspecialchars($friendDescription); ?></p>
                         </div>
                     </a>
                     <?php endforeach; ?>

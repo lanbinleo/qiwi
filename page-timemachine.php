@@ -23,8 +23,36 @@ $prefix = $db->getPrefix();
 
 $rememberAuthor = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'author') : trim((string) $this->remember('author', true));
 $rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember($this, 'mail') : trim((string) $this->remember('mail', true));
-$canShowOwnWaitingReplies = !$this->user->hasLogin() && $rememberAuthor !== '' && $rememberMail !== '';
+// "自己的待审核评论"只认本浏览器提交过的评论（QiwiTheme 签名 cookie），
+// remember 昵称/邮箱可被任意伪造，不能用来匹配他人的待审评论。
+$ownCommentIds = function_exists('qiwiGetOwnCommentIds') ? qiwiGetOwnCommentIds() : [];
+$canShowOwnWaitingReplies = !$this->user->hasLogin() && !empty($ownCommentIds);
 $momentStickerPacks = function_exists('qiwiGetCommentStickerPacks') ? array_values(qiwiGetCommentStickerPacks()) : array();
+
+// 先取总数，把越界页码钳制到最后一页（否则会渲染空列表并显示"第 999 / N 页"）。
+$momentTotalSelect = $db->select('COUNT(coid) AS total')
+    ->from($prefix.'comments')
+    ->where('cid = ?', $pageId)
+    ->where('type = ?', 'comment')
+    ->where('(parent IS NULL OR parent = ?)', 0);
+if ($canShowOwnWaitingReplies) {
+    $momentTotalSelect->where(
+        '((status = ? AND authorId = ?) OR (status = ? AND coid IN ?))',
+        'approved',
+        $authorUid,
+        'waiting',
+        $ownCommentIds
+    );
+} else {
+    $momentTotalSelect->where('status = ?', 'approved')
+        ->where('authorId = ?', $authorUid);
+}
+$totalResult = $db->fetchRow($momentTotalSelect);
+$total = $totalResult ? (int) $totalResult['total'] : 0;
+$totalPages = (int) ceil($total / $pageSize);
+if ($totalPages > 0 && $currentPage > $totalPages) {
+    $currentPage = $totalPages;
+}
 
 // 查询说说（作者的评论），并允许访客看见自己的待审核顶层评论。
 $select = $db->select()->from($prefix.'comments')
@@ -36,12 +64,11 @@ $select = $db->select()->from($prefix.'comments')
 
 if ($canShowOwnWaitingReplies) {
     $select->where(
-        '((status = ? AND authorId = ?) OR (status = ? AND author = ? AND mail = ?))',
+        '((status = ? AND authorId = ?) OR (status = ? AND coid IN ?))',
         'approved',
         $authorUid,
         'waiting',
-        $rememberAuthor,
-        $rememberMail
+        $ownCommentIds
     );
 } else {
     $select->where('status = ?', 'approved')
@@ -87,11 +114,10 @@ if (!empty($momentCoids)) {
 
     if ($canShowOwnWaitingReplies) {
         $replySelect->where(
-            '(status = ? OR (status = ? AND author = ? AND mail = ?))',
+            '(status = ? OR (status = ? AND coid IN ?))',
             'approved',
             'waiting',
-            $rememberAuthor,
-            $rememberMail
+            $ownCommentIds
         );
     } else {
         $replySelect->where('status = ?', 'approved');
@@ -126,34 +152,6 @@ if (!empty($momentCoids)) {
         $momentReplyCounts[$coid] = $countMomentReplies($coid);
     }
 }
-
-// 获取总数
-if ($canShowOwnWaitingReplies) {
-    $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
-        ->from($prefix.'comments')
-        ->where('cid = ?', $pageId)
-        ->where('type = ?', 'comment')
-        ->where('(parent IS NULL OR parent = ?)', 0)
-        ->where(
-            '((status = ? AND authorId = ?) OR (status = ? AND author = ? AND mail = ?))',
-            'approved',
-            $authorUid,
-            'waiting',
-            $rememberAuthor,
-            $rememberMail
-        ));
-} else {
-    $totalResult = $db->fetchRow($db->select('COUNT(coid) AS total')
-        ->from($prefix.'comments')
-        ->where('cid = ?', $pageId)
-        ->where('status = ?', 'approved')
-        ->where('type = ?', 'comment')
-        ->where('authorId = ?', $authorUid)
-        ->where('(parent IS NULL OR parent = ?)', 0));
-}
-
-$total = $totalResult ? $totalResult['total'] : 0;
-$totalPages = ceil($total / $pageSize);
 
 // Markdown 渲染
 function renderMarkdown($text) {
@@ -921,6 +919,35 @@ function initMomentInteractions() {
         });
     }
 
+    const likeProofStorageKey = 'qiwi_moment_like_proofs';
+    const readLikeProofs = function() {
+        try {
+            const parsed = JSON.parse(window.localStorage.getItem(likeProofStorageKey) || '{}');
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (error) {
+            return {};
+        }
+    };
+    const writeLikeProof = function(coid, proof) {
+        try {
+            const proofs = readLikeProofs();
+            if (proof) {
+                proofs[coid] = proof;
+            } else {
+                delete proofs[coid];
+            }
+            window.localStorage.setItem(likeProofStorageKey, JSON.stringify(proofs));
+        } catch (error) {}
+    };
+    const flashLikeError = function(button, message) {
+        button.classList.add('is-error');
+        if (message) button.setAttribute('title', message);
+        window.setTimeout(function() {
+            button.classList.remove('is-error');
+            button.removeAttribute('title');
+        }, 2400);
+    };
+
     document.querySelectorAll('[data-moment-like]').forEach(function(button) {
         button.addEventListener('click', async function() {
             const coid = button.getAttribute('data-moment-like');
@@ -943,6 +970,10 @@ function initMomentInteractions() {
                 if (profile && profile.mail) {
                     form.append('mail', profile.mail);
                 }
+                const storedProof = readLikeProofs()[coid];
+                if (storedProof) {
+                    form.append('proof', storedProof);
+                }
                 const response = await fetch(config.likeEndpoint, {
                     method: 'POST',
                     body: form,
@@ -954,6 +985,15 @@ function initMomentInteractions() {
                     throw new Error(data && data.message ? data.message : '点赞失败');
                 }
 
+                if (data.proof) {
+                    writeLikeProof(coid, data.proof);
+                } else if (!data.liked) {
+                    writeLikeProof(coid, '');
+                }
+                if (data.protected) {
+                    flashLikeError(button, data.message || '请在点赞时使用的设备上取消点赞');
+                }
+
                 button.classList.toggle('is-active', !!data.liked);
                 button.setAttribute('aria-pressed', data.liked ? 'true' : 'false');
                 if (count) count.textContent = data.count || 0;
@@ -963,6 +1003,7 @@ function initMomentInteractions() {
                 }
             } catch (error) {
                 console.error(error);
+                flashLikeError(button, error && error.message ? error.message : '点赞失败，请稍后重试');
             } finally {
                 button.disabled = false;
             }
@@ -981,17 +1022,20 @@ class TimemachineUploader {
 
     // 加载本地存储的设置
     loadStoredSettings() {
-        const settings = localStorage.getItem('timemachine_settings');
-        if (settings) {
-            this.settings = JSON.parse(settings);
-        } else {
-            this.settings = {
-                baseUrl: 'https://p.bboreo.com/api/v1',
-                email: '',
-                password: '',
-                token: ''
-            };
+        const defaults = {
+            baseUrl: 'https://p.bboreo.com/api/v1',
+            email: '',
+            password: '',
+            token: ''
+        };
+        // 本地存储可能被其他脚本写坏，解析失败时回退默认值而不是让整个上传器初始化崩掉
+        let stored = null;
+        try {
+            stored = JSON.parse(localStorage.getItem('timemachine_settings') || 'null');
+        } catch (error) {
+            stored = null;
         }
+        this.settings = stored && typeof stored === 'object' ? Object.assign({}, defaults, stored) : defaults;
     }
 
     // 保存设置到本地存储

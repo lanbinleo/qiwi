@@ -211,313 +211,6 @@
         return row;
     }
 
-    var SIDEBAR_SOCIAL_ICON_OPTIONS = [
-        { label: 'GitHub', value: 'fa-brands fa-github' },
-        { label: 'Bilibili', value: 'fa-brands fa-bilibili' },
-        { label: 'Email', value: 'fa-regular fa-envelope' },
-        { label: 'RSS', value: 'fa-solid fa-rss' },
-        { label: '个人主页', value: 'fa-solid fa-house' },
-        { label: '链接', value: 'fa-solid fa-link' },
-        { label: 'X / Twitter', value: 'fa-brands fa-x-twitter' },
-        { label: 'Telegram', value: 'fa-brands fa-telegram' },
-        { label: 'YouTube', value: 'fa-brands fa-youtube' },
-        { label: 'Instagram', value: 'fa-brands fa-instagram' },
-        { label: 'Weibo', value: 'fa-brands fa-weibo' },
-        { label: 'Zhihu', value: 'fa-brands fa-zhihu' },
-        { label: 'QQ', value: 'fa-brands fa-qq' },
-        { label: 'Discord', value: 'fa-brands fa-discord' },
-        { label: 'Steam', value: 'fa-brands fa-steam' },
-        { label: 'CodePen', value: 'fa-brands fa-codepen' },
-        { label: 'Dribbble', value: 'fa-brands fa-dribbble' },
-        { label: 'Pixiv', value: 'fa-solid fa-palette' },
-        { label: '书签', value: 'fa-regular fa-bookmark' },
-        { label: '文件', value: 'fa-regular fa-file-lines' },
-        { label: '音乐', value: 'fa-solid fa-music' },
-        { label: '相机', value: 'fa-solid fa-camera' },
-        { label: '咖啡', value: 'fa-solid fa-mug-hot' }
-    ];
-
-    function parseSidebarSocial(text) {
-        return String(text || '').split(/\r\n|\r|\n/).map(function(rawLine) {
-            var line = trim(rawLine);
-            if (!line || line.charAt(0) === '#') return null;
-            var parts = line.split('|');
-            return {
-                title: parts[0] || '',
-                target: parts[1] || '',
-                icon: parts.slice(2).join('|') || ''
-            };
-        }).filter(Boolean);
-    }
-
-    function sidebarSocialToText(rows) {
-        return rows.map(function(row) {
-            return [row.title, row.target, row.icon].map(function(value) {
-                return String(value || '').replace(/\|/g, ' ');
-            }).join('|').replace(/\|+$/g, '');
-        }).filter(function(line) {
-            return line.replace(/[|\s]/g, '') !== '';
-        }).join('\n');
-    }
-
-    function readSidebarSocialRows(panel) {
-        return $all('.qiwi-social-row', panel).map(function(row) {
-            return normalizeSidebarSocialRow({
-                title: $('[data-social-field="title"]', row).value,
-                target: $('[data-social-field="target"]', row).value,
-                icon: $('[data-social-field="icon"]', row).value
-            });
-        });
-    }
-
-    function ensureSidebarSocialIconDatalist(panel) {
-        if ($('#qiwi-sidebar-social-icons', panel)) return;
-        var datalist = document.createElement('datalist');
-        datalist.id = 'qiwi-sidebar-social-icons';
-        SIDEBAR_SOCIAL_ICON_OPTIONS.forEach(function(item) {
-            var option = document.createElement('option');
-            option.value = item.value;
-            option.label = item.label;
-            datalist.appendChild(option);
-        });
-        panel.appendChild(datalist);
-    }
-
-    function renderSidebarSocialRow(item) {
-        item = item || {};
-        var row = document.createElement('div');
-        row.className = 'qiwi-social-row';
-        var chevronSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>';
-        row.innerHTML =
-            '<button type="button" class="qiwi-social-summary" data-social-action="toggle" aria-expanded="false">' +
-                '<span class="qiwi-social-icon-preview" data-social-icon-preview aria-hidden="true"></span>' +
-                '<span class="qiwi-social-summary-text">' +
-                    '<strong data-social-summary-title></strong>' +
-                    '<span data-social-summary-target></span>' +
-                '</span>' +
-                '<span class="qiwi-social-arrow">' + chevronSvg + '</span>' +
-            '</button>' +
-            '<div class="qiwi-social-editor-body">' +
-                '<label>悬浮名称<input type="text" data-social-field="title" placeholder="例如 GitHub" value="' + escapeHtml(item.title) + '"></label>' +
-                '<label>链接<input type="text" data-social-field="target" placeholder="链接、邮箱、feed 或用户名" value="' + escapeHtml(item.target) + '"></label>' +
-                '<label>图标<input type="text" data-social-field="icon" list="qiwi-sidebar-social-icons" placeholder="搜索 / 输入 Font Awesome 图标类" value="' + escapeHtml(item.icon) + '"></label>' +
-                '<div class="qiwi-row-actions">' +
-                    '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-social-action="up" title="上移" aria-label="上移"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>' +
-                    '<button type="button" class="qiwi-admin-button qiwi-icon-button" data-social-action="down" title="下移" aria-label="下移"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>' +
-                    '<button type="button" class="qiwi-admin-button qiwi-icon-button is-danger" data-social-action="delete" title="删除" aria-label="删除"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>' +
-                '</div>' +
-            '</div>';
-        updateSidebarSocialSummary(row);
-        return row;
-    }
-
-    function updateSidebarSocialIconPreview(row) {
-        var preview = $('[data-social-icon-preview]', row);
-        var input = $('[data-social-field="icon"]', row);
-        var icon = input ? trim(input.value) : '';
-        if (!preview) return;
-        preview.innerHTML = icon ? '<i class="' + escapeHtml(icon) + '" aria-hidden="true"></i>' : '<i class="fa-solid fa-link" aria-hidden="true"></i>';
-    }
-
-    function updateSidebarSocialSummary(row) {
-        var titleInput = $('[data-social-field="title"]', row);
-        var targetInput = $('[data-social-field="target"]', row);
-        var title = trim(titleInput ? titleInput.value : '') || '未命名链接';
-        var target = trim(targetInput ? targetInput.value : '') || '未填写链接';
-        var titleEl = $('[data-social-summary-title]', row);
-        var targetEl = $('[data-social-summary-target]', row);
-
-        if (titleEl) titleEl.textContent = title;
-        if (targetEl) targetEl.textContent = target;
-        updateSidebarSocialIconPreview(row);
-    }
-
-    function normalizePresetValue(kind, value) {
-        value = trim(value);
-        if (kind === 'rss') return value || 'feed';
-        if (kind === 'email') {
-            if (!value) return '';
-            return /^mailto:/i.test(value) ? value : 'mailto:' + value;
-        }
-        if (kind === 'github') {
-            if (!value) return '';
-            if (/^(https?:)?\/\//i.test(value)) return value;
-            return 'https://github.com/' + value.replace(/^@+/, '').replace(/^\/+/, '');
-        }
-        if (kind === 'bilibili') {
-            if (!value) return '';
-            if (/^(https?:)?\/\//i.test(value)) return value;
-            if (/^\d+$/.test(value)) return 'https://space.bilibili.com/' + value;
-            return value;
-        }
-
-        return value;
-    }
-
-    function sidebarSocialPreset(kind) {
-        var presets = {
-            github: { title: 'GitHub', icon: 'fa-brands fa-github', prompt: '输入 GitHub 用户名或主页 URL' },
-            bilibili: { title: 'Bilibili', icon: 'fa-brands fa-bilibili', prompt: '输入 Bilibili UID 或主页 URL' },
-            email: { title: 'Email', icon: 'fa-regular fa-envelope', prompt: '输入邮箱地址或 mailto: 链接' },
-            rss: { title: 'RSS', icon: 'fa-solid fa-rss', target: 'feed' }
-        };
-        var preset = presets[kind];
-        if (!preset) return null;
-
-        var target = preset.target || '';
-        if (preset.prompt) {
-            var input = window.prompt(preset.prompt, '');
-            if (input === null) return null;
-            target = normalizePresetValue(kind, input);
-            if (!target) return null;
-        }
-
-        return {
-            title: preset.title,
-            target: normalizePresetValue(kind, target),
-            icon: preset.icon
-        };
-    }
-
-    function detectSidebarSocialKind(row) {
-        var haystack = [row.title, row.target, row.icon].join(' ').toLowerCase();
-        if (haystack.indexOf('github') !== -1) return 'github';
-        if (haystack.indexOf('bilibili') !== -1 || haystack.indexOf('space.bilibili.com') !== -1) return 'bilibili';
-        if (haystack.indexOf('mailto:') !== -1 || /(^|\s)[^@\s]+@[^@\s]+\.[^@\s]+/.test(haystack)) return 'email';
-        if (haystack.indexOf('rss') !== -1 || haystack.indexOf('feed') !== -1) return 'rss';
-        return '';
-    }
-
-    function normalizeSidebarSocialRow(row) {
-        row = row || {};
-        var kind = detectSidebarSocialKind(row);
-        var target = trim(row.target);
-
-        if (kind === 'email') {
-            target = normalizePresetValue('email', target);
-        } else if (kind === 'github' && target && !/^(https?:)?\/\//i.test(target) && target.charAt(0) !== '/' && target.charAt(0) !== '#' && target.indexOf('/') === -1) {
-            target = normalizePresetValue('github', target);
-        } else if (kind === 'bilibili' && /^\d+$/.test(target)) {
-            target = normalizePresetValue('bilibili', target);
-        } else if (kind === 'rss' && target === '') {
-            target = 'feed';
-        }
-
-        return {
-            title: row.title || '',
-            target: target,
-            icon: row.icon || ''
-        };
-    }
-
-    function initSidebarSocialEditor(panel, textarea) {
-        var editor = $('[data-qiwi-sidebar-social-editor]', panel);
-        var list = $('[data-qiwi-sidebar-social-list]', panel);
-        if (!editor || !list || !textarea) return null;
-        var isRendering = false;
-
-        ensureSidebarSocialIconDatalist(panel);
-
-        function sourceRows() {
-            return parseSidebarSocial(textarea.value);
-        }
-
-        function render(rows) {
-            isRendering = true;
-            list.innerHTML = '';
-            if (!rows.length) {
-                var empty = document.createElement('div');
-                empty.className = 'qiwi-admin-empty';
-                empty.textContent = '还没有社交链接。可以添加空白链接，或用上方预设快速生成。';
-                list.appendChild(empty);
-                isRendering = false;
-                return;
-            }
-            rows.forEach(function(item) {
-                list.appendChild(renderSidebarSocialRow(item));
-            });
-            isRendering = false;
-        }
-
-        function sync() {
-            var rows = readSidebarSocialRows(panel);
-            textarea.value = sidebarSocialToText(rows);
-            $all('.qiwi-social-row', panel).forEach(function(row, index) {
-                if (rows[index]) {
-                    var targetInput = $('[data-social-field="target"]', row);
-                    if (targetInput) targetInput.value = rows[index].target;
-                }
-                updateSidebarSocialSummary(row);
-            });
-        }
-
-        render(sourceRows());
-
-        textarea.addEventListener('input', function() {
-            if (!isRendering) render(parseSidebarSocial(textarea.value));
-        });
-
-        list.addEventListener('input', function(event) {
-            if (event.target && event.target.hasAttribute('data-social-field')) {
-                var row = event.target.closest('.qiwi-social-row');
-                if (row) updateSidebarSocialSummary(row);
-            }
-            if (!isRendering) sync();
-        });
-
-        list.addEventListener('change', function() {
-            if (!isRendering) sync();
-        });
-
-        editor.addEventListener('click', function(event) {
-            var button = event.target.closest('[data-social-action], [data-social-preset]');
-            if (!button) return;
-
-            var presetName = button.getAttribute('data-social-preset');
-            var action = button.getAttribute('data-social-action');
-            var empty = $('.qiwi-admin-empty', list);
-
-            if (presetName) {
-                var preset = sidebarSocialPreset(presetName);
-                if (!preset) return;
-                if (empty) empty.remove();
-                var presetRow = renderSidebarSocialRow(preset);
-                list.appendChild(presetRow);
-                sync();
-                revealElement(presetRow);
-                return;
-            }
-
-            if (action === 'add') {
-                if (empty) empty.remove();
-                var newRow = renderSidebarSocialRow({});
-                list.appendChild(newRow);
-                sync();
-                revealElement(newRow);
-                return;
-            }
-
-            var row = button.closest('.qiwi-social-row');
-            if (!row) return;
-            if (action === 'toggle') {
-                var isOpen = !row.classList.contains('is-open');
-                row.classList.toggle('is-open', isOpen);
-                button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                return;
-            }
-            if (action === 'delete') row.remove();
-            if (action === 'up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
-            if (action === 'down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
-            sync();
-            if (!$all('.qiwi-social-row', list).length) render([]);
-        });
-
-        return {
-            refresh: function() { render(sourceRows()); },
-            sync: sync
-        };
-    }
-
     function setFieldValueByName(name, value) {
         var fields = $all('[name="' + name + '"], [name="' + name + '[]"], #' + name);
         if (!fields.length) return;
@@ -908,7 +601,11 @@
                     });
                     return friend;
                 }).filter(function(friend) {
-                    return friend.name || friend.url || friend.avatar || friend.description;
+                    // 仅含扩展字段（如 since/rel）的友链也要保留，否则一次编辑器同步就会把它删掉
+                    var hasExtra = Object.keys(friend).some(function(key) {
+                        return ['name', 'url', 'avatar', 'description'].indexOf(key) === -1 && friend[key] !== '' && friend[key] !== null && friend[key] !== undefined;
+                    });
+                    return friend.name || friend.url || friend.avatar || friend.description || hasExtra;
                 });
             });
             return data;
@@ -2462,7 +2159,9 @@
                 item.setAttribute('tabindex', active ? '0' : '-1');
             });
             panes.forEach(function(pane) {
-                pane.classList.toggle('is-active', pane.getAttribute('data-qiwi-pane') === target);
+                var active = pane.getAttribute('data-qiwi-pane') === target;
+                pane.classList.toggle('is-active', active);
+                pane.hidden = !active;
             });
             if (currentTitle) currentTitle.textContent = tab.getAttribute('data-qiwi-title') || tab.textContent;
             if (currentDesc) currentDesc.textContent = tab.getAttribute('data-qiwi-desc') || '';
@@ -2473,8 +2172,20 @@
             }
         }
 
+        // 把 tab 与面板用 id / aria-controls / aria-labelledby 关联起来，读屏器才能知道激活了哪个面板
+        panes.forEach(function(pane) {
+            var key = pane.getAttribute('data-qiwi-pane') || '';
+            pane.setAttribute('role', 'tabpanel');
+            if (!pane.id) pane.id = 'qiwi-admin-pane-' + key;
+            pane.setAttribute('aria-labelledby', 'qiwi-admin-tab-' + key);
+            pane.setAttribute('tabindex', '0');
+        });
+
         tabs.forEach(function(tab) {
+            var key = tab.getAttribute('data-qiwi-tab') || '';
             tab.setAttribute('role', 'tab');
+            if (!tab.id) tab.id = 'qiwi-admin-tab-' + key;
+            tab.setAttribute('aria-controls', 'qiwi-admin-pane-' + key);
             tab.addEventListener('click', function() {
                 activate(tab);
             });
@@ -2641,7 +2352,8 @@
                     { label: '文章标题', before: '{title}', after: '', placeholder: '' },
                     { label: '作者', before: '{author}', after: '', placeholder: '' },
                     { label: '站点名', before: '{site}', after: '', placeholder: '' },
-                    { label: '年份', before: '{year}', after: '', placeholder: '' }
+                    { label: '年份', before: '{year}', after: '', placeholder: '' },
+                    { label: '文集标题', before: '{thread_title}', after: '', placeholder: '' }
                 ]
             }, {
                 label: '颜色',
@@ -2662,16 +2374,11 @@
         'v2FooterMotto',
         'enableTravellings',
         'sidebarProfileAvatar',
-        'sidebarProfileText',
-        'showSidebarAnnouncement',
-        'sidebarAnnouncement',
         'enableBusuanzi',
-        'sidebarBlock',
         'sidebarMomentCount',
         'homeVisibilityDefault',
         'rssVisibilityDefault',
         'categoryVisibilityData',
-        'enableHitokoto',
         'footerInfo',
         'defaultCopyrightLicense',
         'defaultCopyrightInfo',
@@ -2694,8 +2401,7 @@
         'showVersionDrawer',
         'enabledCaptcha',
         'navItems',
-        'homeNavTitle',
-        'sidebarSocialLinks'
+        'homeNavTitle'
     ];
 
     var RECOMMENDED_DEFAULTS = {
@@ -2704,8 +2410,6 @@
         v2SidebarSlogan: '向内求索 · ON AIR',
         v2FooterMotto: '向内求索，向外生长',
         sidebarProfileAvatar: '留空时使用“关于页面 - 头像”，再留空使用默认头像',
-        sidebarProfileText: '留空时使用“关于页面 - 简介”',
-        sidebarAnnouncement: '留空时不显示公告区域',
         sidebarMomentCount: '4',
         footerInfo: '留空时使用站点描述',
         defaultCopyrightLicense: '默认使用 CC BY-NC-ND 4.0',
@@ -2724,8 +2428,7 @@
         friendFeedLimit: '10',
         bookReference: '留空时归档页不显示书籍参考统计',
         navItems: '留空时自动显示可见独立页面',
-        homeNavTitle: '首页',
-        sidebarSocialLinks: ''
+        homeNavTitle: '首页'
     };
 
     function applyRecommendedDefaults() {
@@ -2756,6 +2459,8 @@
         return window.btoa(unescape(encodeURIComponent(value)));
     }
 
+    var CONFIG_SCHEMA_VERSION = 1;
+
     function buildConfigPayload() {
         var settings = {};
         CONFIG_FIELD_NAMES.forEach(function(name) {
@@ -2766,7 +2471,7 @@
 
         return {
             schema: 'qiwi-theme-config',
-            version: 1,
+            version: CONFIG_SCHEMA_VERSION,
             exportedAt: new Date().toISOString(),
             settings: settings
         };
@@ -2796,6 +2501,14 @@
             throw new Error('配置缺少 settings 数据，已取消导入。');
         }
 
+        // 只按已知字段白名单写入，未知键（含已移除的旧选项）静默忽略；
+        // 更高版本的备份仍尝试导入，但提示可能不完全兼容。
+        var payloadVersion = parseInt(payload.version, 10);
+        var notes = [];
+        if (!isNaN(payloadVersion) && payloadVersion > CONFIG_SCHEMA_VERSION) {
+            notes.push('该配置来自更新的版本（v' + payloadVersion + '），部分字段可能未被识别');
+        }
+
         CONFIG_FIELD_NAMES.forEach(function(name) {
             if (Object.prototype.hasOwnProperty.call(settings, name)) {
                 setFieldValueByName(name, settings[name]);
@@ -2807,6 +2520,8 @@
                 editors[key].refresh();
             }
         });
+
+        return notes;
     }
 
     function rawFieldTitle(row, fallback) {
@@ -2868,8 +2583,10 @@
 
         $('[data-config-import]', panel).addEventListener('click', function() {
             try {
-                applyConfigPayload(parseConfigPayload(textarea.value), editors);
-                setStatus('已导入到当前表单，请检查后点击页面底部保存。');
+                var notes = applyConfigPayload(parseConfigPayload(textarea.value), editors);
+                var message = '已导入到当前表单，请检查后点击页面底部保存。';
+                if (notes && notes.length) message += ' 注意：' + notes.join('；') + '。';
+                setStatus(message);
             } catch (error) {
                 setStatus(error && error.message ? error.message : '导入失败，请检查配置格式。', true);
             }
@@ -3171,20 +2888,60 @@
             return endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + query.join('&');
         }
 
+        var modalReturnFocus = null;
+
         function openModal(modal) {
             if (!modal) return;
+            modalReturnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
             modal.classList.add('is-open');
             modal.setAttribute('aria-hidden', 'false');
         }
 
         function closeModals() {
+            var wasOpen = false;
             [postModal, jsonModal].forEach(function(modal) {
                 if (!modal) return;
+                if (modal.classList.contains('is-open')) wasOpen = true;
                 modal.classList.remove('is-open');
                 modal.setAttribute('aria-hidden', 'true');
             });
             pickerBlock = null;
+            // 关闭后把焦点还给打开前的按钮，避免焦点掉到 body
+            if (wasOpen && modalReturnFocus && typeof modalReturnFocus.focus === 'function' && document.contains(modalReturnFocus)) {
+                modalReturnFocus.focus();
+            }
+            modalReturnFocus = null;
         }
+
+        function activeModal() {
+            return [postModal, jsonModal].filter(function(modal) {
+                return modal && modal.classList.contains('is-open');
+            })[0] || null;
+        }
+
+        document.addEventListener('keydown', function(event) {
+            var modal = activeModal();
+            if (!modal) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeModals();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            var focusable = $all('a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])', modal).filter(function(element) {
+                return element.offsetParent !== null;
+            });
+            if (!focusable.length) return;
+            var first = focusable[0];
+            var last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
 
         function openJsonModal() {
             if (!jsonOutput) return;
@@ -3531,8 +3288,7 @@
         var navTextarea = fieldByName('navItems');
         var friendsTextarea = fieldByName('friendsData');
         var bookInput = fieldByName('bookReference');
-        var sidebarSocialTextarea = fieldByName('sidebarSocialLinks');
-        if (!navTextarea || !friendsTextarea || !bookInput || !sidebarSocialTextarea || $('.qiwi-admin-panel')) return;
+        if (!navTextarea || !friendsTextarea || !bookInput || $('.qiwi-admin-panel')) return;
 
         var navRow = fieldRow(navTextarea);
         if (!navRow) return;
@@ -3557,7 +3313,6 @@
                         '<div class="qiwi-admin-nav-group">' +
                             '<span class="qiwi-admin-nav-label">内容呈现</span>' +
                             '<button type="button" class="qiwi-admin-tab is-active" data-qiwi-tab="nav" data-qiwi-title="导航栏" data-qiwi-desc="顶部导航、外链与二级菜单。"><i class="fa-solid fa-compass" aria-hidden="true"></i><span>导航栏</span></button>' +
-                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sidebar" data-qiwi-title="侧边栏" data-qiwi-desc="个人信息、社交链接与侧边栏模块。"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>侧边栏</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="templates" data-qiwi-title="页面模板" data-qiwi-desc="常用独立页面正文模板，可一键复制到页面正文。"><i class="fa-regular fa-copy" aria-hidden="true"></i><span>页面模板</span></button>' +
                         '</div>' +
                         '<div class="qiwi-admin-nav-group">' +
@@ -3590,23 +3345,6 @@
                             '<button type="button" class="qiwi-admin-button" data-nav-add="child"><i class="fa-solid fa-turn-down" aria-hidden="true"></i>添加子菜单</button>' +
                         '</div>' +
                         '<div data-qiwi-nav-list></div>' +
-                    '</section>' +
-                    '<section class="qiwi-admin-pane" data-qiwi-pane="sidebar">' +
-                        '<div class="qiwi-admin-fields" data-qiwi-sidebar-fields></div>' +
-                        '<section class="qiwi-social-editor" data-qiwi-sidebar-social-editor>' +
-                            '<div class="qiwi-social-editor-head">' +
-                                '<strong>侧边栏社交链接</strong>' +
-                                '<span>可自定义数量、图标、悬浮名称和链接。保存时会同步到原始数据。</span>' +
-                            '</div>' +
-                            '<div class="qiwi-admin-toolbar qiwi-social-presets">' +
-                                '<button type="button" class="qiwi-admin-button" data-social-preset="github"><i class="fa-brands fa-github" aria-hidden="true"></i>GitHub</button>' +
-                                '<button type="button" class="qiwi-admin-button" data-social-preset="bilibili"><i class="fa-brands fa-bilibili" aria-hidden="true"></i>Bilibili</button>' +
-                                '<button type="button" class="qiwi-admin-button" data-social-preset="email"><i class="fa-regular fa-envelope" aria-hidden="true"></i>Email</button>' +
-                                '<button type="button" class="qiwi-admin-button" data-social-preset="rss"><i class="fa-solid fa-rss" aria-hidden="true"></i>RSS</button>' +
-                                '<button type="button" class="qiwi-admin-button is-primary" data-social-action="add"><i class="fa-solid fa-plus" aria-hidden="true"></i>添加自定义链接</button>' +
-                            '</div>' +
-                            '<div data-qiwi-sidebar-social-list></div>' +
-                        '</section>' +
                     '</section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="templates">' +
                         '<div class="qiwi-admin-toolbar">' +
@@ -3699,17 +3437,11 @@
 
         navRow.parentNode.insertBefore(panel, navRow);
 
-        moveFields(['logoUrl', 'v2EnglishTitle', 'v2SidebarSlogan', 'homeNavTitle', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
-        moveFields(['sidebarProfileAvatar', 'sidebarProfileText', 'showSidebarAnnouncement', 'sidebarAnnouncement', 'enableBusuanzi', 'sidebarBlock', 'enableHitokoto'], $('[data-qiwi-sidebar-fields]', panel));
-        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['logoUrl', 'sidebarProfileAvatar', 'v2EnglishTitle', 'v2SidebarSlogan', 'homeNavTitle', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
+        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'enableBusuanzi', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
-
-        var socialStorageRow = moveField('sidebarSocialLinks', $('[data-qiwi-sidebar-social-editor]', panel));
-        if (socialStorageRow) {
-            socialStorageRow.classList.add('qiwi-social-storage');
-        }
 
         var rawPane = $('[data-qiwi-pane="raw"]', panel);
         [
@@ -3730,7 +3462,6 @@
             nav: initNavEditor(panel, navTextarea),
             friends: initFriendsEditor(panel, friendsTextarea),
             books: initBookEditor(panel, bookInput),
-            sidebarSocial: initSidebarSocialEditor(panel, sidebarSocialTextarea),
             categoryVisibility: initCategoryVisibilityEditor(panel, fieldByName('categoryVisibilityData'))
         };
         initExternalLinkStats(panel);

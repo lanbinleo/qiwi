@@ -281,7 +281,7 @@ Qiwi 没有构建步骤，主题文件会被 Typecho 直接加载。
 修改 PHP 模板后建议运行：
 
 ```bash
-php -l header.php footer.php index.php archive.php post.php page.php page-about.php page-friends.php page-timemachine.php comments.php sidebar.php functions.php
+php -l header.php footer.php index.php archive.php post.php post-card.php page.php page-about.php page-friends.php page-timemachine.php comments.php functions.php
 ```
 
 没有全局 `php` 命令时，可使用 phpstudy 内置 PHP，例如：

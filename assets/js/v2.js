@@ -164,8 +164,15 @@
             clone.src = script.src;
             clone.async = false;
             pendingScripts.push(new Promise(function (resolve) {
-                clone.addEventListener('load', resolve, { once: true });
-                clone.addEventListener('error', resolve, { once: true });
+                // 与 executeScripts 一致加 10s 兜底：CDN 脚本既不 load 也不 error 时，
+                // 否则 headReady 永不 resolve，主列会一直停在 is-leaving（不可点击）。
+                var timerId = window.setTimeout(resolve, 10000);
+                var settle = function () {
+                    window.clearTimeout(timerId);
+                    resolve();
+                };
+                clone.addEventListener('load', settle, { once: true });
+                clone.addEventListener('error', settle, { once: true });
             }));
             document.head.appendChild(clone);
         });
@@ -924,6 +931,11 @@
     }
 
     function initToc(root) {
+        var toc = root.querySelector('.article-toc');
+        var body = root.querySelector('.article-body');
+        if (!body && toc) body = toc.closest('.about-page, .friends-page, .timemachine-page');
+        // 已构建过的目录直接保留（含其滚动进度监听），避免 refresh() 先拆监听再提前返回
+        if (toc && toc.children.length) return;
         if (tocObserver) {
             tocObserver.disconnect();
             tocObserver = null;
@@ -932,11 +944,11 @@
             tocProgressCleanup();
             tocProgressCleanup = null;
         }
-        var toc = root.querySelector('.article-toc');
-        var body = root.querySelector('.article-body');
-        if (!body && toc) body = toc.closest('.about-page, .friends-page, .timemachine-page');
-        if (!toc || !body || toc.children.length) return;
-        var headings = Array.prototype.slice.call(body.querySelectorAll('h2, h3, h4'));
+        if (!toc || !body) return;
+        // 折叠块与隐藏 Tab 面板里的标题不进目录，否则点击后 scrollIntoView 落在不可见元素上
+        var headings = Array.prototype.slice.call(body.querySelectorAll('h2, h3, h4')).filter(function (heading) {
+            return !heading.closest('[hidden], details:not([open]), .about-tab-panel:not(.is-active)');
+        });
         if (headings.length < 2) { toc.hidden = true; return; }
 
         function headingText(heading) {
@@ -1600,6 +1612,11 @@
         }
         if (window.qiwiPlogController) { window.qiwiPlogController.abort(); window.qiwiPlogController = null; }
         if (window.qiwiTimemachineController) { window.qiwiTimemachineController.abort(); window.qiwiTimemachineController = null; }
+        // 模板内联脚本加在 <html>/<body> 上的滚动锁类会随 DOM 替换失去清理入口，导航时统一移除。
+        ['plog-lightbox-open', 'comment-profile-open', 'qiwi-lightbox-open'].forEach(function (lockClass) {
+            document.documentElement.classList.remove(lockClass);
+            if (document.body) document.body.classList.remove(lockClass);
+        });
         setStatus('正在加载页面');
         setMobileMenu(false);
 
@@ -1869,7 +1886,12 @@
                     if (count) { count.textContent = String(data.count || 0); count.hidden = false; }
                     if (icon) { icon.classList.remove('fa-regular'); icon.classList.add('fa-solid'); }
                     celebrateLike(likeButton);
-                }).catch(function () {}).finally(function () {
+                }).catch(function () {
+                    // 失败时给出可感知的反馈，而不是静默回滚
+                    likeButton.classList.add('is-error');
+                    setStatus('点赞失败，请稍后重试');
+                    window.setTimeout(function () { likeButton.classList.remove('is-error'); }, 2400);
+                }).finally(function () {
                     likeButton.dataset.likeBusy = '0';
                     likeButton.removeAttribute('aria-busy');
                 });
@@ -1948,5 +1970,18 @@
     initGlobalNavigation();
     initPjaxPage(document, false);
     try { history.replaceState({ qiwiPjax: true, qiwiScrollY: window.scrollY }, '', window.location.href); } catch (error) {}
-    window.QiwiPJAX = { navigate: navigate, refresh: function () { initPjaxPage(currentContainer() || document); } };
+    window.QiwiPJAX = {
+        navigate: navigate,
+        refresh: function () { initPjaxPage(currentContainer() || document); },
+        // 供多 Tab 页面在切换面板后重建目录（只收录当前可见面板的标题）
+        rebuildToc: function () {
+            var root = currentContainer() || document;
+            var toc = root.querySelector('.article-toc');
+            if (toc) {
+                toc.innerHTML = '';
+                toc.hidden = false;
+            }
+            initToc(root);
+        }
+    };
 })();

@@ -32,20 +32,20 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `page-friends.php`: friends page and apply form.
 - `page-tags.php`: tag cloud page.
 - `page-timemachine.php`: timemachine page, publisher UI, and modal logic.
-- `sidebar.php`: legacy v1 sidebar markup still referenced by some templates but hidden in the v2 frontend. Track its eventual removal in `TODO.md`.
 - `comments.php`: comment list and form.
 - `functions.php`: theme options and per-post custom fields.
 - `version.php`: theme version string used in the footer.
 - `index.php`: its file header also contains an `@version` value; keep it aligned with `version.php`, `update.json`, `CHANGELOG.md`, and all companion plugin `Plugin.php` headers when bumping releases.
-- `components/home-jike.php`: Jike-style home feed component.
+- `components/thread-archive.php`: thread (文集) archive listing partial rendered for `thread-*` categories.
 - `plugins/Geetest/`: Qiwi GTest companion plugin source for comment/login captcha integration.
 - `plugins/QiwiCap/`: preferred self-hosted CAP proof-of-work captcha companion plugin for comment/login protection.
+- `plugins/QiwiCommentMail/`: Qiwi comment mail notification plugin (queue, SMTP/Resend delivery, admin console).
 - `plugins/QiwiSitemap/`: Qiwi Sitemap plugin source maintained with this theme.
-- `plugins/QiwiTheme/`: Qiwi Theme companion plugin source for `thread-*` admin editing and Thread data storage.
+- `plugins/QiwiTheme/`: Qiwi Theme companion plugin source for `thread-*` admin editing, Thread data storage, likes, IP location, external link stats, and the signed "own comments" cookie.
 - `docs/new-design-v2.html`: primary Qiwi 2.0 visual and interaction reference. Treat as reference unless the task asks to edit it.
 - `docs/design-doc.html`: older local visual/style reference. Prefer `new-design-v2.html` for 2.0 work.
 - `docs/screenshot*.png`: theme screenshots used by project docs.
-- `TODO.md`: deferred v1 cleanup work, including old sidebar options and the unloaded legacy stylesheet.
+- `TODO.md`: completed/deferred v1 cleanup records, the unloaded legacy stylesheet, and audit findings intentionally left unfixed.
 - `reference/`: legacy reference material. Read-only unless a task explicitly asks to sync it.
 
 ## Working Rules
@@ -68,6 +68,8 @@ This file helps coding agents work safely and efficiently in the `qiwi` Typecho 
 - `plugins/QiwiCap/` is the preferred captcha provider. Keep the theme captcha calls provider-neutral through `qiwiCanRenderCaptcha()` and `qiwiRenderCaptcha()`; Qiwi CAP and Qiwi GTest must not be active at the same time.
 - `plugins/QiwiTheme/` is the Qiwi theme companion plugin. When a feature cannot be solved reliably inside theme templates because it needs routes, actions, storage tables, admin APIs, or Typecho lifecycle hooks, put that logic in `QiwiTheme` instead of unrelated plugins such as `QiwiSitemap`.
 - When changing companion plugin code for local testing, sync `plugins/*` into the local Typecho test runtime at `D:\phpstudy_pro\WWW\localhost\usr\plugins` before reporting completion. Use `scripts/sync-local-plugins.ps1`; it also refreshes selected plugin registrations so newly added hooks/actions/routes are written to Typecho's `options.plugins` record without deleting existing plugin configuration.
+- Typecho core deletes a plugin's `plugin:<Name>` option row when the plugin is deactivated, so re-enabling a plugin resets it to form defaults. Companion plugins with real configuration (`QiwiCommentMail`, `QiwiCap`, `QiwiSitemap`) keep a `*_config_backup` option and implement a static `configHandle(array $settings, $isInit)` that restores the backup on activation and mirrors every save. Follow the same pattern when adding a new configurable plugin; do not call `Helper::configPlugin` from `activate()` because core overwrites it with defaults afterwards.
+- Cookies that let a visitor see or modify their own data (own pending comments, moment like cancellation) must be server-signed with `QiwiTheme_Plugin::signValue()` / `verifySignedValue()`; never trust the plain Typecho `remember` author/mail cookies or a self-reported email as an identity check.
 
 ## Release Process
 
@@ -137,8 +139,8 @@ foreach ($php in $phpBins) {
 2. For targeted quick checks, lint only touched files with both binaries, for example:
 
 ```powershell
-& 'D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe' -n -l sidebar.php
-& 'D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe' -n -l sidebar.php
+& 'D:\phpstudy_pro\Extensions\php\php7.3.4nts\php.exe' -n -l post-card.php
+& 'D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe' -n -l post-card.php
 ```
 
 3. For responsive/CSS work, inspect the active v2 stylesheet for the relevant layout primitives:

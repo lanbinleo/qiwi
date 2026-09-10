@@ -93,11 +93,6 @@ if ($this->is('category') && function_exists('qiwiGetCategoryMetaBySlug') && fun
         <?php endif; ?>
     </div>
 
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
-        <?php $this->need('sidebar.php'); ?>
-    </aside>
-
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>
 </div>

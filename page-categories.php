@@ -154,10 +154,6 @@ $pageContent = qiwiGetContent($this);
         <?php endif; ?>
     </div>
 
-    <aside class="sidebar">
-        <?php $this->need('sidebar.php'); ?>
-    </aside>
-
     <div class="layout-spacer-right"></div>
 </div>
 

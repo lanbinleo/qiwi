@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.2
+ * @version 2.1.3
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -18,6 +18,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
     const POST_LIKE_TABLE = 'qiwi_post_likes';
     const IP_LOCATION_TABLE = 'qiwi_ip_locations';
     const SETTINGS_PANEL = 'QiwiTheme/page/settings.php';
+    const OWN_COMMENTS_COOKIE = 'qiwi_own_comments';
 
     public static function activate()
     {
@@ -27,15 +28,16 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         self::installPostLikeTable();
         self::installIpLocationTable();
         Helper::removeAction('qiwi-thread-tools');
+        // 旧版 /goto 跳转路由已下线（开放重定向面），这里保留 removeRoute 以清理历史注册。
         Helper::removeRoute('qiwi_theme_goto_route');
         Helper::removePanel(1, self::SETTINGS_PANEL);
         Helper::addAction('qiwi-theme', 'QiwiTheme_Action');
-        Helper::addRoute('qiwi_theme_goto_route', '/goto', 'QiwiTheme_Action', 'goto');
         Helper::addPanel(1, self::SETTINGS_PANEL, 'Qiwi 设置', '快速进入 Qiwi 主题设置', 'administrator');
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
         Typecho_Plugin::factory('Widget\Base\Metas')->filter = array(__CLASS__, 'metaFilter');
         Typecho_Plugin::factory('Widget_Archive')->handleInit = array(__CLASS__, 'handleArchiveInit');
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'cacheCommentIpLocation');
+        Typecho_Plugin::factory('Widget_Feedback')->finishComment = array(__CLASS__, 'rememberOwnComment');
         return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
     }
 
@@ -462,16 +464,6 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
     }
 
-    public static function currentVisitorLocationLabel()
-    {
-        return self::ipLocationLabel(self::clientIp());
-    }
-
-    public static function currentVisitorLocationLabelFromCache()
-    {
-        return self::ipLocationLabelFromCache(self::clientIp());
-    }
-
     public static function ipLocationLabel($ip)
     {
         $ip = trim((string) $ip);
@@ -681,29 +673,6 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $result['hasMore'] = $result['remaining'] > 0;
 
         return $result;
-    }
-
-    private static function clientIp()
-    {
-        $candidates = array();
-        foreach (array('HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'REMOTE_ADDR') as $key) {
-            if (!empty($_SERVER[$key])) {
-                $candidates[] = (string) $_SERVER[$key];
-            }
-        }
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            foreach (explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']) as $part) {
-                $candidates[] = trim($part);
-            }
-        }
-
-        foreach ($candidates as $candidate) {
-            if (self::isPublicIp($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return '';
     }
 
     private static function isPublicIp($ip)
@@ -1027,26 +996,6 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         return preg_replace('/^www\./i', '', $targetHost) !== preg_replace('/^www\./i', '', $siteHost);
-    }
-
-    public static function decodeGotoUrl($value)
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return '';
-        }
-
-        $decoded = base64_decode(strtr(rawurldecode($value), '-_', '+/'), true);
-        if ($decoded === false) {
-            return '';
-        }
-
-        $decoded = trim($decoded);
-        if (preg_match('/[\r\n]/', $decoded)) {
-            return '';
-        }
-
-        return self::isExternalHttpUrl($decoded) ? $decoded : '';
     }
 
     public static function recordExternalLinkClick($url, $source = '')
@@ -1472,6 +1421,99 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         return $mail === '' ? '' : sha1($mail);
     }
 
+    /**
+     * 站点级签名密钥。优先使用 Typecho 安装时生成的 secret 选项。
+     */
+    public static function signingSecret()
+    {
+        try {
+            $options = Helper::options();
+            $secret = isset($options->secret) ? trim((string) $options->secret) : '';
+            if ($secret !== '') {
+                return $secret;
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return 'qiwi-theme:' . (defined('__TYPECHO_ROOT_DIR__') ? __TYPECHO_ROOT_DIR__ : '');
+    }
+
+    public static function signValue($purpose, $value)
+    {
+        return hash_hmac('sha256', (string) $purpose . "\n" . (string) $value, self::signingSecret());
+    }
+
+    public static function verifySignedValue($purpose, $value, $signature)
+    {
+        $signature = trim((string) $signature);
+        if ($signature === '' || !preg_match('/^[a-f0-9]{64}$/i', $signature)) {
+            return false;
+        }
+
+        return hash_equals(self::signValue($purpose, $value), strtolower($signature));
+    }
+
+    /**
+     * 邮箱身份点赞的取消凭证：邮箱只是未经验证的自报身份，若不绑定凭证，
+     * 任何知道他人邮箱的访客都能借 toggle 语义取消对方的点赞。
+     */
+    public static function momentLikeProof($coid, $mailHash)
+    {
+        return self::signValue('moment-like', (int) $coid . ':' . strtolower(trim((string) $mailHash)));
+    }
+
+    /**
+     * 评论提交成功后，把本浏览器提交过的评论 coid 写入签名 cookie。
+     * 模板据此向访客展示"自己的待审核评论"，不再用可随意伪造的
+     * remember 昵称/邮箱 cookie 去匹配数据库里他人的待审评论。
+     */
+    public static function rememberOwnComment($feedback)
+    {
+        $coid = 0;
+        try {
+            $coid = isset($feedback->coid) ? (int) $feedback->coid : 0;
+        } catch (Exception $e) {
+            $coid = 0;
+        } catch (Throwable $e) {
+            $coid = 0;
+        }
+        if ($coid <= 0 || headers_sent()) {
+            return;
+        }
+
+        $ids = array_values(array_diff(self::ownCommentIds(), array($coid)));
+        $ids[] = $coid;
+        $ids = array_slice($ids, -50);
+        $payload = implode('.', $ids);
+        $value = $payload . '|' . self::signValue('own-comments', $payload);
+        setcookie(self::OWN_COMMENTS_COOKIE, $value, time() + 30 * 86400, '/', '', false, true);
+        $_COOKIE[self::OWN_COMMENTS_COOKIE] = $value;
+    }
+
+    public static function ownCommentIds()
+    {
+        $raw = isset($_COOKIE[self::OWN_COMMENTS_COOKIE]) ? (string) $_COOKIE[self::OWN_COMMENTS_COOKIE] : '';
+        if ($raw === '' || strlen($raw) > 1024 || strpos($raw, '|') === false) {
+            return array();
+        }
+
+        list($payload, $signature) = explode('|', $raw, 2);
+        if (!preg_match('/^\d+(?:\.\d+)*$/', $payload) || !self::verifySignedValue('own-comments', $payload, $signature)) {
+            return array();
+        }
+
+        $ids = array();
+        foreach (explode('.', $payload) as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return array_values($ids);
+    }
+
     public static function hasMomentLiked($coid, $identityHash = '')
     {
         $coid = (int) $coid;
@@ -1511,7 +1553,19 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         try {
             $db = Typecho_Db::get();
             $table = self::momentLikeTableName();
+            $mailHash = isset($identity['mail_hash']) ? substr(trim((string) $identity['mail_hash']), 0, 64) : '';
+            $proofRequired = !empty($identity['proof_required']) && $mailHash !== '';
             if (self::hasMomentLiked($coid, $identityHash)) {
+                if ($proofRequired
+                    && !self::verifySignedValue('moment-like', $coid . ':' . strtolower($mailHash), isset($identity['proof']) ? $identity['proof'] : '')) {
+                    $counts = self::momentLikeCounts(array($coid));
+                    return array(
+                        'liked' => true,
+                        'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0,
+                        'protected' => true,
+                    );
+                }
+
                 $db->query($db->delete($table)
                     ->where('coid = ?', $coid)
                     ->where('identity_hash = ?', $identityHash));
@@ -1523,7 +1577,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                     'identity_type' => isset($identity['identity_type']) ? substr((string) $identity['identity_type'], 0, 16) : 'cookie',
                     'user_id' => isset($identity['user_id']) ? max(0, (int) $identity['user_id']) : 0,
                     'author' => isset($identity['author']) ? substr(trim((string) $identity['author']), 0, 200) : '',
-                    'mail_hash' => isset($identity['mail_hash']) ? substr(trim((string) $identity['mail_hash']), 0, 64) : '',
+                    'mail_hash' => $mailHash,
                     'created' => time(),
                 )));
                 if (!empty($identity['previous_identity_hash'])
@@ -1536,7 +1590,11 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             }
 
             $counts = self::momentLikeCounts(array($coid));
-            return array('liked' => $liked, 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
+            $result = array('liked' => $liked, 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
+            if ($liked && $proofRequired) {
+                $result['proof'] = self::momentLikeProof($coid, $mailHash);
+            }
+            return $result;
         } catch (Exception $e) {
             $counts = self::momentLikeCounts(array($coid));
             return array('liked' => self::hasMomentLiked($coid, $identityHash), 'count' => isset($counts[$coid]) ? (int) $counts[$coid] : 0);
