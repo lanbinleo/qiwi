@@ -22,10 +22,11 @@ function getWordCount($text) {
 $db = class_exists('Typecho_Db') ? Typecho_Db::get() : \Typecho\Db::get();
 $prefix = $db->getPrefix();
 
-// 获取所有已发布的文章，按时间倒序
+// 获取所有已发布的文章，按时间倒序（排除尚未到发布时间的定时文章）
 $select = $db->select()->from($prefix.'contents')
     ->where('type = ?', 'post')
     ->where('status = ?', 'publish')
+    ->where('created < ?', $this->options->time)
     ->order('created', $db::SORT_DESC);
 
 $posts = $db->fetchAll($select);
@@ -205,11 +206,6 @@ $pageContent = qiwiGetContent($this);
         </div>
         <?php endif; ?>
     </div>
-
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
-        <?php $this->need('sidebar.php'); ?>
-    </aside>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

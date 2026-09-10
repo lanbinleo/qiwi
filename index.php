@@ -4,7 +4,7 @@
  *
  * @package Qiwi
  * @author Leo
- * @version 2.1.2
+ * @version 2.1.3
  * @link https://bboreo.com
  */
 
@@ -117,26 +117,66 @@ if ($currentPage == 1) {
     $hasContent = !empty($postsToDisplay);
 
 } else {
-    // === 第2页及以后：只显示非置顶文章 ===
+    // === 第 2 页及以后：只显示非置顶文章，并补偿首页被置顶挤占的名额 ===
+    // 首页展示了全部 S 篇置顶 + 自然序前 (pageSize - S) 篇非置顶；若第 k 页仍从自然序
+    // 第 (k-1)*pageSize 篇开始，就会有 S 篇非置顶文章永远不在首页列表出现。
+    // 因此非置顶流在第 k 页的起点应为 (k-1)*pageSize - S。
 
-    // 查询所有置顶文章的 CID
     $db = Typecho_Db::get();
     $stickyQuery = $db->select('table.fields.cid')->from('table.fields')
         ->where('table.fields.name = ?', 'isSticky')
         ->where('table.fields.str_value = ?', '1');
+    $stickyCids = array_map('intval', array_column($db->fetchAll($stickyQuery), 'cid'));
 
-    $stickyResult = $db->fetchAll($stickyQuery);
-    $stickyCids = array_column($stickyResult, 'cid');
-
-    while($this->next()) {
-        // 过滤掉置顶文章
-        if (!in_array($this->cid, $stickyCids)) {
-            $postsToDisplay[] = [
-                'widget' => clone $this,
-                'isSticky' => false
-            ];
-            $hasContent = true;
+    // S 只统计首页真正展示的置顶：已发布、非定时、且首页可见（与 Widget 查询同口径）。
+    $stickyCount = 0;
+    if (!empty($stickyCids)) {
+        $stickyCountSelect = $db->select('table.contents.cid')->from('table.contents')
+            ->where('table.contents.cid IN ?', $stickyCids)
+            ->where('table.contents.type = ?', 'post')
+            ->where('table.contents.status = ?', 'publish')
+            ->where('table.contents.created < ?', $this->options->time);
+        if (function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
+            qiwiApplyContentVisibilityToArchiveSelect($this, $stickyCountSelect);
         }
+        $stickyCount = count($db->fetchAll($stickyCountSelect));
+    }
+
+    $normalOffset = max(0, ($currentPage - 1) * $pageSize - $stickyCount);
+    $normalSelect = $this->select()
+        ->where('table.contents.type = ?', 'post')
+        ->where('table.contents.status = ?', 'publish')
+        ->where('table.contents.created < ?', $this->options->time)
+        ->order('table.contents.created', Typecho_Db::SORT_DESC)
+        ->offset($normalOffset)
+        ->limit($pageSize);
+    if (!empty($stickyCids)) {
+        $normalSelect->where('table.contents.cid NOT IN ?', $stickyCids);
+    }
+    if (function_exists('qiwiApplyContentVisibilityToArchiveSelect')) {
+        qiwiApplyContentVisibilityToArchiveSelect($this, $normalSelect);
+    }
+
+    foreach ($db->fetchAll($normalSelect) as $postData) {
+        $widget = clone $this;
+        foreach ($postData as $key => $value) {
+            $widget->$key = $value;
+        }
+
+        $fieldsData = $db->fetchAll($db->select()->from('table.fields')
+            ->where('cid = ?', $postData['cid']));
+        $fields = new stdClass();
+        foreach ($fieldsData as $field) {
+            $fieldName = $field['name'];
+            $fields->$fieldName = $field['str_value'] ? $field['str_value'] : $field['int_value'];
+        }
+        $widget->fields = $fields;
+
+        $postsToDisplay[] = [
+            'widget' => $widget,
+            'isSticky' => false
+        ];
+        $hasContent = true;
     }
 }
 
@@ -216,11 +256,6 @@ if (function_exists('qiwiPrimePostStatsCache')) {
         </div>
         <?php endif; ?>
     </div>
-
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
-        <?php $this->need('sidebar.php'); ?>
-    </aside>
 
     <!-- 右侧留白 -->
     <div class="layout-spacer-right"></div>

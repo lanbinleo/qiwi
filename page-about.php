@@ -254,6 +254,7 @@ $aboutTabStorageKey = 'qiwi:about-active-tab:' . rtrim((string) $this->permalink
                             finished = true;
                             cleanupSwipe(prevPanel, nextPanel, container, { prevAnim: prevAnim, nextAnim: nextAnim, containerAnim: containerAnim });
                             if (swipe && swipe.prevPanel === prevPanel) swipe = null;
+                            refreshToc();
                         }
                         prevAnim.onfinish = done;
                         nextAnim.onfinish = done;
@@ -278,6 +279,14 @@ $aboutTabStorageKey = 'qiwi:about-active-tab:' . rtrim((string) $this->permalink
 
                 currentIdx = idx;
                 if (persist !== false) writeStoredTab(idx);
+                if (!doSwipe && idx !== prevIdx) refreshToc();
+            }
+
+            // 目录只收录当前可见面板的标题，面板切换完成后交给 v2.js 重建
+            function refreshToc() {
+                if (window.QiwiPJAX && typeof window.QiwiPJAX.rebuildToc === 'function') {
+                    window.QiwiPJAX.rebuildToc();
+                }
             }
 
             tabs.forEach(function(tab, idx) {

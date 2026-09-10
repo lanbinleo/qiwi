@@ -578,6 +578,10 @@ $this->need('header.php');
     if (window.qiwiPlogController) window.qiwiPlogController.abort();
     window.qiwiPlogController = new AbortController();
     var qiwiPlogSignal = window.qiwiPlogController.signal;
+    // PJAX 离开本页时灯箱 DOM 会被替换，先把加在 <html> 上的滚动锁摘掉。
+    qiwiPlogSignal.addEventListener('abort', function() {
+        document.documentElement.classList.remove('plog-lightbox-open');
+    }, { once: true });
     var photos = <?php echo json_encode(array_values($photos), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     if (!photos.length) return;
 

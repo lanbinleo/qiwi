@@ -3,7 +3,6 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationItems($this) : [];
 $qiwiTemplate = isset($this->template) ? (string) $this->template : '';
 $qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems))
-    || (function_exists('qiwiSidebarSocialUsesFontAwesome') && qiwiSidebarSocialUsesFontAwesome($this))
     || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
 $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this);
 $qiwiCapture = function ($callback) {
