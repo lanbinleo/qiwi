@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.3
+ * @version 2.1.4
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -38,7 +38,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('Widget_Archive')->handleInit = array(__CLASS__, 'handleArchiveInit');
         Typecho_Plugin::factory('Widget_Feedback')->comment = array(__CLASS__, 'cacheCommentIpLocation');
         Typecho_Plugin::factory('Widget_Feedback')->finishComment = array(__CLASS__, 'rememberOwnComment');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地与外链点击统计已准备好。');
+        Typecho_Plugin::factory('Widget_Abstract_Contents')->contentEx = array(__CLASS__, 'contentExFilter');
+        Typecho_Plugin::factory('Widget_Abstract_Comments')->contentEx = array(__CLASS__, 'commentContentExFilter');
+        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地、外链点击统计与正文高亮/涂黑标记已准备好。');
     }
 
     public static function deactivate()
@@ -53,12 +55,149 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地与外链点击统计。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地、外链点击统计与正文高亮/涂黑标记。'));
         $form->addInput($info);
     }
 
     public static function personalConfig(Typecho_Widget_Helper_Form $form)
     {
+    }
+
+    // contentEx 在 Markdown 解析后触发；这里自包含地转换 ==高亮==/||涂黑||，
+    // 保证 feed、归档与后台预览等不经过主题模板的出口也不会泄露涂黑原文。
+    // 浏览者为登录管理员时，涂黑条额外携带签名令牌，可点击向 redact-reveal 接口取回原文。
+    public static function contentExFilter($text, $widget = null)
+    {
+        return self::renderInlineMarkers((string) $text, $widget);
+    }
+
+    // 说说存于 comments 表，核心评论 feed 会原样输出该表内容；
+    // 这里对评论内容应用同一套标记转换，确保 ||涂黑|| 不经由评论 feed 泄露。
+    // 不附带管理员取回属性：取回接口按 contents 表定位，说说不在范围内。
+    public static function commentContentExFilter($text, $widget = null)
+    {
+        return self::renderInlineMarkers((string) $text, null);
+    }
+
+    private static function renderInlineMarkers($html, $widget = null)
+    {
+        $html = (string) $html;
+        if ($html === '' || (strpos($html, '==') === false && strpos($html, '||') === false)) {
+            return $html;
+        }
+
+        $reveal = self::buildRedactRevealContext($widget);
+        $redactIndex = 0;
+
+        $parts = preg_split('/(<pre\b[\s\S]*?<\/pre>|<code\b[\s\S]*?<\/code>)/iu', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (!is_array($parts)) {
+            return $html;
+        }
+
+        foreach ($parts as $partIndex => $part) {
+            if (preg_match('/^<(pre|code)\b/iu', $part)) {
+                continue;
+            }
+
+            $parts[$partIndex] = self::renderInlineMarkerSegment($part, $reveal, $redactIndex);
+        }
+
+        return implode('', $parts);
+    }
+
+    private static function buildRedactRevealContext($widget)
+    {
+        if (empty($widget) || !class_exists('Typecho_Widget')) {
+            return null;
+        }
+
+        try {
+            $cid = isset($widget->cid) ? (int) $widget->cid : 0;
+            if ($cid <= 0) {
+                return null;
+            }
+
+            $user = Typecho_Widget::widget('Widget_User');
+            if (!method_exists($user, 'hasLogin') || !$user->hasLogin() || !$user->pass('administrator', true)) {
+                return null;
+            }
+
+            $endpoint = '';
+            $security = Typecho_Widget::widget('Widget_Security');
+            if (method_exists($security, 'getIndex')) {
+                $endpoint = (string) $security->getIndex('/action/qiwi-theme');
+            }
+
+            return array(
+                'cid' => $cid,
+                'hash' => substr(md5((string) $widget->text), 0, 8),
+                'endpoint' => $endpoint,
+            );
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    private static function renderInlineMarkerSegment($html, $reveal = null, &$index = 0)
+    {
+        $allowed = array('red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple');
+
+        // ||文字||：涂黑原文只保留在服务端，输出等宽占位色块；
+        // 管理员视图附加签名令牌用于点击取回原文（取回时仍会在服务端复核身份与签名）。
+        // (?<![A-Za-z0-9_/]) 边界避免误吃 URL/base64 中的 ==、Markdown 表格竖线；?? 兜底防 PCRE 超限丢内容。
+        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', function ($matches) use ($reveal, &$index) {
+            $index++;
+            $width = self::redactMarkerWidth(isset($matches[1]) ? $matches[1] : '');
+            $attrs = ' style="--qiwi-redact-len:' . $width . '" role="img" aria-label="已隐藏内容"';
+            if (is_array($reveal)) {
+                $value = $reveal['cid'] . ':' . $index . ':' . $reveal['hash'];
+                $attrs .= ' data-qiwi-reveal="' . $index . '" data-qiwi-reveal-cid="' . $reveal['cid'] . '"'
+                    . ' data-qiwi-reveal-sign="' . self::signValue('redact-reveal', $value) . '"'
+                    . ' data-qiwi-reveal-url="' . htmlspecialchars($reveal['endpoint'], ENT_QUOTES, 'UTF-8') . '"'
+                    . ' title="管理员点击查看原文"';
+            }
+            return '<span class="qiwi-redact"' . $attrs . '></span>';
+        }, $html) ?? $html;
+
+        // ==文字== / ==[color]文字==：荧光笔高亮；未知颜色词按字面保留；
+        // 内含 img/video 等替换型媒体时保持字面量，避免吞掉标记破坏 src 等属性。
+        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
+            $inner = isset($matches[2]) ? $matches[2] : '';
+            $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
+            if (preg_match('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $inner)) {
+                return $matches[0];
+            }
+            if ($word !== '' && !in_array($word, $allowed, true)) {
+                $inner = '[' . $word . ']' . $inner;
+                $word = '';
+            }
+            $class = 'qiwi-mark' . ($word !== '' ? ' qiwi-mark-' . $word : '');
+            return '<mark class="' . $class . '">' . $inner . '</mark>';
+        }, $html) ?? $html;
+
+        return $html;
+    }
+
+    private static function redactMarkerWidth($text)
+    {
+        $raw = (string) $text;
+        $media = preg_match_all('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $raw, $mediaMatches);
+        $media = is_int($media) ? $media : 0;
+
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($raw)));
+        $width = $media * 8;
+        if ($plain !== '') {
+            $total = preg_match_all('/./us', $plain, $totalMatches);
+            $wide = preg_match_all('/[^\x00-\x7F]/u', $plain, $wideMatches);
+            $total = is_int($total) ? $total : 0;
+            $wide = is_int($wide) ? $wide : 0;
+            $narrow = max(0, $total - $wide);
+            $width += $wide + $narrow * 0.55;
+        }
+
+        return max(2, min(12, (int) round($width)));
     }
 
     public static function handleArchiveInit($archive, $select)

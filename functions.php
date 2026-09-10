@@ -1541,6 +1541,9 @@ if (!function_exists('qiwiStripReadableShortcodes')) {
         }
 
         $text = preg_replace('/\[mark(?:\s+color=(["\']?)[a-zA-Z]+\1)?\]([\s\S]*?)\[\/mark\]/iu', '$2', $text);
+        // ||涂黑|| 的原文不允许进入任何纯文本出口（摘要、og:description、字数统计等）。
+        $text = preg_replace('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', ' ', $text) ?? $text;
+        $text = preg_replace('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*[a-zA-Z]+\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', '$1', $text) ?? $text;
         $text = preg_replace('/\[badge(?:\s+[^\]]*)?\]([\s\S]*?)\[\/badge\]/iu', '$1', $text);
         $text = preg_replace('/\[button(?:\s+[^\]]*)?\]([\s\S]*?)\[\/button\]/iu', '$1', $text);
         $text = preg_replace('/\[buttons(?:\s+[^\]]*)?\]([\s\S]*?)\[\/buttons\]/iu', '$1', $text);
@@ -2569,6 +2572,63 @@ if (!function_exists('qiwiAttachmentShortcodeHtml')) {
     }
 }
 
+if (!function_exists('qiwiRedactMarkerWidth')) {
+    function qiwiRedactMarkerWidth($text)
+    {
+        $raw = (string) $text;
+        $media = preg_match_all('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $raw, $mediaMatches);
+        $media = is_int($media) ? $media : 0;
+
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($raw)));
+        $width = $media * 8;
+        if ($plain !== '') {
+            $total = preg_match_all('/./us', $plain, $totalMatches);
+            $wide = preg_match_all('/[^\x00-\x7F]/u', $plain, $wideMatches);
+            $total = is_int($total) ? $total : 0;
+            $wide = is_int($wide) ? $wide : 0;
+            $narrow = max(0, $total - $wide);
+            $width += $wide + $narrow * 0.55;
+        }
+
+        return max(2, min(12, (int) round($width)));
+    }
+}
+
+if (!function_exists('qiwiRenderInlineMarkers')) {
+    // ==文字== / ==[color]文字== 荧光笔高亮；||文字|| 在服务端剥离原文，只保留等宽占位色块。
+    // (?<![A-Za-z0-9_/]) 与 (?<!\s) 边界：避免误吃 URL/base64 中的 ==、Markdown 表格竖线与宽松空格写法。
+    // PCRE 回溯超限时 preg_replace_callback 返回 null，用 ?? 兜底保留原文，绝不丢内容。
+    function qiwiRenderInlineMarkers($html)
+    {
+        $html = (string) $html;
+        if ($html === '' || (strpos($html, '==') === false && strpos($html, '||') === false)) {
+            return $html;
+        }
+
+        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', function ($matches) {
+            $width = qiwiRedactMarkerWidth(isset($matches[1]) ? $matches[1] : '');
+            return '<span class="qiwi-redact" style="--qiwi-redact-len:' . $width . '" role="img" aria-label="已隐藏内容"></span>';
+        }, $html) ?? $html;
+
+        $allowed = array('red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple');
+        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
+            $inner = isset($matches[2]) ? $matches[2] : '';
+            $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
+            if (preg_match('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $inner)) {
+                return $matches[0];
+            }
+            if ($word !== '' && !in_array($word, $allowed, true)) {
+                $inner = '[' . $word . ']' . $inner;
+                $word = '';
+            }
+            $class = 'qiwi-mark' . ($word !== '' ? ' qiwi-mark-' . $word : '');
+            return '<mark class="' . $class . '">' . $inner . '</mark>';
+        }, $html) ?? $html;
+
+        return $html;
+    }
+}
+
 if (!function_exists('qiwiRenderShortcodeSegment')) {
     function qiwiRenderShortcodeSegment($html, array $context = [])
     {
@@ -2845,6 +2905,8 @@ if (!function_exists('qiwiRenderShortcodeSegment')) {
         }
 
         $html = preg_replace('/<p>\s*(<div class="qiwi-buttons[\s\S]*?<\/div>)\s*<\/p>/iu', '$1', $html);
+
+        $html = qiwiRenderInlineMarkers($html);
 
         $html = preg_replace_callback('/\[mark(?:\s+color=(["\']?)([a-zA-Z]+)\1)?\]([\s\S]*?)\[\/mark\]/iu', function ($matches) {
             $color = qiwiSanitizeShortcodeColor(isset($matches[2]) && $matches[2] !== '' ? $matches[2] : 'yellow');

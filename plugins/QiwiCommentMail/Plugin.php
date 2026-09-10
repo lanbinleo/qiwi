@@ -12,7 +12,7 @@ use \Typecho\Widget\Helper\Form\Element\{Password, Text, Radio, Checkbox, Textar
  *
  * @package QiwiCommentMail
  * @author  Leo 里奥
- * @version 2.1.3
+ * @version 2.1.4
  * @link https://bboreo.com/
  * @LastEditDate 20260623
  */
