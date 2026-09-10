@@ -93,7 +93,9 @@ class Action extends Widget implements \Widget\ActionInterface
 
     private function deliverMail(?string $key, bool $checkKey = true, bool $throwJson = true): void
     {
-        if ($checkKey && !hash_equals((string)$this->cfgValue('key', ''), (string)$key)) {
+        // 未配置队列密钥时 hash_equals('', '') 恒为真，公开端点会变成无鉴权触发器，必须直接拒绝。
+        $configuredKey = trim((string)$this->cfgValue('key', ''));
+        if ($checkKey && ($configuredKey === '' || !hash_equals($configuredKey, (string)$key))) {
             $this->response->throwJson([
                 'code' => -1,
                 'msg' => 'Permission denied'

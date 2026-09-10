@@ -8,7 +8,7 @@ require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
  *
  * @package Qiwi GTest
  * @author Leo 里奥
- * @version 2.1.2
+ * @version 2.1.3
  * @link https://bboreo.com/
  * @link http://zsduo.com
  * @link https://ffis.me
@@ -92,21 +92,21 @@ class Geetest_Plugin implements Typecho_Plugin_Interface
             "typechoComment" => _t('评论页面')
         ], array(), _t('开启 Qiwi GTest 的页面，勾选则开启'), _t('Qiwi 主题已内置评论表单调用，无需手动编辑 comments.php。'));
         
-        $captchaId = new Typecho_Widget_Helper_Form_Element_Text('captchaId', null, '', _t('公钥（ID）：'));
-        $privateKey = new Typecho_Widget_Helper_Form_Element_Text('privateKey', null, '', _t('私钥（KEY）：'));
+        $captchaId = new Typecho_Widget_Helper_Form_Element_Text('captchaId', null, '', _t('公钥（ID）'));
+        $privateKey = new Typecho_Widget_Helper_Form_Element_Text('privateKey', null, '', _t('私钥（KEY）'));
 
         $dismode = new Typecho_Widget_Helper_Form_Element_Select('dismod', array(
             'float' => '浮动式（float）',
             'embed' => '嵌入式（embed）',
             'popup' => '弹出框（popup）'
-        ), 'float', _t('展现形式：'));
+        ), 'float', _t('展现形式'));
 
-        $cdnUrl = new Typecho_Widget_Helper_Form_Element_Text('cdnUrl', null, '', _t('引入JS的CDN加速地址：'), _t('注意使用 https 协议<br />留空默认引入本地/static/gt.js文件，不知道的可留空'));
+        $cdnUrl = new Typecho_Widget_Helper_Form_Element_Text('cdnUrl', null, '', _t('引入 JS 的 CDN 加速地址'), _t('注意使用 https 协议<br />留空默认引入本地/static/gt.js文件，不知道的可留空'));
 
         $debugMode = new Typecho_Widget_Helper_Form_Element_Select('debugMode', array(
             '0' => '关闭',
             '1' => '开启'
-        ), '0', _t('调试模式：'), _t('开启时，不会禁用提交按钮，用于测试插件是否生效。'));
+        ), '0', _t('调试模式'), _t('开启时，不会禁用提交按钮，用于测试插件是否生效。'));
         
         $form->addInput($isOpenGeetestPage);
         $form->addInput($captchaId);
@@ -135,7 +135,22 @@ class Geetest_Plugin implements Typecho_Plugin_Interface
             'ip_address' => $widgetRequest->getIp()
         );
 
-        $_SESSION['gt_server_ok'] = $geetestSdk->pre_process($data, 1);
+        $serverOk = (int) $geetestSdk->pre_process($data, 1);
+        if ($serverOk !== 1) {
+            // 极验服务不可达时不再下发可预测的宕机挑战值（其校验可被程序化绕过），
+            // 直接告知前端验证服务暂不可用，并清掉会话状态让后续校验必然失败。
+            unset($_SESSION['gt_server_ok'], $_SESSION['gt_user_id'], $_SESSION['gt_challenge']);
+            echo json_encode(array(
+                'success' => 0,
+                'gt' => (string) $pluginOptions->captchaId,
+                'challenge' => '',
+                'new_captcha' => 1,
+                'qiwi_unavailable' => 1
+            ));
+            return;
+        }
+
+        $_SESSION['gt_server_ok'] = 1;
         $_SESSION['gt_user_id'] = $data['user_id'];
         $captchaResponse = $geetestSdk->get_response();
         $_SESSION['gt_challenge'] = isset($captchaResponse['challenge']) ? $captchaResponse['challenge'] : '';
@@ -225,7 +240,10 @@ EOF;
             type: "get",
             dataType: "json",
             success: function (data) {
-                // console.log(data);
+                if (!data || data.qiwi_unavailable || !data.challenge) {
+                    jqGtCaptchaWaiting.text('验证服务暂不可用，请稍后刷新重试');
+                    return;
+                }
                 initGeetest({
                     gt: data.gt,
                     challenge: data.challenge,
@@ -413,6 +431,11 @@ EOF;
                     if (!window.initGeetest) return;
 
                     requestCaptcha(function(data) {
+                        if (!data || data.qiwi_unavailable || !data.challenge) {
+                            var unavailable = container.querySelector('.waiting');
+                            if (unavailable) unavailable.textContent = '验证服务暂不可用，请稍后刷新重试';
+                            return;
+                        }
                         window.initGeetest({
                             gt: data.gt,
                             challenge: data.challenge,
@@ -586,13 +609,15 @@ EOF;
 
     private static function isThemeCaptchaEnabled()
     {
+        // 与主题 functions.php 的判定保持一致：主题选项未保存过时视为关闭，
+        // 否则会出现前台不渲染控件、服务端却强制校验导致所有评论被拒的死局。
         try {
             $options = Helper::options();
-            return !isset($options->enabledCaptcha) || (string) $options->enabledCaptcha === '1';
+            return isset($options->enabledCaptcha) && (string) $options->enabledCaptcha === '1';
         } catch (Exception $e) {
-            return true;
+            return false;
         } catch (Throwable $e) {
-            return true;
+            return false;
         }
     }
 
@@ -712,15 +737,8 @@ EOF;
             return $result;
         }
 
-        if ((int) $_SESSION['gt_server_ok'] === 0) {
-            $result = $geetestSdk->fail_validate($_POST['geetest_challenge'], $_POST['geetest_validate'], $_POST['geetest_seccode']);
-            if ($result) {
-                unset($_SESSION['gt_server_ok'], $_SESSION['gt_user_id'], $_SESSION['gt_challenge']);
-            }
-
-            return $result;
-        }
-
+        // 宕机降级模式的本地 md5 校验可被程序化绕过，不再作为通过依据。
+        unset($_SESSION['gt_server_ok'], $_SESSION['gt_user_id'], $_SESSION['gt_challenge']);
         return 0;
     }
 

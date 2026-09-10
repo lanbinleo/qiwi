@@ -8,8 +8,8 @@
 class GeetestLib {
     const GT_SDK_VERSION = 'php_3.0.0';
 
-    public static $connectTimeout = 1;
-    public static $socketTimeout  = 1;
+    public static $connectTimeout = 3;
+    public static $socketTimeout  = 5;
 
     private $response;
 
@@ -30,7 +30,7 @@ class GeetestLib {
                 );
         $data = array_merge($data,$param);
         $query = http_build_query($data);
-        $url = "http://api.geetest.com/register.php?" . $query;
+        $url = "https://api.geetest.com/register.php?" . $query;
         $challenge = $this->send_request($url);
         if (strlen($challenge) != 32) {
             $this->failback_process();
@@ -108,7 +108,7 @@ class GeetestLib {
             "sdk"     => self::GT_SDK_VERSION
         );
         $query = array_merge($query,$param);
-        $url          = "http://api.geetest.com/validate.php";
+        $url          = "https://api.geetest.com/validate.php";
         $codevalidate = $this->post_request($url, $query);
         $obj = json_decode($codevalidate,true);
         if ($obj === false){
