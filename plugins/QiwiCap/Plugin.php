@@ -8,12 +8,13 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiCap
  * @author  Leo 里奥
- * @version 2.1.2
+ * @version 2.1.3
  * @link    https://capjs.js.org/
  */
 class QiwiCap_Plugin implements Typecho_Plugin_Interface
 {
-    const DEFAULT_WIDGET_SCRIPT = 'https://cdn.jsdelivr.net/npm/cap-widget@latest';
+    const DEFAULT_WIDGET_SCRIPT = 'https://cdn.jsdelivr.net/npm/cap-widget@0.1.57';
+    const CONFIG_BACKUP_OPTION = 'qiwi_cap_config_backup';
 
     public static function activate()
     {
@@ -33,6 +34,89 @@ class QiwiCap_Plugin implements Typecho_Plugin_Interface
 
     public static function deactivate()
     {
+        self::backupConfig();
+    }
+
+    /**
+     * Typecho 停用插件时会直接删除 plugin:QiwiCap 配置行，重新启用只剩表单默认值，
+     * Site Key / Secret Key 需要重填。接管核心配置写入：启用初始化时用停用前的备份
+     * 覆盖默认值，日常保存时同步刷新备份。
+     */
+    public static function configHandle(array $settings, $isInit)
+    {
+        if ($isInit) {
+            $backup = self::readConfigBackup();
+            if (!empty($backup)) {
+                $settings = array_merge($settings, $backup);
+            }
+        }
+
+        Helper::configPlugin('QiwiCap', $settings);
+        self::writeConfigBackup($settings);
+    }
+
+    private static function backupConfig()
+    {
+        try {
+            $config = Helper::options()->plugin('QiwiCap');
+            $data = method_exists($config, 'toArray') ? $config->toArray() : (array) $config;
+        } catch (Exception $e) {
+            return;
+        } catch (Throwable $e) {
+            return;
+        }
+
+        if (!empty($data)) {
+            self::writeConfigBackup($data);
+        }
+    }
+
+    private static function writeConfigBackup(array $data)
+    {
+        if (empty($data)) {
+            return;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $value = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $exists = $db->fetchRow($db->select('name')->from('table.options')
+                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                ->where('user = ?', 0));
+            if ($exists) {
+                $db->query($db->update('table.options')->rows(array('value' => $value))
+                    ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                    ->where('user = ?', 0));
+            } else {
+                $db->query($db->insert('table.options')->rows(array(
+                    'name' => self::CONFIG_BACKUP_OPTION,
+                    'user' => 0,
+                    'value' => $value,
+                )));
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+    }
+
+    private static function readConfigBackup()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')->from('table.options')
+                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
+                ->where('user = ?', 0));
+            if (empty($row['value'])) {
+                return array();
+            }
+
+            $data = json_decode((string) $row['value'], true);
+            return is_array($data) ? $data : array();
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
     }
 
     public static function config(Typecho_Widget_Helper_Form $form)
@@ -823,13 +907,15 @@ JS;
 
     private static function isThemeCaptchaEnabled()
     {
+        // 与主题 functions.php 的判定保持一致：主题选项未保存过时视为关闭，
+        // 否则会出现前台不渲染控件、服务端却强制校验导致所有评论被拒的死局。
         try {
             $options = Helper::options();
-            return !isset($options->enabledCaptcha) || (string) $options->enabledCaptcha === '1';
+            return isset($options->enabledCaptcha) && (string) $options->enabledCaptcha === '1';
         } catch (Exception $e) {
-            return true;
+            return false;
         } catch (Throwable $e) {
-            return true;
+            return false;
         }
     }
 
