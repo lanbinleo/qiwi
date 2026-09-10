@@ -22,6 +22,9 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         if ($this->request->is('do=attachment-download')) {
             $this->attachmentDownload();
         }
+        if ($this->request->is('do=redact-reveal')) {
+            $this->redactReveal();
+        }
 
         Typecho_Widget::widget('Widget_Security')->protect();
         $this->on($this->request->is('do=read-thread'))->readThread();
@@ -96,6 +99,53 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         header('X-Qiwi-Attachment: 1');
         readfile($path);
         exit;
+    }
+
+    public function redactReveal()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        // 该接口只读不写，身份与签名即全部防线；不依赖 referer 校验。
+        $user = Typecho_Widget::widget('Widget_User');
+        if (!$user->hasLogin() || !$user->pass('administrator', true)) {
+            $this->json(array('success' => false, 'message' => '仅管理员可查看涂黑内容。'), 403);
+        }
+
+        $cid = (int) $this->request->get('cid', 0);
+        $index = (int) $this->request->get('index', 0);
+        $sign = trim((string) $this->request->get('sign', ''));
+        if ($cid <= 0 || $index <= 0 || $sign === '') {
+            $this->json(array('success' => false, 'message' => '参数无效。'), 400);
+        }
+
+        $db = Typecho_Db::get();
+        $row = $db->fetchRow(
+            $db->select('text')
+                ->from('table.contents')
+                ->where('cid = ?', $cid)
+                ->limit(1)
+        );
+        if (empty($row) || !isset($row['text'])) {
+            $this->json(array('success' => false, 'message' => '内容不存在。'), 404);
+        }
+
+        $rawText = (string) $row['text'];
+        $value = $cid . ':' . $index . ':' . substr(md5($rawText), 0, 8);
+        if (!QiwiTheme_Plugin::verifySignedValue('redact-reveal', $value, $sign)) {
+            $this->json(array('success' => false, 'message' => '凭证无效或内容已修改。'), 403);
+        }
+
+        // 与渲染侧完全相同的涂黑正则，按出现顺序取第 index 段；
+        // 极端情况下（代码块内也写 ||…||）索引可能与页面顺序错位，仅影响管理员预览。
+        if (!preg_match_all('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', $rawText, $matches) || !isset($matches[1][$index - 1])) {
+            $this->json(array('success' => false, 'message' => '未找到对应的涂黑内容。'), 404);
+        }
+
+        $text = trim($matches[1][$index - 1]);
+        $this->response->setHeader('Cache-Control', 'no-store');
+        $this->json(array('success' => true, 'text' => $text));
     }
 
     public function readThread()

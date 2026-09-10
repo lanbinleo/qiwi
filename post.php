@@ -75,6 +75,7 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                                         <span>字体</span>
                                         <button type="button" data-reading-option="font" data-reading-value="readable">易读</button>
                                         <button type="button" data-reading-option="font" data-reading-value="plain">普通</button>
+                                        <button type="button" data-reading-option="font" data-reading-value="mono">等宽</button>
                                     </div>
                                     <div class="article-reading-group" data-reading-group="spacing" aria-label="间距">
                                         <span>间距</span>

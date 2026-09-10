@@ -1407,7 +1407,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.body && document.body.classList.contains('qiwi-v2')) return;
     var readingDefaults = { font: 'plain', spacing: 'wide', size: 'medium' };
     var readingLabels = {
-        font: { readable: '易读', plain: '普通' },
+        font: { readable: '易读', plain: '普通', mono: '等宽' },
         spacing: { wide: '宽', compact: '窄' },
         size: { large: '大', medium: '中', small: '小' }
     };

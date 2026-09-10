@@ -316,7 +316,7 @@
     function initReadingPreferences(root) {
         var defaults = { font: 'plain', spacing: 'wide', size: 'medium' };
         var labels = {
-            font: { readable: '易读', plain: '普通' },
+            font: { readable: '易读', plain: '普通', mono: '等宽' },
             spacing: { wide: '宽', compact: '窄' },
             size: { large: '大', medium: '中', small: '小' }
         };
@@ -1553,6 +1553,50 @@
         backToTopFrame = window.requestAnimationFrame(updateBackToTop);
     }
 
+    // 管理员点击涂黑条取回原文；普通访客的涂黑条不带这些数据属性，不会有任何交互。
+    function initRedactReveal(root) {
+        var scope = root && root.querySelectorAll ? root : document;
+        var bars = scope.querySelectorAll('.qiwi-redact[data-qiwi-reveal]');
+        if (!bars.length) return;
+
+        bars.forEach(function (bar) {
+            if (bar.dataset.v2Ready === '1') return;
+            bar.dataset.v2Ready = '1';
+            bar.setAttribute('role', 'button');
+            bar.tabIndex = 0;
+            var reveal = function () {
+                if (bar.classList.contains('is-revealed')) return;
+                var base = bar.getAttribute('data-qiwi-reveal-url') || '/action/qiwi-theme';
+                var url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'do=redact-reveal';
+                var body = 'cid=' + encodeURIComponent(bar.getAttribute('data-qiwi-reveal-cid') || '')
+                    + '&index=' + encodeURIComponent(bar.getAttribute('data-qiwi-reveal') || '')
+                    + '&sign=' + encodeURIComponent(bar.getAttribute('data-qiwi-reveal-sign') || '');
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                    body: body,
+                    credentials: 'same-origin'
+                }).then(function (response) {
+                    return response.json();
+                }).then(function (data) {
+                    if (!data || !data.success || typeof data.text !== 'string') return;
+                    bar.textContent = data.text;
+                    bar.classList.add('is-revealed');
+                    bar.removeAttribute('role');
+                    bar.removeAttribute('tabindex');
+                    bar.removeAttribute('title');
+                }).catch(function () {});
+            };
+            bar.addEventListener('click', reveal);
+            bar.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    reveal();
+                }
+            });
+        });
+    }
+
     function initPjaxPage(root, afterPjax) {
         initReadingPreferences(root);
         initCommentProfiles(root);
@@ -1563,6 +1607,7 @@
         initCodeBlocks(root);
         initMomentTextFolds(root);
         initAttachmentDownloads(root);
+        initRedactReveal(root);
         requestBackToTopUpdate();
         if (afterPjax) root.dataset.v2PjaxPage = '1';
         if (typeof window.initQiwiFolds === 'function') window.initQiwiFolds();

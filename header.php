@@ -175,6 +175,8 @@ $qiwiV2StyleVersion = @filemtime(__DIR__ . '/assets/css/v2.css');
 $qiwiV2StyleAsset = 'assets/css/v2.css' . ($qiwiV2StyleVersion ? '?v=' . $qiwiV2StyleVersion : '');
 $qiwiReadingFontVersion = @filemtime(__DIR__ . '/assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css');
 $qiwiReadingFontAsset = 'assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css' . ($qiwiReadingFontVersion ? '?v=' . $qiwiReadingFontVersion : '');
+$qiwiMonoFontVersion = @filemtime(__DIR__ . '/assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css');
+$qiwiMonoFontAsset = 'assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css' . ($qiwiMonoFontVersion ? '?v=' . $qiwiMonoFontVersion : '');
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($qiwiLang, ENT_QUOTES, 'UTF-8'); ?>">
@@ -187,6 +189,7 @@ $qiwiReadingFontAsset = 'assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css' .
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiReadingFontAsset), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiMonoFontAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiV2StyleAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <?php if ($qiwiUseFontAwesome): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
