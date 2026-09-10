@@ -2579,7 +2579,10 @@ if (!function_exists('qiwiRedactMarkerWidth')) {
         $media = preg_match_all('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $raw, $mediaMatches);
         $media = is_int($media) ? $media : 0;
 
-        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($raw)));
+        // 宽度按“实际可见文字”估算：剥掉标记与强调符号、解码 HTML 实体后再计数。
+        $plain = html_entity_decode(strip_tags($raw), ENT_QUOTES, 'UTF-8');
+        $plain = str_replace(array('==', '||', '~~', '**', '__', '```', '`'), '', $plain);
+        $plain = trim(preg_replace('/\s+/u', ' ', $plain));
         $width = $media * 8;
         if ($plain !== '') {
             $total = preg_match_all('/./us', $plain, $totalMatches);
@@ -2595,7 +2598,7 @@ if (!function_exists('qiwiRedactMarkerWidth')) {
 }
 
 if (!function_exists('qiwiRenderInlineMarkers')) {
-    // ==文字== / ==[color]文字== 荧光笔高亮；||文字|| 在服务端剥离原文，只保留等宽占位色块。
+    // ==文字== / ==[color]文字== 糖果色低光高亮；||文字|| 在服务端剥离原文，只保留等宽占位色块。
     // (?<![A-Za-z0-9_/]) 与 (?<!\s) 边界：避免误吃 URL/base64 中的 ==、Markdown 表格竖线与宽松空格写法。
     // PCRE 回溯超限时 preg_replace_callback 返回 null，用 ?? 兜底保留原文，绝不丢内容。
     function qiwiRenderInlineMarkers($html)
@@ -2621,7 +2624,7 @@ if (!function_exists('qiwiRenderInlineMarkers')) {
                 $inner = '[' . $word . ']' . $inner;
                 $word = '';
             }
-            $class = 'qiwi-mark' . ($word !== '' ? ' qiwi-mark-' . $word : '');
+            $class = 'qiwi-hl' . ($word !== '' ? ' qiwi-hl-' . $word : '');
             return '<mark class="' . $class . '">' . $inner . '</mark>';
         }, $html) ?? $html;
 

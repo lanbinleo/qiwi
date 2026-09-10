@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.4
+ * @version 2.1.5
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -112,7 +112,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         try {
-            $cid = isset($widget->cid) ? (int) $widget->cid : 0;
+            // Typecho Widget 没有 __isset，isset($widget->cid) 对行数据恒为 false；
+            // 必须直接访问走 __get，字段缺失时抛异常由下方 catch 兜底。
+            $cid = (int) $widget->cid;
             if ($cid <= 0) {
                 return null;
             }
@@ -161,8 +163,8 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return '<span class="qiwi-redact"' . $attrs . '></span>';
         }, $html) ?? $html;
 
-        // ==文字== / ==[color]文字==：荧光笔高亮；未知颜色词按字面保留；
-        // 内含 img/video 等替换型媒体时保持字面量，避免吞掉标记破坏 src 等属性。
+        // ==文字== / ==[color]文字==：糖果色低光高亮（色带压在文字下半部）；
+        // 未知颜色词按字面保留；内含 img/video 等替换型媒体时保持字面量，避免吞掉标记破坏 src 等属性。
         $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
             $inner = isset($matches[2]) ? $matches[2] : '';
             $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
@@ -173,7 +175,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
                 $inner = '[' . $word . ']' . $inner;
                 $word = '';
             }
-            $class = 'qiwi-mark' . ($word !== '' ? ' qiwi-mark-' . $word : '');
+            $class = 'qiwi-hl' . ($word !== '' ? ' qiwi-hl-' . $word : '');
             return '<mark class="' . $class . '">' . $inner . '</mark>';
         }, $html) ?? $html;
 
@@ -186,7 +188,10 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $media = preg_match_all('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $raw, $mediaMatches);
         $media = is_int($media) ? $media : 0;
 
-        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($raw)));
+        // 宽度按“实际可见文字”估算：剥掉标记与强调符号、解码 HTML 实体后再计数。
+        $plain = html_entity_decode(strip_tags($raw), ENT_QUOTES, 'UTF-8');
+        $plain = str_replace(array('==', '||', '~~', '**', '__', '```', '`'), '', $plain);
+        $plain = trim(preg_replace('/\s+/u', ' ', $plain));
         $width = $media * 8;
         if ($plain !== '') {
             $total = preg_match_all('/./us', $plain, $totalMatches);

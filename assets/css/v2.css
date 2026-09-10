@@ -517,7 +517,23 @@ body.qiwi-lightbox-open { overflow: hidden; }
 :root[data-reading-size="large"] .article-body ul,
 :root[data-reading-size="large"] .article-body ol { font-size: 1.04rem; }
 
-/* 正文行内标记：==高亮==（荧光笔洗染）与 ||涂黑||（原文已在服务端剥离，仅存占位色块） */
+/* 正文行内标记：==高亮== 为糖果色低光带（色带压在文字下半部）；
+   [mark] 短代码的 .qiwi-mark 仍是莫兰迪背景洗染；||涂黑|| 原文已在服务端剥离，仅存占位色块 */
+.qiwi-v2 mark.qiwi-hl {
+    padding: 0 .08em;
+    margin: 0 -.02em;
+    color: inherit;
+    background: linear-gradient(var(--qiwi-hl-band, #ffd93d), var(--qiwi-hl-band, #ffd93d)) 0 100% / 100% .44em no-repeat;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+.qiwi-v2 .qiwi-hl-yellow { --qiwi-hl-band: #ffd93d; }
+.qiwi-v2 .qiwi-hl-red { --qiwi-hl-band: #ff6b6b; }
+.qiwi-v2 .qiwi-hl-orange { --qiwi-hl-band: #ffa62b; }
+.qiwi-v2 .qiwi-hl-green { --qiwi-hl-band: #4be08a; }
+.qiwi-v2 .qiwi-hl-cyan { --qiwi-hl-band: #3cdce8; }
+.qiwi-v2 .qiwi-hl-blue { --qiwi-hl-band: #5ca9ff; }
+.qiwi-v2 .qiwi-hl-purple { --qiwi-hl-band: #b78cff; }
 .qiwi-v2 .qiwi-mark {
     padding: .04em .18em;
     margin: 0 -.05em;
