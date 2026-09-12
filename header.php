@@ -1,9 +1,6 @@
 <?php
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $qiwiNavItems = function_exists('qiwiGetNavigationItems') ? qiwiGetNavigationItems($this) : [];
-$qiwiTemplate = isset($this->template) ? (string) $this->template : '';
-$qiwiUseFontAwesome = (function_exists('qiwiNavigationUsesFontAwesome') && qiwiNavigationUsesFontAwesome($qiwiNavItems))
-    || in_array($qiwiTemplate, ['page-timemachine.php', 'page-timemachine'], true);
 $qiwiUseLatex = function_exists('qiwiShouldRenderLatex') && qiwiShouldRenderLatex($this);
 $qiwiCapture = function ($callback) {
     ob_start();
@@ -92,7 +89,8 @@ $qiwiTitlePrefix = $qiwiCapture(function () {
         'author'   => _t('%s 发布的文章')
     ], '', ' - ');
 });
-$qiwiSingleTitle = $this->is('single') ? $qiwiCapture(function () { $this->title(); }) : '';
+// 个别标题入库时已被预转义（存的是 &amp;），捕获后先解码，<title>/og/twitter/JSON-LD 统一按纯文本再转义。
+$qiwiSingleTitle = $this->is('single') ? html_entity_decode($qiwiCapture(function () { $this->title(); }), ENT_QUOTES | ENT_HTML5, 'UTF-8') : '';
 $qiwiPageTitle = $qiwiTitlePrefix !== '' ? $qiwiTitlePrefix . ' ' . $qiwiSiteTitle : $qiwiSiteTitle;
 if ($this->is('single') && $qiwiSingleTitle !== '' && strpos($qiwiTitlePrefix, $qiwiSingleTitle) === false) {
     $qiwiPageTitle = $qiwiSingleTitle . ' - ' . $qiwiSiteTitle;
@@ -177,6 +175,8 @@ $qiwiReadingFontVersion = @filemtime(__DIR__ . '/assets/fonts/lxgw-wenkai-screen
 $qiwiReadingFontAsset = 'assets/fonts/lxgw-wenkai-screen/lxgwwenkaiscreen.css' . ($qiwiReadingFontVersion ? '?v=' . $qiwiReadingFontVersion : '');
 $qiwiMonoFontVersion = @filemtime(__DIR__ . '/assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css');
 $qiwiMonoFontAsset = 'assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css' . ($qiwiMonoFontVersion ? '?v=' . $qiwiMonoFontVersion : '');
+$qiwiFontAwesomeVersion = @filemtime(__DIR__ . '/assets/vendor/font-awesome/css/all.min.css');
+$qiwiFontAwesomeAsset = 'assets/vendor/font-awesome/css/all.min.css' . ($qiwiFontAwesomeVersion ? '?v=' . $qiwiFontAwesomeVersion : '');
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($qiwiLang, ENT_QUOTES, 'UTF-8'); ?>">
@@ -191,9 +191,42 @@ $qiwiMonoFontAsset = 'assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css' . ($qiwiMo
     <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiReadingFontAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiMonoFontAsset), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiV2StyleAsset), ENT_QUOTES, 'UTF-8'); ?>">
-    <?php if ($qiwiUseFontAwesome): ?>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-    <?php endif; ?>
+    <!-- Font Awesome：点赞/赞赏/评论/附件/时光机等图标全站使用，cdnjs 优先加载，加载失败回落主题内置副本 -->
+    <link rel="stylesheet" id="qiwi-fa-cdn" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script>
+    (function () {
+        var local = '<?php echo htmlspecialchars(qiwiGetMappedAssetUrl($qiwiFontAwesomeAsset), ENT_QUOTES, 'UTF-8'); ?>';
+        var done = false;
+        function fallback() {
+            if (done) return;
+            done = true;
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = local;
+            document.head.appendChild(link);
+        }
+        function probe() {
+            if (done) return;
+            try {
+                var el = document.createElement('i');
+                el.className = 'fa-solid';
+                el.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;';
+                document.documentElement.appendChild(el);
+                var family = String(getComputedStyle(el).fontFamily || '');
+                document.documentElement.removeChild(el);
+                if (!/font awesome/i.test(family)) fallback();
+            } catch (e) {
+                fallback();
+            }
+        }
+        var cdn = document.getElementById('qiwi-fa-cdn');
+        if (cdn && cdn.addEventListener) cdn.addEventListener('error', fallback);
+        if (window.addEventListener) {
+            window.addEventListener('load', probe);
+            setTimeout(probe, 1500);
+        }
+    })();
+    </script>
 
     <!-- Meta Tags -->
     <meta name="description" content="<?php echo htmlspecialchars($qiwiDescription, ENT_QUOTES, 'UTF-8'); ?>">
@@ -243,8 +276,9 @@ $qiwiMonoFontAsset = 'assets/fonts/sarasa-mono-sc/sarasa-mono-sc.css' . ($qiwiMo
     </style>
     <?php endif; ?>
 
-    <!-- Typecho Header -->
-    <?php $this->header(); ?>
+    <!-- Typecho Header（主题已自行输出 description/keywords 与完整的 og/twitter meta，
+         抑制核心同名输出：核心摘要不认识主题短代码，会在 content 里漏出 [mark] 等原文） -->
+    <?php $this->header('description=&keywords=&social='); ?>
 </head>
 <body class="qiwi-v2">
 

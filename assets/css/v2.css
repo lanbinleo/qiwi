@@ -452,7 +452,7 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .archive-post-item .qiwi-category-link-purple { color: #78639a; }
 .qiwi-v2 .page-intro,
 .qiwi-v2 .page-subtitle,
-.qiwi-v2 .friends-header .page-intro { color: var(--v2-muted); font-size: .86rem; letter-spacing: 1px; line-height: 1.85; }
+.qiwi-v2 .friends-header .page-intro { color: var(--v2-muted); font-size: .86rem; letter-spacing: 1px; line-height: 1.85; overflow-wrap: anywhere; }
 
 /* 文章 */
 .qiwi-v2 .single-post { width: 100%; }
@@ -616,6 +616,14 @@ body.qiwi-lightbox-open { overflow: hidden; }
     color: var(--v2-text);
     border-bottom: 1px solid var(--v2-accent);
     transition: color .2s ease, border-color .2s ease;
+}
+/* 列表项与段落同等的长词断行保护：小站信息等 ul/li 里的长 URL 不能撑破窄屏 */
+.qiwi-v2 .article-body li,
+.qiwi-v2 .page-content li,
+.qiwi-v2 .archive-description li,
+.qiwi-v2 .friends-extra li,
+.qiwi-v2 .about-section li {
+    overflow-wrap: anywhere;
 }
 .qiwi-v2 .article-body a:hover,
 .qiwi-v2 .page-intro a:hover,
@@ -1469,6 +1477,8 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 
 /* 友链与关于 */
 .qiwi-v2 .friends-header { margin-bottom: 58px; }
+/* 兜底：任何未被断词规则覆盖的长字符串（数据来源不可控）都不能让页面横向滚动 */
+.qiwi-v2 .friends-page { overflow-x: clip; }
 .qiwi-v2 .friends-tabs-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 32px; }
 .qiwi-v2 .friends-tab-list { display: flex; gap: 20px; }
 .qiwi-v2 .friends-tab { padding: 3px 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--v2-muted); font-size: .8rem; letter-spacing: 2px; }
@@ -1482,7 +1492,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 .qiwi-v2 .friends-container { display: grid; gap: 42px; }
 .qiwi-v2 .friends-category { margin: 0; }
 .qiwi-v2 .category-title,
-.qiwi-v2 .apply-title { margin-bottom: 18px; color: var(--v2-muted); font-size: .76rem; font-weight: 400; letter-spacing: 4px; }
+.qiwi-v2 .apply-title { margin-bottom: 18px; color: var(--v2-muted); font-size: .76rem; font-weight: 400; letter-spacing: 4px; overflow-wrap: anywhere; }
 .qiwi-v2 .friends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; }
 .qiwi-v2 .friend-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 11px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .qiwi-v2 .friend-card:hover { transform: none; }
@@ -2339,7 +2349,7 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     .qiwi-v2 .moment-item { gap: 10px; }
     .qiwi-v2 .moment-avatar img { width: 32px; height: 32px; }
     .qiwi-v2 .moment-footer { align-items: flex-start; flex-direction: column; }
-    .qiwi-v2 .friends-tabs-head { align-items: stretch; }
+    .qiwi-v2 .friends-tabs-head { align-items: stretch; flex-wrap: wrap; }
     .qiwi-v2 .friends-tabs.is-feed-active .friend-feed-pager-top { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
     .qiwi-v2 .friend-feed-pager-top button,
     .qiwi-v2 .friend-feed-pager-top span { text-align: center; }

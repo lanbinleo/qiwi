@@ -210,7 +210,7 @@ $threadStatus = function_exists('qiwiThreadStatusLabel') ? qiwiThreadStatusLabel
                             $note = function_exists('qiwiThreadCleanOptionalText') ? qiwiThreadCleanOptionalText($note) : ($note === '0' ? '' : $note);
                         ?>
                         <article class="thread-post-block">
-                            <a class="thread-post-cover" href="<?php echo htmlspecialchars($post['permalink'], ENT_QUOTES, 'UTF-8'); ?>" aria-label="阅读《<?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?>》"></a>
+                            <a class="thread-post-cover" href="<?php echo htmlspecialchars($post['permalink'], ENT_QUOTES, 'UTF-8'); ?>" aria-label="阅读《<?php echo htmlspecialchars(html_entity_decode($post['title'], ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?>》"></a>
                             <div class="thread-post-marker">
                                 <span><?php echo htmlspecialchars($label !== '' ? $label : str_pad((string) $threadPostIndex, 2, '0', STR_PAD_LEFT), ENT_QUOTES, 'UTF-8'); ?></span>
                                 <time datetime="<?php echo htmlspecialchars(date('c', $post['created']), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(date('Y-m-d', $post['created']), ENT_QUOTES, 'UTF-8'); ?></time>
@@ -220,7 +220,7 @@ $threadStatus = function_exists('qiwiThreadStatusLabel') ? qiwiThreadStatusLabel
                                     <span><?php echo htmlspecialchars($role !== '' ? $role : '文章', ENT_QUOTES, 'UTF-8'); ?></span>
                                     <span><?php echo (int) $post['readingTime']; ?> 分钟阅读</span>
                                 </div>
-                                <h2><?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+                                <h2><?php echo htmlspecialchars(html_entity_decode($post['title'], ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?></h2>
                                 <?php if ($post['excerpt'] !== ''): ?>
                                     <p><?php echo htmlspecialchars($post['excerpt'], ENT_QUOTES, 'UTF-8'); ?></p>
                                 <?php endif; ?>

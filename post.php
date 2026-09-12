@@ -29,7 +29,8 @@ ob_start();
 $this->thePrev('%s', '');
 $qiwiPrevPostLink = trim(ob_get_clean());
 $qiwiPrevPostHref = '';
-$qiwiPrevPostTitle = trim(strip_tags($qiwiPrevPostLink));
+// 标题先解码：个别文章标题入库时已被预转义（存的是 &amp;），与 href 同步归一后再由模板统一单次转义。
+$qiwiPrevPostTitle = html_entity_decode(trim(strip_tags($qiwiPrevPostLink)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 if ($qiwiPrevPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiPrevPostLink, $matches)) {
     $qiwiPrevPostHref = html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
@@ -38,7 +39,7 @@ ob_start();
 $this->theNext('%s', '');
 $qiwiNextPostLink = trim(ob_get_clean());
 $qiwiNextPostHref = '';
-$qiwiNextPostTitle = trim(strip_tags($qiwiNextPostLink));
+$qiwiNextPostTitle = html_entity_decode(trim(strip_tags($qiwiNextPostLink)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPostLink, $matches)) {
     $qiwiNextPostHref = html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }

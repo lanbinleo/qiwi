@@ -2600,6 +2600,8 @@ if (!function_exists('qiwiRedactMarkerWidth')) {
 if (!function_exists('qiwiRenderInlineMarkers')) {
     // ==文字== / ==[color]文字== 糖果色低光高亮；||文字|| 在服务端剥离原文，只保留等宽占位色块。
     // (?<![A-Za-z0-9_/]) 与 (?<!\s) 边界：避免误吃 URL/base64 中的 ==、Markdown 表格竖线与宽松空格写法。
+    // 正文里的 < 必须通过块级标签负向断言：HyperDown 输出的相邻块之间没有换行，一旦放行跨块，
+    // <p>== 标题 ==</p> 分隔符（如 about 页 tab）会与后续标记误配对，把整段 HTML 吞进高亮/涂黑。
     // PCRE 回溯超限时 preg_replace_callback 返回 null，用 ?? 兜底保留原文，绝不丢内容。
     function qiwiRenderInlineMarkers($html)
     {
@@ -2608,18 +2610,19 @@ if (!function_exists('qiwiRenderInlineMarkers')) {
             return $html;
         }
 
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', function ($matches) {
+        $blockTags = 'p|div|h[1-6]|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|blockquote|pre|figure|figcaption|section|article|aside|main|header|footer|nav|hr|form|fieldset|details|summary|img|video|audio|picture|iframe|embed|object|svg|canvas';
+        $redactPattern = '/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n<]|\|(?!\|)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)\|\|(?!\|)/iu';
+        $highlightPattern = '/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n<]|=(?!=)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)==(?!=)/iu';
+
+        $html = preg_replace_callback($redactPattern, function ($matches) {
             $width = qiwiRedactMarkerWidth(isset($matches[1]) ? $matches[1] : '');
             return '<span class="qiwi-redact" style="--qiwi-redact-len:' . $width . '" role="img" aria-label="已隐藏内容"></span>';
         }, $html) ?? $html;
 
         $allowed = array('red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'purple');
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
+        $html = preg_replace_callback($highlightPattern, function ($matches) use ($allowed) {
             $inner = isset($matches[2]) ? $matches[2] : '';
             $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
-            if (preg_match('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $inner)) {
-                return $matches[0];
-            }
             if ($word !== '' && !in_array($word, $allowed, true)) {
                 $inner = '[' . $word . ']' . $inner;
                 $word = '';
@@ -4014,23 +4017,6 @@ if (!function_exists('qiwiGetNavigationItems')) {
         }
 
         return $items;
-    }
-}
-
-if (!function_exists('qiwiNavigationUsesFontAwesome')) {
-    function qiwiNavigationUsesFontAwesome($items)
-    {
-        foreach ((array) $items as $item) {
-            if (!empty($item['icon'])) {
-                return true;
-            }
-
-            if (!empty($item['children'])) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
 

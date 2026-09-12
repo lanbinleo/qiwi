@@ -149,7 +149,12 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         // ||文字||：涂黑原文只保留在服务端，输出等宽占位色块；
         // 管理员视图附加签名令牌用于点击取回原文（取回时仍会在服务端复核身份与签名）。
         // (?<![A-Za-z0-9_/]) 边界避免误吃 URL/base64 中的 ==、Markdown 表格竖线；?? 兜底防 PCRE 超限丢内容。
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', function ($matches) use ($reveal, &$index) {
+        // 正则与 functions.php qiwiRenderInlineMarkers 同源：正文里的 < 需通过块级标签负向断言，
+        // 防止 <p>== 标题 ==</p> 之类的分隔符跨块误配对吞掉整段 HTML（如 about 页 tab 与卡片网格）。
+        $blockTags = 'p|div|h[1-6]|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|blockquote|pre|figure|figcaption|section|article|aside|main|header|footer|nav|hr|form|fieldset|details|summary|img|video|audio|picture|iframe|embed|object|svg|canvas';
+        $redactPattern = '/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n<]|\|(?!\|)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)\|\|(?!\|)/iu';
+
+        $html = preg_replace_callback($redactPattern, function ($matches) use ($reveal, &$index) {
             $index++;
             $width = self::redactMarkerWidth(isset($matches[1]) ? $matches[1] : '');
             $attrs = ' style="--qiwi-redact-len:' . $width . '" role="img" aria-label="已隐藏内容"';
@@ -163,14 +168,11 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return '<span class="qiwi-redact"' . $attrs . '></span>';
         }, $html) ?? $html;
 
-        // ==文字== / ==[color]文字==：糖果色低光高亮（色带压在文字下半部）；
-        // 未知颜色词按字面保留；内含 img/video 等替换型媒体时保持字面量，避免吞掉标记破坏 src 等属性。
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
+        // ==文字== / ==[color]文字==：糖果色低光高亮（色带压在文字下半部）；未知颜色词按字面保留。
+        $highlightPattern = '/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n<]|=(?!=)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)==(?!=)/iu';
+        $html = preg_replace_callback($highlightPattern, function ($matches) use ($allowed) {
             $inner = isset($matches[2]) ? $matches[2] : '';
             $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
-            if (preg_match('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $inner)) {
-                return $matches[0];
-            }
             if ($word !== '' && !in_array($word, $allowed, true)) {
                 $inner = '[' . $word . ']' . $inner;
                 $word = '';
