@@ -523,17 +523,17 @@ body.qiwi-lightbox-open { overflow: hidden; }
     padding: 0 .08em;
     margin: 0 -.02em;
     color: inherit;
-    background: linear-gradient(var(--qiwi-hl-band, #ffd93d), var(--qiwi-hl-band, #ffd93d)) 0 100% / 100% .44em no-repeat;
+    background: linear-gradient(var(--qiwi-hl-band, #fff7c3), var(--qiwi-hl-band, #fff7c3)) 0 100% / 100% .44em no-repeat;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
 }
-.qiwi-v2 .qiwi-hl-yellow { --qiwi-hl-band: #ffd93d; }
-.qiwi-v2 .qiwi-hl-red { --qiwi-hl-band: #ff6b6b; }
-.qiwi-v2 .qiwi-hl-orange { --qiwi-hl-band: #ffa62b; }
-.qiwi-v2 .qiwi-hl-green { --qiwi-hl-band: #4be08a; }
-.qiwi-v2 .qiwi-hl-cyan { --qiwi-hl-band: #3cdce8; }
-.qiwi-v2 .qiwi-hl-blue { --qiwi-hl-band: #5ca9ff; }
-.qiwi-v2 .qiwi-hl-purple { --qiwi-hl-band: #b78cff; }
+.qiwi-v2 .qiwi-hl-yellow { --qiwi-hl-band: #fff7c3; }
+.qiwi-v2 .qiwi-hl-red { --qiwi-hl-band: #ff90ae; }
+.qiwi-v2 .qiwi-hl-orange { --qiwi-hl-band: #ffd1f2; }
+.qiwi-v2 .qiwi-hl-green { --qiwi-hl-band: #d3fcd3; }
+.qiwi-v2 .qiwi-hl-cyan { --qiwi-hl-band: #c8fafa; }
+.qiwi-v2 .qiwi-hl-blue { --qiwi-hl-band: #cadeff; }
+.qiwi-v2 .qiwi-hl-purple { --qiwi-hl-band: #e2ceff; }
 .qiwi-v2 .qiwi-mark {
     padding: .04em .18em;
     margin: 0 -.05em;
@@ -561,10 +561,11 @@ body.qiwi-lightbox-open { overflow: hidden; }
     display: inline-block;
     width: min(calc(var(--qiwi-redact-len, 3) * 1em), 12em);
     min-width: 1em;
-    height: .86em;
+    height: 1.7em;
+    height: 1lh; /* 与所在行行高等高；不支持 lh 的浏览器退回 1.7em */
     margin: 0 .1em;
-    vertical-align: -.06em;
-    border-radius: 2px;
+    vertical-align: top;
+    border-radius: 3px;
     background: var(--v2-redact-fill);
     user-select: none;
 }

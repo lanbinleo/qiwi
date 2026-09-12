@@ -39,9 +39,9 @@
   </div>
   <p class="demo-sub">
     本页加载的是 <code>dev/2.1.5</code> 工作区的真实 <code>assets/css/v2.css</code>。
-    <code>==高亮==</code> 现在是「低光糖果」：明亮糖果色的色带只压在<strong>文字下半部</strong>（参考图效果）；
-    已有的 <code>[mark]</code> 背景标记保留莫兰迪洗染，两者是不同功能，不再重复。
-    看完告诉我：颜色/色带高度是否要微调（可按颜色分别说），明暗两种模式都看看。
+    <code>==高亮==</code> 是「低光糖果」：粉彩糖果色的色带只压在<strong>文字下半部</strong>（.44em，已确认）；
+    已有的 <code>[mark]</code> 背景标记保留莫兰迪洗染，两者是不同功能。
+    涂黑条已加高到与整行行高一致。明暗两种模式都看看，颜色对照下方备注核对槽位。
   </p>
 
   <div class="demo-section">
@@ -50,7 +50,7 @@
       <p>写作是把混乱的想法变成可以传递的秩序，==而排版是这条路上最后的谦逊==。你希望读者注意到的，永远是==意思本身==，不是装饰。</p>
       <p>糖果色轮换：==[red]红色草莓味==、==[orange]橙色柑橘味==、==[yellow]黄色柠檬味==、==[green]绿色青苹果味==、==[cyan]青色薄荷味==、==[blue]蓝色蓝莓味==、==[purple]紫色葡萄味==。高亮内部支持==<strong>加粗</strong>与<a href="#">链接</a>==，跨行时每行都有色带。</p>
     </div>
-    <p class="demo-note">色带当前压在文字下方约 0.44em 处（可调，见第三节）。糖果色值：黄 #ffd93d、红 #ff6b6b、橙 #ffa62b、绿 #4be08a、青 #3cdce8、蓝 #5ca9ff、紫 #b78cff。</p>
+    <p class="demo-note">色带高度 .44em（已确认）。粉彩糖果色槽位：黄（默认）#fff7c3、红 #ff90ae、橙 #ffd1f2、绿 #d3fcd3、青 #c8fafa、蓝 #cadeff、紫 #e2ceff。</p>
   </div>
 
   <div class="demo-section">
@@ -86,7 +86,7 @@
       <p>同一句话，两种工具：<span class="qiwi-mark qiwi-mark-red">[mark] 是莫兰迪背景块</span>，安静地铺在整行字后面，适合做「底色标注」；<mark class="qiwi-hl qiwi-hl-red">== 是糖果低光带</mark>，明亮地扫过文字下半部，适合做「重点高亮」。</p>
       <p>涂黑条与文字混排：这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>很短的隐藏，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等长度，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段。管理员取回后：<span class="qiwi-redact is-revealed">这里是取回的原文</span>。</p>
     </div>
-    <p class="demo-note">2.1.5 同时修复：管理员点击涂黑条取回（Typecho 魔术属性 isset 误判导致令牌未输出）、涂黑宽度计算忽略 ==/加粗等标记并解码 HTML 实体。</p>
+    <p class="demo-note">涂黑条现在与整行行高一致（CSS <code>1lh</code>，旧浏览器退回 1.7em），不再只盖住字身高度。2.1.5 同时修复：管理员点击涂黑条取回（Typecho 魔术属性 isset 误判导致令牌未输出）、涂黑宽度计算忽略 ==/加粗等标记并解码 HTML 实体。</p>
   </div>
 
 </div>
