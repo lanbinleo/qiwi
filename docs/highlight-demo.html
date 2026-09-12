@@ -28,6 +28,16 @@
   /* 色带高度微调档（仅演示） */
   .demo-band-thin mark.qiwi-hl { background-size: 100% .32em; }
   .demo-band-tall mark.qiwi-hl { background-size: 100% .58em; }
+
+  /* 涂黑条高度对比档（仅演示；1.2em 为 v2.css 当前默认） */
+  .demo-redgrid { display: grid; grid-template-columns: 10em 1fr; gap: 12px; align-items: stretch; }
+  .demo-redlabel { color: var(--v2-muted); font-size: .74rem; text-align: right; align-self: center; line-height: 1.6; }
+  .demo-redlabel strong { color: var(--v2-accent); font-weight: 500; }
+  .demo-redgrid .demo-cell { border: 1px dashed var(--v2-border-soft); border-radius: 3px; padding: 12px 12px; text-align: left; color: var(--v2-text); line-height: 2; font-size: .95rem; }
+  .demo-red-h086 .qiwi-redact { height: .86em; vertical-align: -.06em; }
+  .demo-red-h100 .qiwi-redact { height: 1em; vertical-align: -.12em; }
+  .demo-red-h145 .qiwi-redact { height: 1.45em; vertical-align: -.28em; }
+  .demo-red-lh .qiwi-redact { height: 1lh; vertical-align: top; }
 </style>
 </head>
 <body class="qiwi-v2 demo-page">
@@ -41,7 +51,7 @@
     本页加载的是 <code>dev/2.1.5</code> 工作区的真实 <code>assets/css/v2.css</code>。
     <code>==高亮==</code> 是「低光糖果」：粉彩糖果色的色带只压在<strong>文字下半部</strong>（.44em，已确认）；
     已有的 <code>[mark]</code> 背景标记保留莫兰迪洗染，两者是不同功能。
-    涂黑条已加高到与整行行高一致。明暗两种模式都看看，颜色对照下方备注核对槽位。
+    涂黑条默认 1.2em（第四节有全档位对比）。明暗两种模式都看看，颜色对照下方备注核对槽位。
   </p>
 
   <div class="demo-section">
@@ -84,9 +94,32 @@
     <h2>三、与 [mark] 背景标记的分工 + 涂黑</h2>
     <div class="demo-card article-body">
       <p>同一句话，两种工具：<span class="qiwi-mark qiwi-mark-red">[mark] 是莫兰迪背景块</span>，安静地铺在整行字后面，适合做「底色标注」；<mark class="qiwi-hl qiwi-hl-red">== 是糖果低光带</mark>，明亮地扫过文字下半部，适合做「重点高亮」。</p>
-      <p>涂黑条与文字混排：这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>很短的隐藏，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等长度，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段。管理员取回后：<span class="qiwi-redact is-revealed">这里是取回的原文</span>。</p>
+      <p>涂黑条与文字混排（当前默认 1.2em，见第四节全档位对比）：这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>很短的隐藏，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等长度，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段。管理员取回后：<span class="qiwi-redact is-revealed">这里是取回的原文</span>。</p>
     </div>
-    <p class="demo-note">涂黑条现在与整行行高一致（CSS <code>1lh</code>，旧浏览器退回 1.7em），不再只盖住字身高度。2.1.5 同时修复：管理员点击涂黑条取回（Typecho 魔术属性 isset 误判导致令牌未输出）、涂黑宽度计算忽略 ==/加粗等标记并解码 HTML 实体。</p>
+    <p class="demo-note">2.1.5 同时修复：管理员点击涂黑条取回（Typecho 魔术属性 isset 误判导致令牌未输出）、涂黑宽度计算忽略 ==/加粗等标记并解码 HTML 实体。</p>
+  </div>
+
+  <div class="demo-section">
+    <h2>四、涂黑条高度全档位（每档含 短/中/长 三种宽度混排）</h2>
+    <div class="demo-card">
+      <div class="demo-redgrid">
+        <div class="demo-redlabel">.86em<br>2.1.4 原版</div>
+        <div class="demo-cell demo-red-h086">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">1.0em</div>
+        <div class="demo-cell demo-red-h100">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel"><strong>1.2em<br>当前默认</strong></div>
+        <div class="demo-cell">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">1.45em</div>
+        <div class="demo-cell demo-red-h145">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">整行行高<br>1lh（上一版）</div>
+        <div class="demo-cell demo-red-lh">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+      </div>
+    </div>
+    <p class="demo-note">1.2em ≈ 完整盖住一行字身（含上下沿少许），行距留白不被吃掉；整行 1lh 会把行距也填满，上一轮你觉得偏高。选中哪档告诉我，我改 v2.css 默认值。</p>
   </div>
 
 </div>

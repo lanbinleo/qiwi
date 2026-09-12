@@ -561,10 +561,9 @@ body.qiwi-lightbox-open { overflow: hidden; }
     display: inline-block;
     width: min(calc(var(--qiwi-redact-len, 3) * 1em), 12em);
     min-width: 1em;
-    height: 1.7em;
-    height: 1lh; /* 与所在行行高等高；不支持 lh 的浏览器退回 1.7em */
+    height: 1.2em;
     margin: 0 .1em;
-    vertical-align: top;
+    vertical-align: -.18em;
     border-radius: 3px;
     background: var(--v2-redact-fill);
     user-select: none;
