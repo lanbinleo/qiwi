@@ -1579,13 +1579,18 @@
                 }).then(function (response) {
                     return response.json();
                 }).then(function (data) {
-                    if (!data || !data.success || typeof data.text !== 'string') return;
+                    if (!data || !data.success || typeof data.text !== 'string') {
+                        bar.setAttribute('title', (data && data.message) || '取回失败');
+                        return;
+                    }
                     bar.textContent = data.text;
                     bar.classList.add('is-revealed');
                     bar.removeAttribute('role');
                     bar.removeAttribute('tabindex');
                     bar.removeAttribute('title');
-                }).catch(function () {});
+                }).catch(function () {
+                    bar.setAttribute('title', '取回失败，请稍后再试');
+                });
             };
             bar.addEventListener('click', reveal);
             bar.addEventListener('keydown', function (event) {

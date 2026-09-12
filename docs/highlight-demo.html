@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qiwi 高亮样式演示 · 糖果低光</title>
+<link rel="stylesheet" href="../assets/css/v2.css">
+<style>
+  /* ===== 演示页专用（不进 v2.css） ===== */
+  body.demo-page { margin: 0; padding: 40px 20px 80px; }
+  .demo-wrap { max-width: 860px; margin: 0 auto; }
+  .demo-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .demo-title { font-family: var(--v2-serif); color: var(--v2-heading); font-size: 1.5rem; margin: 0; }
+  .demo-sub { color: var(--v2-muted); font-size: .82rem; line-height: 1.7; margin: 8px 0 32px; }
+  .demo-toggle { padding: 6px 14px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: var(--v2-surface); color: var(--v2-text); cursor: pointer; font-size: .82rem; }
+  .demo-toggle:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+  .demo-section { margin: 40px 0; }
+  .demo-section > h2 { font-family: var(--v2-serif); color: var(--v2-heading); font-size: 1.1rem; margin: 0 0 14px; }
+  .demo-card { border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-surface); padding: 20px 22px; }
+  .demo-card p { color: var(--v2-text); line-height: 2; margin: 0 0 12px; }
+  .demo-card p:last-child { margin-bottom: 0; }
+  .demo-note { color: var(--v2-muted); font-size: .8rem; line-height: 1.8; margin-top: 10px; }
+  .demo-grid { display: grid; grid-template-columns: 5em 1fr 1fr 1fr; gap: 10px 12px; align-items: stretch; }
+  .demo-grid .demo-colhead { color: var(--v2-muted); font-size: .74rem; text-align: center; align-self: end; }
+  .demo-grid .demo-rowhead { color: var(--v2-text); font-size: .8rem; align-self: center; }
+  .demo-cell { border: 1px dashed var(--v2-border-soft); border-radius: 3px; padding: 12px 8px; text-align: center; color: var(--v2-text); line-height: 2; font-size: .95rem; }
+
+  /* 糖果色全色卡（仅演示） */
+  .demo-swatches { display: grid; grid-template-columns: 8.5em 3em 1fr 1.4fr; gap: 12px 12px; align-items: center; }
+  .demo-swatches .demo-colhead { text-align: center; align-self: end; }
+  .demo-swatch-name { color: var(--v2-muted); font-size: .74rem; text-align: right; line-height: 1.6; }
+  .demo-swatch-name code { font-size: .66rem; }
+  .demo-swatch-chip { width: 100%; height: 26px; border-radius: 4px; border: 1px solid var(--v2-border-soft); }
+  .demo-swatch-text { color: var(--v2-text); line-height: 2; font-size: .95rem; padding: 4px 0; }
+
+  /* 色带高度微调档（仅演示） */
+  .demo-band-thin mark.qiwi-hl { background-size: 100% .32em; }
+  .demo-band-tall mark.qiwi-hl { background-size: 100% .58em; }
+
+  /* 涂黑条高度对比档（仅演示；1.2em 为 v2.css 当前默认） */
+  .demo-redgrid { display: grid; grid-template-columns: 10em 1fr; gap: 12px; align-items: stretch; }
+  .demo-redlabel { color: var(--v2-muted); font-size: .74rem; text-align: right; align-self: center; line-height: 1.6; }
+  .demo-redlabel strong { color: var(--v2-accent); font-weight: 500; }
+  .demo-redgrid .demo-cell { border: 1px dashed var(--v2-border-soft); border-radius: 3px; padding: 12px 12px; text-align: left; color: var(--v2-text); line-height: 2; font-size: .95rem; }
+  .demo-red-h086 .qiwi-redact { height: .86em; vertical-align: -.06em; }
+  .demo-red-h100 .qiwi-redact { height: 1em; vertical-align: -.12em; }
+  .demo-red-h145 .qiwi-redact { height: 1.45em; vertical-align: -.28em; }
+  .demo-red-lh .qiwi-redact { height: 1lh; vertical-align: top; }
+</style>
+</head>
+<body class="qiwi-v2 demo-page">
+<div class="demo-wrap">
+
+  <div class="demo-head">
+    <h1 class="demo-title">Qiwi 高亮样式演示 · 糖果低光</h1>
+    <button type="button" class="demo-toggle" id="demoTheme">切换明暗</button>
+  </div>
+  <p class="demo-sub">
+    本页加载的是 <code>dev/2.1.5</code> 工作区的真实 <code>assets/css/v2.css</code>。
+    <code>==高亮==</code> 是「低光糖果」：粉彩糖果色的色带只压在<strong>文字下半部</strong>（.44em，已确认）；
+    已有的 <code>[mark]</code> 背景标记保留莫兰迪洗染，两者是不同功能。
+    涂黑条默认 1.2em（第四节有全档位对比）。明暗两种模式都看看，颜色对照下方备注核对槽位。
+  </p>
+
+  <div class="demo-section">
+    <h2>一、糖果低光全色系（== 语法 · 真实样式）</h2>
+    <div class="demo-card article-body">
+      <p>写作是把混乱的想法变成可以传递的秩序，==而排版是这条路上最后的谦逊==。你希望读者注意到的，永远是==意思本身==，不是装饰。</p>
+      <p>糖果色轮换：==[red]红色草莓味==、==[orange]橙色柑橘味==、==[yellow]黄色柠檬味==、==[green]绿色青苹果味==、==[cyan]青色薄荷味==、==[blue]蓝色蓝莓味==、==[purple]紫色葡萄味==。高亮内部支持==<strong>加粗</strong>与<a href="#">链接</a>==，跨行时每行都有色带。</p>
+    </div>
+    <p class="demo-note">色带高度 .44em（已确认）。粉彩糖果色槽位：黄（默认）#fff7c3、红 #ff90ae、橙 #ffd1f2、绿 #d3fcd3、青 #c8fafa、蓝 #cadeff、紫 #e2ceff。</p>
+  </div>
+
+  <div class="demo-section">
+    <h2>二、糖果色全色卡（逐色查看）</h2>
+    <div class="demo-card">
+      <div class="demo-swatches">
+        <div class="demo-colhead">槽位 / 写法</div>
+        <div class="demo-colhead">色板</div>
+        <div class="demo-colhead">单词效果</div>
+        <div class="demo-colhead">句中效果</div>
+
+        <div class="demo-swatch-name">默认（黄）<br><code>==文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#fff7c3"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">红<br><code>==[red]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#ff90ae"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-red">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-red">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">橙（粉）<br><code>==[orange]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#ffd1f2"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-orange">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-orange">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">绿<br><code>==[green]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#d3fcd3"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-green">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-green">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">青<br><code>==[cyan]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#c8fafa"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-cyan">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-cyan">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">蓝<br><code>==[blue]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#cadeff"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-blue">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-blue">被糖果带扫过的重点</mark>看起来是这样。</div>
+
+        <div class="demo-swatch-name">紫<br><code>==[purple]文字==</code></div>
+        <div class="demo-swatch-chip" style="background:#e2ceff"></div>
+        <div class="demo-swatch-text"><mark class="qiwi-hl qiwi-hl-purple">重点 Sample 123</mark></div>
+        <div class="demo-swatch-text">这句话里<mark class="qiwi-hl qiwi-hl-purple">被糖果带扫过的重点</mark>看起来是这样。</div>
+      </div>
+    </div>
+    <p class="demo-note">色号：默认/黄 #fff7c3、红 #ff90ae、橙 #ffd1f2、绿 #d3fcd3、青 #c8fafa、蓝 #cadeff、紫 #e2ceff。明暗模式都要看（右上角切换）；要换哪支直接给我新色号，也可以两支对调槽位。</p>
+  </div>
+
+  <div class="demo-section">
+    <h2>三、色带高度微调（默认黄）</h2>
+    <div class="demo-card">
+      <div class="demo-grid">
+        <div></div>
+        <div class="demo-colhead">细 · .32em</div>
+        <div class="demo-colhead">标准 · .44em（当前）</div>
+        <div class="demo-colhead">厚 · .58em</div>
+
+        <div class="demo-rowhead">默认黄</div>
+        <div class="demo-cell demo-band-thin"><mark class="qiwi-hl">被高亮的示例文字</mark></div>
+        <div class="demo-cell"><mark class="qiwi-hl">被高亮的示例文字</mark></div>
+        <div class="demo-cell demo-band-tall"><mark class="qiwi-hl">被高亮的示例文字</mark></div>
+
+        <div class="demo-rowhead">red</div>
+        <div class="demo-cell demo-band-thin"><mark class="qiwi-hl qiwi-hl-red">被高亮的示例文字</mark></div>
+        <div class="demo-cell"><mark class="qiwi-hl qiwi-hl-red">被高亮的示例文字</mark></div>
+        <div class="demo-cell demo-band-tall"><mark class="qiwi-hl qiwi-hl-red">被高亮的示例文字</mark></div>
+
+        <div class="demo-rowhead">cyan</div>
+        <div class="demo-cell demo-band-thin"><mark class="qiwi-hl qiwi-hl-cyan">被高亮的示例文字</mark></div>
+        <div class="demo-cell"><mark class="qiwi-hl qiwi-hl-cyan">被高亮的示例文字</mark></div>
+        <div class="demo-cell demo-band-tall"><mark class="qiwi-hl qiwi-hl-cyan">被高亮的示例文字</mark></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>四、与 [mark] 背景标记的分工 + 涂黑</h2>
+    <div class="demo-card article-body">
+      <p>同一句话，两种工具：<span class="qiwi-mark qiwi-mark-red">[mark] 是莫兰迪背景块</span>，安静地铺在整行字后面，适合做「底色标注」；<mark class="qiwi-hl qiwi-hl-red">== 是糖果低光带</mark>，明亮地扫过文字下半部，适合做「重点高亮」。</p>
+      <p>涂黑条与文字混排（当前默认 1.2em，见第四节全档位对比）：这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>很短的隐藏，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等长度，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段。管理员取回后：<span class="qiwi-redact is-revealed">这里是取回的原文</span>。</p>
+    </div>
+    <p class="demo-note">2.1.5 同时修复：管理员点击涂黑条取回（Typecho 魔术属性 isset 误判导致令牌未输出）、涂黑宽度计算忽略 ==/加粗等标记并解码 HTML 实体。</p>
+  </div>
+
+  <div class="demo-section">
+    <h2>五、涂黑条高度全档位（每档含 短/中/长 三种宽度混排）</h2>
+    <div class="demo-card">
+      <div class="demo-redgrid">
+        <div class="demo-redlabel">.86em<br>2.1.4 原版</div>
+        <div class="demo-cell demo-red-h086">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">1.0em</div>
+        <div class="demo-cell demo-red-h100">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel"><strong>1.2em<br>当前默认</strong></div>
+        <div class="demo-cell">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">1.45em</div>
+        <div class="demo-cell demo-red-h145">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+
+        <div class="demo-redlabel">整行行高<br>1lh（上一版）</div>
+        <div class="demo-cell demo-red-lh">这里有一段<span class="qiwi-redact" style="--qiwi-redact-len:2" role="img" aria-label="已隐藏内容"></span>短的，这是<span class="qiwi-redact" style="--qiwi-redact-len:5" role="img" aria-label="已隐藏内容"></span>中等，这是<span class="qiwi-redact" style="--qiwi-redact-len:12" role="img" aria-label="已隐藏内容"></span>很长的一段隐藏内容。</div>
+      </div>
+    </div>
+    <p class="demo-note">1.2em ≈ 完整盖住一行字身（含上下沿少许），行距留白不被吃掉；整行 1lh 会把行距也填满，上一轮你觉得偏高。选中哪档告诉我，我改 v2.css 默认值。</p>
+  </div>
+
+</div>
+<script>
+(function () {
+  var button = document.getElementById('demoTheme');
+  button.addEventListener('click', function () {
+    var html = document.documentElement;
+    html.setAttribute('data-theme', html.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+  });
+})();
+</script>
+</body>
+</html>

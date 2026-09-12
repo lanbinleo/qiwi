@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.4
+ * @version 2.1.5
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -112,7 +112,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         try {
-            $cid = isset($widget->cid) ? (int) $widget->cid : 0;
+            // Typecho Widget 没有 __isset，isset($widget->cid) 对行数据恒为 false；
+            // 必须直接访问走 __get，字段缺失时抛异常由下方 catch 兜底。
+            $cid = (int) $widget->cid;
             if ($cid <= 0) {
                 return null;
             }
@@ -147,7 +149,12 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         // ||文字||：涂黑原文只保留在服务端，输出等宽占位色块；
         // 管理员视图附加签名令牌用于点击取回原文（取回时仍会在服务端复核身份与签名）。
         // (?<![A-Za-z0-9_/]) 边界避免误吃 URL/base64 中的 ==、Markdown 表格竖线；?? 兜底防 PCRE 超限丢内容。
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', function ($matches) use ($reveal, &$index) {
+        // 正则与 functions.php qiwiRenderInlineMarkers 同源：正文里的 < 需通过块级标签负向断言，
+        // 防止 <p>== 标题 ==</p> 之类的分隔符跨块误配对吞掉整段 HTML（如 about 页 tab 与卡片网格）。
+        $blockTags = 'p|div|h[1-6]|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|blockquote|pre|figure|figcaption|section|article|aside|main|header|footer|nav|hr|form|fieldset|details|summary|img|video|audio|picture|iframe|embed|object|svg|canvas';
+        $redactPattern = '/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n<]|\|(?!\|)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)\|\|(?!\|)/iu';
+
+        $html = preg_replace_callback($redactPattern, function ($matches) use ($reveal, &$index) {
             $index++;
             $width = self::redactMarkerWidth(isset($matches[1]) ? $matches[1] : '');
             $attrs = ' style="--qiwi-redact-len:' . $width . '" role="img" aria-label="已隐藏内容"';
@@ -161,19 +168,16 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return '<span class="qiwi-redact"' . $attrs . '></span>';
         }, $html) ?? $html;
 
-        // ==文字== / ==[color]文字==：荧光笔高亮；未知颜色词按字面保留；
-        // 内含 img/video 等替换型媒体时保持字面量，避免吞掉标记破坏 src 等属性。
-        $html = preg_replace_callback('/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n]|=(?!=))*?)(?<!\s)==(?!=)/iu', function ($matches) use ($allowed) {
+        // ==文字== / ==[color]文字==：糖果色低光高亮（色带压在文字下半部）；未知颜色词按字面保留。
+        $highlightPattern = '/(?<![A-Za-z0-9_\/])==(?=[^\s=])(?:\[\s*([a-zA-Z]+)\s*\])?((?:[^=\n<]|=(?!=)|<(?!\/?(?:' . $blockTags . ')\b))*?)(?<!\s)==(?!=)/iu';
+        $html = preg_replace_callback($highlightPattern, function ($matches) use ($allowed) {
             $inner = isset($matches[2]) ? $matches[2] : '';
             $word = isset($matches[1]) && $matches[1] !== '' ? strtolower(trim($matches[1])) : '';
-            if (preg_match('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $inner)) {
-                return $matches[0];
-            }
             if ($word !== '' && !in_array($word, $allowed, true)) {
                 $inner = '[' . $word . ']' . $inner;
                 $word = '';
             }
-            $class = 'qiwi-mark' . ($word !== '' ? ' qiwi-mark-' . $word : '');
+            $class = 'qiwi-hl' . ($word !== '' ? ' qiwi-hl-' . $word : '');
             return '<mark class="' . $class . '">' . $inner . '</mark>';
         }, $html) ?? $html;
 
@@ -186,7 +190,10 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $media = preg_match_all('/<(?:img|video|audio|picture|iframe|embed|object|svg|canvas)\b/i', $raw, $mediaMatches);
         $media = is_int($media) ? $media : 0;
 
-        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($raw)));
+        // 宽度按“实际可见文字”估算：剥掉标记与强调符号、解码 HTML 实体后再计数。
+        $plain = html_entity_decode(strip_tags($raw), ENT_QUOTES, 'UTF-8');
+        $plain = str_replace(array('==', '||', '~~', '**', '__', '```', '`'), '', $plain);
+        $plain = trim(preg_replace('/\s+/u', ' ', $plain));
         $width = $media * 8;
         if ($plain !== '') {
             $total = preg_match_all('/./us', $plain, $totalMatches);
