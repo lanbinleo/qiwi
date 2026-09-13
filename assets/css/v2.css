@@ -1373,6 +1373,8 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .hm-dot.hm-tone-post { background: color-mix(in srgb, var(--v2-accent-strong) 60%, transparent); }
 .qiwi-v2 .hm-dot.hm-tone-moment { background: color-mix(in srgb, #397f86 60%, transparent); }
 .qiwi-v2 .hm-dot.hm-tone-obsidian { background: color-mix(in srgb, #7163ad 60%, transparent); }
+.qiwi-v2 .hm-dot.hm-tone-visitors { background: color-mix(in srgb, #7fae8e 70%, transparent); }
+.qiwi-v2 .hm-dot.hm-tone-views { background: color-mix(in srgb, #4d8062 70%, transparent); }
 .qiwi-v2 .hm-toggle { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 12px; border: 1px dashed var(--v2-border-soft); border-radius: 999px; background: transparent; color: var(--v2-muted); font-size: .7rem; letter-spacing: 1px; cursor: pointer; transition: color var(--transition), border-color var(--transition), transform .1s ease; }
 .qiwi-v2 .hm-toggle:hover { color: var(--v2-heading); border-color: var(--v2-accent-strong); }
 .qiwi-v2 .hm-toggle:active { transform: scale(.95); }
@@ -1383,7 +1385,8 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .hm-toggle[data-hm-mode="posts"] .hm-toggle-dot { background: color-mix(in srgb, var(--v2-accent-strong) 85%, transparent); }
 .qiwi-v2 .hm-toggle[data-hm-mode="moments"] .hm-toggle-dot { background: #397f86; }
 .qiwi-v2 .hm-toggle[data-hm-mode="obsidian"] .hm-toggle-dot { background: #7163ad; }
-.qiwi-v2 .hm-toggle[data-hm-mode="visits"] .hm-toggle-dot,
+.qiwi-v2 .hm-toggle[data-hm-mode="combined"] .hm-toggle-dot { background: linear-gradient(to top, #7fae8e 0 50%, #4d8062 50% 100%); }
+.qiwi-v2 .hm-toggle[data-hm-mode="visits"] .hm-toggle-dot { background: #7fae8e; }
 .qiwi-v2 .hm-toggle[data-hm-mode="views"] .hm-toggle-dot { background: #4d8062; }
 .qiwi-v2 .hm-tooltip { position: fixed; z-index: 90; max-width: 280px; padding: 6px 10px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: var(--v2-surface); color: var(--v2-text); font-size: .72rem; letter-spacing: .5px; line-height: 1.7; text-align: left; pointer-events: none; opacity: 0; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }
 .qiwi-v2 .hm-tooltip.is-visible { opacity: 1; transform: none; }
@@ -1391,6 +1394,23 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .heatmap-summary p { margin: 0; padding: 8px 2px; border-bottom: 1px dashed var(--v2-border-soft); color: var(--v2-muted); font-size: .8rem; letter-spacing: 1px; }
 .qiwi-v2 .heatmap-summary p:first-child { border-top: 1px dashed var(--v2-border-soft); }
 .qiwi-v2 .hm-num { margin: 0 2px; padding: 0 3px 1px; color: var(--v2-heading); font-family: var(--v2-serif); font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+/* 周/累计柱状图视图：一根 7 格的条自底向上按量填充，越高越亮（与柱高档位共用同一把尺） */
+.qiwi-v2 .hm-tone-post { --hm-tone-c: var(--v2-accent-strong); }
+.qiwi-v2 .hm-tone-moment { --hm-tone-c: #397f86; }
+.qiwi-v2 .hm-tone-obsidian { --hm-tone-c: #7163ad; }
+.qiwi-v2 .hm-tone-visitors { --hm-tone-c: #7fae8e; }
+.qiwi-v2 .hm-tone-views { --hm-tone-c: #4d8062; }
+.qiwi-v2 .hm-cell.hm-fill { background: color-mix(in srgb, var(--hm-tone-c) var(--hm-mix, 100%), transparent); }
+.qiwi-v2 .hm-b1 { --hm-mix: 30%; }
+.qiwi-v2 .hm-b2 { --hm-mix: 42%; }
+.qiwi-v2 .hm-b3 { --hm-mix: 55%; }
+.qiwi-v2 .hm-b4 { --hm-mix: 68%; }
+.qiwi-v2 .hm-b5 { --hm-mix: 80%; }
+.qiwi-v2 .hm-b6 { --hm-mix: 90%; }
+.qiwi-v2 .hm-b7 { --hm-mix: 100%; }
+/* 柱状视图左侧轨道换成 0–100 刻度（顶格 = 当前口径/视图的满格值），数字小一号、右对齐贴图表 */
+.qiwi-v2 .heatmap-weekdays .hm-rail-num { font-size: .54rem; letter-spacing: 0; justify-content: flex-end; }
 @media (max-width: 860px) {
     .qiwi-v2 .archives-heatmap-section { --hm-cell: 8px; --hm-gap: 2px; --hm-label: 12px; }
     .qiwi-v2 .heatmap-section-head { flex-wrap: wrap; gap: 8px 14px; }
