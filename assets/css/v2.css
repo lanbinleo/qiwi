@@ -1360,6 +1360,11 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .hm-tone-reader.hm-l2 { background: color-mix(in srgb, #4d8062 55%, transparent); }
 .qiwi-v2 .hm-tone-reader.hm-l3 { background: color-mix(in srgb, #4d8062 78%, transparent); }
 .qiwi-v2 .hm-tone-reader.hm-l4 { background: #4d8062; }
+/* 随笔层：丁香紫家族加深，与青/绿同档次的低饱和纸日志调 */
+.qiwi-v2 .hm-tone-obsidian.hm-l1 { background: color-mix(in srgb, #7163ad 32%, transparent); }
+.qiwi-v2 .hm-tone-obsidian.hm-l2 { background: color-mix(in srgb, #7163ad 55%, transparent); }
+.qiwi-v2 .hm-tone-obsidian.hm-l3 { background: color-mix(in srgb, #7163ad 78%, transparent); }
+.qiwi-v2 .hm-tone-obsidian.hm-l4 { background: #7163ad; }
 .qiwi-v2 .heatmap-legend { display: flex; align-items: center; gap: 18px; margin-top: 10px; color: var(--v2-muted); font-size: .68rem; letter-spacing: 1px; }
 .qiwi-v2 .heatmap-legend-scale { display: inline-flex; align-items: center; gap: 3px; }
 .qiwi-v2 .heatmap-legend-metric { margin-left: 4px; }
@@ -1367,14 +1372,17 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .hm-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; }
 .qiwi-v2 .hm-dot.hm-tone-post { background: color-mix(in srgb, var(--v2-accent-strong) 60%, transparent); }
 .qiwi-v2 .hm-dot.hm-tone-moment { background: color-mix(in srgb, #397f86 60%, transparent); }
+.qiwi-v2 .hm-dot.hm-tone-obsidian { background: color-mix(in srgb, #7163ad 60%, transparent); }
 .qiwi-v2 .hm-toggle { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 12px; border: 1px dashed var(--v2-border-soft); border-radius: 999px; background: transparent; color: var(--v2-muted); font-size: .7rem; letter-spacing: 1px; cursor: pointer; transition: color var(--transition), border-color var(--transition), transform .1s ease; }
 .qiwi-v2 .hm-toggle:hover { color: var(--v2-heading); border-color: var(--v2-accent-strong); }
 .qiwi-v2 .hm-toggle:active { transform: scale(.95); }
 .qiwi-v2 .hm-toggle:focus-visible { outline: 1px dashed var(--v2-accent-strong); outline-offset: 2px; }
 .qiwi-v2 .hm-toggle-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; }
-.qiwi-v2 .hm-toggle[data-hm-mode="all"] .hm-toggle-dot { background: linear-gradient(90deg, color-mix(in srgb, var(--v2-accent-strong) 85%, transparent) 0 50%, #397f86 50% 100%); }
+.qiwi-v2 .hm-toggle[data-hm-mode="all"] .hm-toggle-dot { background: linear-gradient(90deg, color-mix(in srgb, var(--v2-accent-strong) 85%, transparent) 0 34%, #397f86 34% 67%, #7163ad 67% 100%); }
+.qiwi-v2 .hm-toggle[data-hm-mode="blog"] .hm-toggle-dot { background: linear-gradient(90deg, color-mix(in srgb, var(--v2-accent-strong) 85%, transparent) 0 50%, #397f86 50% 100%); }
 .qiwi-v2 .hm-toggle[data-hm-mode="posts"] .hm-toggle-dot { background: color-mix(in srgb, var(--v2-accent-strong) 85%, transparent); }
 .qiwi-v2 .hm-toggle[data-hm-mode="moments"] .hm-toggle-dot { background: #397f86; }
+.qiwi-v2 .hm-toggle[data-hm-mode="obsidian"] .hm-toggle-dot { background: #7163ad; }
 .qiwi-v2 .hm-toggle[data-hm-mode="visits"] .hm-toggle-dot,
 .qiwi-v2 .hm-toggle[data-hm-mode="views"] .hm-toggle-dot { background: #4d8062; }
 .qiwi-v2 .hm-tooltip { position: fixed; z-index: 90; max-width: 280px; padding: 6px 10px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: var(--v2-surface); color: var(--v2-text); font-size: .72rem; letter-spacing: .5px; line-height: 1.7; text-align: left; pointer-events: none; opacity: 0; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }

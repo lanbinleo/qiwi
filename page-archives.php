@@ -164,19 +164,54 @@ foreach ($momentRows as $moment) {
     $heatmapDaysRaw[$day]['m']++;
 }
 
+// === 私人随笔层（Obsidian「当天新建笔记数」，渲染只读插件缓存，零网络） ===
+$hasObsidian = false;
+if (class_exists('QiwiTheme_Obsidian')) {
+    $obsidianStats = QiwiTheme_Obsidian::peekStats();
+    if (is_array($obsidianStats) && !empty($obsidianStats['daily'])) {
+        foreach ($obsidianStats['daily'] as $obsidianDay => $obsidianCount) {
+            $obsidianDay = (string) $obsidianDay;
+            $obsidianCount = (int) $obsidianCount;
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $obsidianDay) || $obsidianCount <= 0) {
+                continue;
+            }
+            if (!isset($heatmapDaysRaw[$obsidianDay])) {
+                $heatmapDaysRaw[$obsidianDay] = ['p' => 0, 'm' => 0];
+            }
+            $heatmapDaysRaw[$obsidianDay]['o'] = $obsidianCount;
+            $hasObsidian = true;
+        }
+    }
+}
+$writingToggleModes = [
+    ['key' => 'all', 'label' => '全部'],
+    ['key' => 'posts', 'label' => '文章'],
+    ['key' => 'moments', 'label' => '说说'],
+];
+if ($hasObsidian) {
+    $writingToggleModes = [
+        ['key' => 'all', 'label' => '全部'],
+        ['key' => 'blog', 'label' => '博客'],
+        ['key' => 'posts', 'label' => '文章'],
+        ['key' => 'moments', 'label' => '说说'],
+        ['key' => 'obsidian', 'label' => '随笔'],
+    ];
+}
+
 // 热力图窗口起点：本周周一往前推 52 周（与渲染函数同口径）
 $heatmapWindowStart = date('Y-m-d', strtotime(date('Y-m-d 00:00:00')) - (((int) date('N') - 1) + 52 * 7) * 86400);
 $pastYearActiveDays = 0;
 foreach ($heatmapDaysRaw as $day => $info) {
-    if ($info['p'] + $info['m'] > 0 && strcmp($day, $heatmapWindowStart) >= 0) {
+    if ($info['p'] + $info['m'] + (isset($info['o']) ? $info['o'] : 0) > 0 && strcmp($day, $heatmapWindowStart) >= 0) {
         $pastYearActiveDays++;
     }
 }
 
-// 默认视图着色（深浅按当天条数，有文章用琥珀、纯说说用青）
+// 默认视图着色（深浅按当天条数，有文章用琥珀、纯说说用青、纯随笔用紫）
 $heatmapCells = [];
 foreach ($heatmapDaysRaw as $day => $info) {
-    $count = $info['p'] + $info['m'];
+    $obsidian = isset($info['o']) ? (int) $info['o'] : 0;
+    $count = $info['p'] + $info['m'] + $obsidian;
     if ($count <= 0) {
         continue;
     }
@@ -187,9 +222,12 @@ foreach ($heatmapDaysRaw as $day => $info) {
     if ($info['m'] > 0) {
         $parts[] = '说说 ' . $info['m'];
     }
+    if ($obsidian > 0) {
+        $parts[] = '随笔 ' . $obsidian;
+    }
     $heatmapCells[$day] = [
         'level' => $count >= 4 ? 4 : $count,
-        'tone' => $info['p'] > 0 ? 'post' : 'moment',
+        'tone' => $info['p'] > 0 ? 'post' : ($info['m'] > 0 ? 'moment' : 'obsidian'),
         'title' => date('Y年n月j日', strtotime($day . ' 00:00:00')) . ' · ' . implode(' · ', $parts),
     ];
 }
@@ -381,7 +419,7 @@ $pageContent = qiwiGetContent($this);
                 '写作经历热力图（过去一年），共 ' . (int) $pastYearActiveDays . ' 天在写作',
                 'post',
                 '写作',
-                '<span class="hm-dot hm-tone-post"></span>有文章 <span class="hm-dot hm-tone-moment"></span>仅说说',
+                '<span class="hm-dot hm-tone-post"></span>有文章 <span class="hm-dot hm-tone-moment"></span>仅说说' . ($hasObsidian ? ' <span class="hm-dot hm-tone-obsidian"></span>仅随笔' : ''),
                 'writing',
                 $heatmapDaysRaw
             ); ?>
@@ -500,6 +538,9 @@ $pageContent = qiwiGetContent($this);
         if (info.m > 0) {
             parts.push('说说 ' + info.m);
         }
+        if (info.o > 0) {
+            parts.push('随笔 ' + info.o);
+        }
         return parts.length > 0 ? text + ' · ' + parts.join(' · ') : text + ' · 无记录';
     }
 
@@ -540,7 +581,7 @@ $pageContent = qiwiGetContent($this);
         }
     }
 
-    // 写作口径：全部 / 只看文章 / 只看说说（与服务端着色同一套阈值）
+    // 写作口径：全部 / 博客（文章+说说）/ 只看文章 / 只看说说 / 只看随笔（与服务端着色同一套阈值）
     function applyFilter(section, mode) {
         var grid = gridOf(section);
         if (!grid || grid.getAttribute('data-hm-kind') !== 'writing') {
@@ -553,6 +594,7 @@ $pageContent = qiwiGetContent($this);
             var info = data[cell.getAttribute('data-hm-day')];
             var posts = info ? (info.p || 0) : 0;
             var moments = info ? (info.m || 0) : 0;
+            var obsidian = info ? (info.o || 0) : 0;
             var level = 0;
             var tone = 'post';
             if (mode === 'posts') {
@@ -565,11 +607,22 @@ $pageContent = qiwiGetContent($this);
                     level = moments >= 4 ? 4 : moments;
                     tone = 'moment';
                 }
+            } else if (mode === 'blog') {
+                var blogCount = posts + moments;
+                if (blogCount > 0) {
+                    level = blogCount >= 4 ? 4 : blogCount;
+                    tone = posts > 0 ? 'post' : 'moment';
+                }
+            } else if (mode === 'obsidian') {
+                if (obsidian > 0) {
+                    level = obsidian >= 4 ? 4 : obsidian;
+                    tone = 'obsidian';
+                }
             } else {
-                var count = posts + moments;
+                var count = posts + moments + obsidian;
                 if (count > 0) {
                     level = count >= 4 ? 4 : count;
-                    tone = posts > 0 ? 'post' : 'moment';
+                    tone = posts > 0 ? 'post' : (moments > 0 ? 'moment' : 'obsidian');
                 }
             }
             var classes = 'hm-cell hm-l' + level;
@@ -609,11 +662,7 @@ $pageContent = qiwiGetContent($this);
     }
 
     var TOGGLE_MODES = {
-        writing: [
-            { key: 'all', label: '全部' },
-            { key: 'posts', label: '文章' },
-            { key: 'moments', label: '说说' }
-        ],
+        writing: <?php echo json_encode($writingToggleModes, JSON_UNESCAPED_UNICODE); ?>,
         reader: [
             { key: 'visits', label: '访客' },
             { key: 'views', label: '浏览' }

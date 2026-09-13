@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest() || $this->isUmamiRefreshRequest()) {
+        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest() || $this->isUmamiRefreshRequest() || $this->isObsidianPushRequest()) {
             return;
         }
 
@@ -21,6 +21,9 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         }
         if ($this->request->is('do=attachment-download')) {
             $this->attachmentDownload();
+        }
+        if ($this->request->is('do=obsidian-push')) {
+            $this->obsidianPush();
         }
         if ($this->request->is('do=redact-reveal')) {
             $this->redactReveal();
@@ -313,6 +316,12 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         ));
     }
 
+    public function obsidianPush()
+    {
+        $result = QiwiTheme_Obsidian::handlePush();
+        $this->json($result[0], $result[1]);
+    }
+
     public function rebuildIpLocations()
     {
         if (!$this->request->isPost()) {
@@ -561,6 +570,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     private function isUmamiRefreshRequest()
     {
         return $this->request && $this->request->is('do=umami-refresh');
+    }
+
+    private function isObsidianPushRequest()
+    {
+        return $this->request && $this->request->is('do=obsidian-push');
     }
 
     private function isExternalLinkRequest()
