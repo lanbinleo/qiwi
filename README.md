@@ -132,7 +132,7 @@ cd '/opt/1panel/apps/typecho/typecho/data/usr/themes/qiwi'
 bash update.sh
 ```
 
-`update.sh` 会拉取当前分支的最新代码，并把主题内置的伴生插件同步到 Typecho 的 `usr/plugins` 目录，包括 `QiwiCap`、`Geetest`、`QiwiCommentMail`、`QiwiSitemap` 和 `QiwiTheme`。验证码推荐使用 `QiwiCap`；迁移前请先停用 `Geetest`，两个插件不能同时启用。
+`update.sh` 会拉取当前分支的最新代码，并把主题内置的伴生插件同步到 Typecho 的 `usr/plugins` 目录，包括 `QiwiCap`、`Geetest` 和 `QiwiTheme`；原 `QiwiSitemap`、`QiwiCommentMail` 的功能已并入 `QiwiTheme`，更新脚本会自动清理这两个旧插件目录。验证码推荐使用 `QiwiCap`；迁移前请先停用 `Geetest`，两个插件不能同时启用。从旧版本升级后，请在后台「插件」页停用再启用一次 `QiwiTheme`，激活时会自动把旧插件配置导入主题设置。
 
 如果同时升级 Typecho 核心，例如从 `1.2.1` 升级到 `1.3.0`，需要先备份数据库和完整站点目录，再替换 Typecho 核心文件并执行 Typecho 的数据库升级流程。核心升级完成后，再运行上面的 `update.sh`，确保主题和伴生插件版本一致。
 

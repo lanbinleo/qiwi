@@ -1,26 +1,26 @@
 <?php
 
-namespace TypechoPlugin\QiwiCommentMail;
+namespace TypechoPlugin\QiwiTheme;
 
 /**
- * QiwiCommentMail
- * Typecho 异步评论邮件提醒插件。基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献。
+ * Qiwi 评论邮件模块 worker / 控制台端点（原 QiwiCommentMail Action 并入，
+ * 基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献）。
  *
  * @license GNU General Public License 3.0
  */
 
 use \Utils\Helper;
 use \Typecho\{Widget, Db};
-use \TypechoPlugin\QiwiCommentMail\lib\Email;
+use \TypechoPlugin\QiwiTheme\lib\Email;
 use PHPMailer\PHPMailer\PHPMailer;
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-require_once 'PHPMailer/SMTP.php';
-require_once 'PHPMailer/PHPMailer.php';
-require_once 'PHPMailer/Exception.php';
+require_once __DIR__ . '/PHPMailer/SMTP.php';
+require_once __DIR__ . '/PHPMailer/PHPMailer.php';
+require_once __DIR__ . '/PHPMailer/Exception.php';
 
-class Action extends Widget implements \Widget\ActionInterface
+class MailAction extends Widget implements \Widget\ActionInterface
 {
     /**
      * @var Db
@@ -28,7 +28,7 @@ class Action extends Widget implements \Widget\ActionInterface
     private $_db;
 
     /**
-     * @var \Typecho\Config
+     * @var object
      */
     private $_cfg;
 
@@ -77,24 +77,18 @@ class Action extends Widget implements \Widget\ActionInterface
 
     public function init()
     {
-        Plugin::ensureQueueTable();
+        Mail::ensureQueueTable();
 
         $this->_db = Db::get();
         $this->_user = $this->widget('\Widget\User');
         $this->_options = $this->widget('\Widget\Options');
-        try {
-            $this->_cfg = Helper::options()->plugin('QiwiCommentMail');
-        } catch (\Exception $e) {
-            $this->_cfg = new \stdClass();
-        } catch (\Throwable $e) {
-            $this->_cfg = new \stdClass();
-        }
+        $this->_cfg = Mail::cfg();
     }
 
     private function deliverMail(?string $key, bool $checkKey = true, bool $throwJson = true): void
     {
         // 未配置队列密钥时 hash_equals('', '') 恒为真，公开端点会变成无鉴权触发器，必须直接拒绝。
-        $configuredKey = trim((string)$this->cfgValue('key', ''));
+        $configuredKey = trim((string)$this->cfgValue('mailQueueKey', ''));
         if ($checkKey && ($configuredKey === '' || !hash_equals($configuredKey, (string)$key))) {
             $this->response->throwJson([
                 'code' => -1,
@@ -185,7 +179,7 @@ class Action extends Widget implements \Widget\ActionInterface
     {
         $now = time();
         $limit = $this->queueLimit();
-        $table = Plugin::queueTableName();
+        $table = Mail::queueTableName();
 
         return $this->_db->fetchAll("SELECT id, dedupe_key, coid, cid, parent, recipient_type, event, recipient_mail, recipient_name, payload, status, attempts, last_error, next_retry, locked_until, created, updated FROM {$table} WHERE (status = 'pending' OR (status = 'sending' AND (locked_until IS NULL OR locked_until <= {$now}))) AND (next_retry IS NULL OR next_retry <= {$now}) ORDER BY id ASC LIMIT {$limit}");
     }
@@ -194,7 +188,7 @@ class Action extends Widget implements \Widget\ActionInterface
     {
         $now = time();
         $lockedUntil = $now + 300;
-        $affected = $this->_db->query($this->_db->update(Plugin::queueTableName())->rows([
+        $affected = $this->_db->query($this->_db->update(Mail::queueTableName())->rows([
             'status' => 'sending',
             'locked_until' => $lockedUntil,
             'updated' => $now,
@@ -238,8 +232,8 @@ class Action extends Widget implements \Widget\ActionInterface
         $recipientType = (string)$task['recipient_type'];
 
         $this->_email = new Email();
-        $this->_email->from = (string)(((string)$this->cfgValue('mode', 'smtp') === 'resend' && $this->cfgValue('resendFrom', '') !== '') ? $this->cfgValue('resendFrom', '') : $this->cfgValue('user', ''));
-        $this->_email->fromName = (string)($this->cfgValue('fromName', '') !== '' ? $this->cfgValue('fromName', '') : $this->_options->title);
+        $this->_email->from = (string)(((string)$this->cfgValue('mailMode', 'smtp') === 'resend' && $this->cfgValue('mailResendFrom', '') !== '') ? $this->cfgValue('mailResendFrom', '') : $this->cfgValue('mailUser', ''));
+        $this->_email->fromName = (string)($this->cfgValue('mailFromName', '') !== '' ? $this->cfgValue('mailFromName', '') : $this->_options->title);
         $this->_email->reciver = (string)$task['recipient_mail'];
         $this->_email->reciverName = (string)$task['recipient_name'];
 
@@ -298,7 +292,7 @@ class Action extends Widget implements \Widget\ActionInterface
             $status[(string)($comment['status'] ?? '')] ?? (string)($comment['status'] ?? '')
         ];
 
-        $this->_email->subject = str_replace($search, $replace, (string)$this->cfgValue('titleForOwner', '[{{title}}] 一文有新的评论'));
+        $this->_email->subject = str_replace($search, $replace, (string)$this->cfgValue('mailTitleForOwner', '[{{title}}] 一文有新的评论'));
         $this->_email->msgHtml = str_replace($search, $replace, $this->getTemplate('owner'));
         $this->_email->altBody = "作者:" . (string)($comment['author'] ?? '') . "\r\n链接:" . (string)($comment['permalink'] ?? '') . "\r\n评论:\r\n" . (string)($comment['text'] ?? '');
     }
@@ -306,7 +300,7 @@ class Action extends Widget implements \Widget\ActionInterface
     private function prepareGuestMail(array $comment, array $original): void
     {
         $date = new \Typecho\Date((int)($comment['created'] ?? time()));
-        $contactme = (string)$this->cfgValue('contactme', '');
+        $contactme = (string)$this->cfgValue('mailContactme', '');
         if ($contactme === '') {
             $owner = $this->ownerMail((int)($comment['ownerId'] ?? 0));
             $contactme = $owner;
@@ -336,7 +330,7 @@ class Action extends Widget implements \Widget\ActionInterface
             $date->format('Y-m-d H:i:s'),
         ];
 
-        $this->_email->subject = str_replace($search, $replace, (string)$this->cfgValue('titleForGuest', '您在 [{{title}}] 的评论有了回复'));
+        $this->_email->subject = str_replace($search, $replace, (string)$this->cfgValue('mailTitleForGuest', '您在 [{{title}}] 的评论有了回复'));
         $this->_email->msgHtml = str_replace($search, $replace, $this->getTemplate('guest'));
         $this->_email->altBody = "作者:" . (string)($comment['author'] ?? '') . "\r\n链接:" . (string)($comment['permalink'] ?? '') . "\r\n评论:\r\n" . (string)($comment['text'] ?? '');
     }
@@ -353,17 +347,17 @@ class Action extends Widget implements \Widget\ActionInterface
 
     private function sendMail(): array
     {
-        if ((string)$this->cfgValue('mode', 'smtp') === 'resend') {
+        if ((string)$this->cfgValue('mailMode', 'smtp') === 'resend') {
             return $this->sendByResend();
         }
 
         if (trim((string)$this->_email->reciver) === '') {
             return $this->failure('收件人邮箱不能为空', false);
         }
-        if (trim((string)$this->_email->from) === '' && (string)$this->cfgValue('mode', 'smtp') === 'smtp') {
+        if (trim((string)$this->_email->from) === '' && (string)$this->cfgValue('mailMode', 'smtp') === 'smtp') {
             return $this->failure('SMTP 用户或发件邮箱不能为空', false);
         }
-        if ((string)$this->cfgValue('mode', 'smtp') === 'smtp' && trim((string)$this->cfgValue('host', '')) === '') {
+        if ((string)$this->cfgValue('mailMode', 'smtp') === 'smtp' && trim((string)$this->cfgValue('mailHost', '')) === '') {
             return $this->failure('SMTP 地址不能为空', false);
         }
 
@@ -373,7 +367,7 @@ class Action extends Widget implements \Widget\ActionInterface
             $mailer->Encoding = 'base64';
             $mailer->Timeout = 30;
 
-            switch ((string)$this->cfgValue('mode', 'smtp')) {
+            switch ((string)$this->cfgValue('mailMode', 'smtp')) {
                 case 'mail':
                     break;
                 case 'sendmail':
@@ -382,18 +376,18 @@ class Action extends Widget implements \Widget\ActionInterface
                 case 'smtp':
                 default:
                     $mailer->IsSMTP();
-                    if ($this->cfgEnabled('validate', 'validate')) $mailer->SMTPAuth = true;
+                    if ($this->cfgEnabled('mailValidate', 'validate')) $mailer->SMTPAuth = true;
 
-                    if ($this->cfgEnabled('validate', 'ssl')) {
+                    if ($this->cfgEnabled('mailValidate', 'ssl')) {
                         $mailer->SMTPSecure = 'ssl';
-                    } else if ($this->cfgEnabled('validate', 'tls')) {
+                    } else if ($this->cfgEnabled('mailValidate', 'tls')) {
                         $mailer->SMTPSecure = 'tls';
                     }
 
-                    $mailer->Host     = (string)$this->cfgValue('host', '');
-                    $mailer->Port     = (int)$this->cfgValue('port', 25);
-                    $mailer->Username = (string)$this->cfgValue('user', '');
-                    $mailer->Password = (string)$this->cfgValue('pass', '');
+                    $mailer->Host     = (string)$this->cfgValue('mailHost', '');
+                    $mailer->Port     = (int)$this->cfgValue('mailPort', 25);
+                    $mailer->Username = (string)$this->cfgValue('mailUser', '');
+                    $mailer->Password = (string)$this->cfgValue('mailPass', '');
                     break;
             }
 
@@ -405,7 +399,7 @@ class Action extends Widget implements \Widget\ActionInterface
             }
             $mailer->Subject = $this->_email->subject;
             $mailer->AltBody = $this->_email->altBody;
-            if ($this->cfgEnabled('validate', 'solve544') && trim((string)$this->_email->from) !== '') {
+            if ($this->cfgEnabled('mailValidate', 'solve544') && trim((string)$this->_email->from) !== '') {
                 $mailer->AddCC($this->_email->from);
             }
 
@@ -428,9 +422,9 @@ class Action extends Widget implements \Widget\ActionInterface
 
     private function sendByResend(): array
     {
-        $apiKey = trim((string)$this->cfgValue('resendApiKey', ''));
-        $from = trim((string)$this->cfgValue('resendFrom', $this->_email->from));
-        $endpoint = trim((string)$this->cfgValue('resendApiUrl', ''));
+        $apiKey = trim((string)$this->cfgValue('mailResendApiKey', ''));
+        $from = trim((string)$this->cfgValue('mailResendFrom', $this->_email->from));
+        $endpoint = trim((string)$this->cfgValue('mailResendApiUrl', ''));
         $endpoint = $endpoint ?: 'https://api.resend.com/emails';
 
         if ($apiKey === '') return $this->failure('Resend API Key 不能为空', false);
@@ -439,7 +433,7 @@ class Action extends Widget implements \Widget\ActionInterface
         if (!filter_var($endpoint, FILTER_VALIDATE_URL)) return $this->failure('Resend API 地址格式不正确', false);
         if (stripos($endpoint, 'https://') !== 0) return $this->failure('Resend API 地址必须使用 HTTPS', false);
 
-        $caFile = trim((string)$this->cfgValue('resendCaFile', ''));
+        $caFile = trim((string)$this->cfgValue('mailResendCaFile', ''));
         if ($caFile !== '' && (!is_file($caFile) || !is_readable($caFile))) {
             return $this->failure('Resend CA 证书路径不可读取: ' . $caFile, false);
         }
@@ -541,7 +535,7 @@ class Action extends Widget implements \Widget\ActionInterface
     private function markTaskSent(int $id): void
     {
         $now = time();
-        $this->_db->query($this->_db->update(Plugin::queueTableName())->rows([
+        $this->_db->query($this->_db->update(Mail::queueTableName())->rows([
             'status' => 'sent',
             'updated' => $now,
             'sent_at' => $now,
@@ -558,7 +552,7 @@ class Action extends Widget implements \Widget\ActionInterface
         $backoff = $retryAfter > 0 ? $retryAfter : min(3600, (int)(60 * pow(2, max(0, $attempts - 1))));
         $status = $failed ? 'failed' : 'pending';
 
-        $this->_db->query($this->_db->update(Plugin::queueTableName())->rows([
+        $this->_db->query($this->_db->update(Mail::queueTableName())->rows([
             'status' => $status,
             'updated' => time(),
             'attempts' => $attempts,
@@ -586,7 +580,7 @@ class Action extends Widget implements \Widget\ActionInterface
             'locked_until' => 0,
         ];
 
-        $query = $this->_db->update(Plugin::queueTableName())->rows($rows)->where('status = ?', 'failed');
+        $query = $this->_db->update(Mail::queueTableName())->rows($rows)->where('status = ?', 'failed');
         if ($id > 0) {
             $query->where('id = ?', $id);
         }
@@ -602,18 +596,18 @@ class Action extends Widget implements \Widget\ActionInterface
             throw new \Typecho\Widget\Exception(_t('Method Not Allowed'), 405);
         }
 
-        $this->_db->query($this->_db->delete(Plugin::queueTableName())->where('status = ? OR status = ?', 'sent', 'failed'));
+        $this->_db->query($this->_db->delete(Mail::queueTableName())->where('status = ? OR status = ?', 'sent', 'failed'));
         $this->widget('Widget_Notice')->set(_t('发送日志已清理'), 'success');
         $this->response->goBack();
     }
 
     private function cleanupOldLogs(): void
     {
-        $days = (int)$this->cfgValue('logKeepDays', 30);
+        $days = (int)$this->cfgValue('mailLogKeepDays', 30);
         if ($days < 1) return;
 
         $before = time() - ($days * 86400);
-        $this->_db->query($this->_db->delete(Plugin::queueTableName())->where('status = ? AND updated > ? AND updated < ?', 'sent', 0, $before));
+        $this->_db->query($this->_db->delete(Mail::queueTableName())->where('status = ? AND updated > ? AND updated < ?', 'sent', 0, $before));
     }
 
     private function decodeTaskPayload(string $payload): ?array
@@ -627,7 +621,7 @@ class Action extends Widget implements \Widget\ActionInterface
 
     private function getTemplate(string $template = 'owner'): string
     {
-        $cfgKey = $template . 'Template';
+        $cfgKey = 'mail' . ucfirst($template) . 'Template';
         if ($this->cfgValue($cfgKey, '') !== '') {
             return (string)$this->cfgValue($cfgKey, '');
         }
@@ -647,15 +641,15 @@ class Action extends Widget implements \Widget\ActionInterface
             throw new \Typecho\Widget\Exception(_t('Method Not Allowed'), 405);
         }
 
-        if (self::widget('TypechoPlugin\QiwiCommentMail\Console')->testMailForm()->validate()) {
+        if (self::widget('TypechoPlugin\QiwiTheme\MailConsole')->testMailForm()->validate()) {
             $this->response->goBack();
         }
 
         $email = $this->request->from('toName', 'to', 'title', 'content');
 
         $this->_email = new Email();
-        $this->_email->from = (string)(((string)$this->cfgValue('mode', 'smtp') === 'resend' && $this->cfgValue('resendFrom', '') !== '') ? $this->cfgValue('resendFrom', '') : $this->cfgValue('user', ''));
-        $this->_email->fromName = (string)($this->cfgValue('fromName', '') !== '' ? $this->cfgValue('fromName', '') : $this->_options->title);
+        $this->_email->from = (string)(((string)$this->cfgValue('mailMode', 'smtp') === 'resend' && $this->cfgValue('mailResendFrom', '') !== '') ? $this->cfgValue('mailResendFrom', '') : $this->cfgValue('mailUser', ''));
+        $this->_email->fromName = (string)($this->cfgValue('mailFromName', '') !== '' ? $this->cfgValue('mailFromName', '') : $this->_options->title);
         $this->_email->reciver = $email['to'] ? $email['to'] : $this->_user->mail;
         $this->_email->reciverName = $email['toName'] ? $email['toName'] : $this->_user->screenName;
         $this->_email->subject = $email['title'];
@@ -708,6 +702,7 @@ class Action extends Widget implements \Widget\ActionInterface
         return $path;
     }
 
+    // 锁文件名沿用原 QiwiCommentMail，避免升级合并期间新旧 worker 并行导致重复发送。
     private function acquireWorkerLock(): bool
     {
         $path = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'qiwi-comment-mail-' . sha1(__TYPECHO_ROOT_DIR__) . '.lock';
@@ -813,19 +808,19 @@ class Action extends Widget implements \Widget\ActionInterface
 
     private function queueLimit(): int
     {
-        $limit = (int)$this->cfgValue('batchSize', 2);
+        $limit = (int)$this->cfgValue('mailBatchSize', 2);
         return max(1, min(20, $limit));
     }
 
     private function rateLimitPerSecond(): int
     {
-        $rate = (int)$this->cfgValue('rateLimitPerSecond', 2);
+        $rate = (int)$this->cfgValue('mailRateLimitPerSecond', 2);
         return max(1, min(10, $rate));
     }
 
     private function maxAttempts(): int
     {
-        $attempts = (int)$this->cfgValue('maxAttempts', 5);
+        $attempts = (int)$this->cfgValue('mailMaxAttempts', 5);
         return max(1, min(20, $attempts));
     }
 

@@ -2599,3 +2599,8 @@
         position: static;
     }
 }
+
+/* 站点地图 / 邮件通知 tab 的伴生模块提示槽位：无告警时不占位 */
+.qiwi-admin-pane [data-qiwi-companion-warning]:empty {
+    display: none;
+}

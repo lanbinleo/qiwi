@@ -18,9 +18,14 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
     const POST_LIKE_TABLE = 'qiwi_post_likes';
     const IP_LOCATION_TABLE = 'qiwi_ip_locations';
     const SETTINGS_PANEL = 'QiwiTheme/page/settings.php';
+    const MAIL_PANEL = 'QiwiTheme/page/mail.php';
     const OWN_COMMENTS_COOKIE = 'qiwi_own_comments';
     const UMAMI_CACHE_OPTION = 'qiwi_theme_umami_cache';
     const UMAMI_CACHE_TTL = 21600;
+
+    // 已并入本插件的旧伴生插件：激活时迁移配置并注销它们的注册记录。
+    const LEGACY_SITEMAP_BACKUP = 'qiwi_sitemap_config_backup';
+    const LEGACY_MAIL_BACKUP = 'qiwi_comment_mail_config_backup';
 
     public static function activate()
     {
@@ -33,6 +38,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         // 旧版 /goto 跳转路由已下线（开放重定向面），这里保留 removeRoute 以清理历史注册。
         Helper::removeRoute('qiwi_theme_goto_route');
         Helper::removePanel(1, self::SETTINGS_PANEL);
+        Helper::removePanel(1, self::MAIL_PANEL);
         Helper::addAction('qiwi-theme', 'QiwiTheme_Action');
         Helper::addPanel(1, self::SETTINGS_PANEL, 'Qiwi 设置', '快速进入 Qiwi 主题设置', 'administrator');
         Typecho_Plugin::factory('admin/header.php')->header = array(__CLASS__, 'adminHeader');
@@ -42,14 +48,82 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         Typecho_Plugin::factory('Widget_Feedback')->finishComment = array(__CLASS__, 'rememberOwnComment');
         Typecho_Plugin::factory('Widget_Abstract_Contents')->contentEx = array(__CLASS__, 'contentExFilter');
         Typecho_Plugin::factory('Widget_Abstract_Comments')->contentEx = array(__CLASS__, 'commentContentExFilter');
-        return _t('Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地、外链点击统计与正文高亮/涂黑标记已准备好。');
+
+        // === Sitemap / 订源模块（原 QiwiSitemap 并入） ===
+        foreach (QiwiTheme_Sitemap::$legacyRoutes as $routeName) {
+            Helper::removeRoute($routeName);
+        }
+        foreach (QiwiTheme_Sitemap::$routes as $route) {
+            Helper::addRoute(
+                'qiwi_sitemap_' . $route['name'] . '_route',
+                $route['url'],
+                'QiwiTheme_SitemapAction',
+                $route['action']
+            );
+        }
+        Typecho_Plugin::factory('Widget_Archive')->header = array('QiwiTheme_Sitemap', 'header');
+        Typecho_Plugin::factory('Widget_Archive')->handleInit = array('QiwiTheme_Sitemap', 'handleInit');
+        Typecho_Plugin::factory('Widget_Archive')->feedItem = array('QiwiTheme_Sitemap', 'feedItem');
+        Typecho_Plugin::factory('Widget_Archive')->commentFeedItem = array('QiwiTheme_Sitemap', 'commentFeedItem');
+
+        // === 评论邮件模块（原 QiwiCommentMail 并入） ===
+        $mailReady = self::activateMailModule();
+
+        // === 旧伴生插件迁移与注销（必须在迁移配置之后） ===
+        $migrated = self::migrateLegacyCompanionSettings();
+        self::deactivateLegacyCompanionPlugins();
+
+        $message = 'Qiwi Theme 伴生插件已启用，Thread 数据表、后台增强接口、受保护附件下载、主题设置面板入口、说说点赞、文章点赞、IP 归属地、外链点击统计与正文高亮/涂黑标记已准备好。';
+        if ($mailReady) {
+            $message .= '评论邮件队列表已就绪，邮件设置在主题设置的「邮件通知」页签。';
+        } else {
+            $message .= '注意：评论邮件队列表创建失败，邮件通知暂不可用，请检查数据库后重新启用本插件。';
+        }
+        if ($migrated) {
+            $message .= '已自动导入原 QiwiSitemap / QiwiCommentMail 的配置并注销旧插件。';
+        }
+        return _t($message);
+    }
+
+    /**
+     * 注册评论邮件模块的钩子、action 与控制台面板，并准备队列表。
+     * action 名沿用原 QiwiCommentMail 的 qiwi-comment-mail，
+     * 外部定时任务地址与入队后的异步自触发因此无需任何改动。
+     */
+    private static function activateMailModule()
+    {
+        // 与原 QiwiCommentMail 相同的注册写法（带前导反斜杠的现代类名），
+        // 确保钩子键位与原插件一致，升级时旧注册可被平滑覆盖。
+        Typecho_Plugin::factory('\Widget\Feedback')->finishComment = array('TypechoPlugin\QiwiTheme\Mail', 'handleCommentFinished');
+        Typecho_Plugin::factory('\Widget\Comments\Edit')->mark = array('TypechoPlugin\QiwiTheme\Mail', 'handleCommentApproved');
+        Helper::addAction('qiwi-comment-mail', 'TypechoPlugin\QiwiTheme\MailAction');
+        Helper::addPanel(1, self::MAIL_PANEL, 'Qiwi 评论邮件', 'Qiwi 评论邮件控制台', 'administrator');
+
+        try {
+            if (class_exists('TypechoPlugin\QiwiTheme\Mail')) {
+                \TypechoPlugin\QiwiTheme\Mail::dbInstall();
+            }
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     public static function deactivate()
     {
         Helper::removeAction('qiwi-theme');
+        Helper::removeAction('qiwi-comment-mail');
         Helper::removeRoute('qiwi_theme_goto_route');
         Helper::removePanel(1, self::SETTINGS_PANEL);
+        Helper::removePanel(1, self::MAIL_PANEL);
+        foreach (QiwiTheme_Sitemap::$legacyRoutes as $routeName) {
+            Helper::removeRoute($routeName);
+        }
+        foreach (QiwiTheme_Sitemap::$routes as $route) {
+            Helper::removeRoute('qiwi_sitemap_' . $route['name'] . '_route');
+        }
     }
 
     public static function config(Typecho_Widget_Helper_Form $form)
@@ -57,7 +131,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地、外链点击统计与正文高亮/涂黑标记。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地、外链点击统计、正文高亮/涂黑标记，以及并入的站点地图 / RSS 订源与评论邮件通知模块（设置都在主题设置页）。'));
         $form->addInput($info);
     }
 
@@ -1943,25 +2017,84 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             return null;
         }
 
+        $now = time();
         $cache = self::readUmamiCache();
-        $ttl = self::UMAMI_CACHE_TTL;
-        if (isset($cache['fetchedAt']) && (int) $cache['fetchedAt'] + $ttl > time()
-            && isset($cache['payload']['daily']) && is_array($cache['payload']['daily']) && !empty($cache['payload']['daily'])) {
-            return $cache['payload'];
+        $hasPayload = isset($cache['payload']['daily']) && is_array($cache['payload']['daily']);
+
+        // 新鲜判定不要求 daily 非空：统计窗口内确实零流量也是一次成功拉取，
+        // 否则零流量站点会陷入“每次刷新端点被调用都全量回源”的放大循环。
+        if (isset($cache['fetchedAt']) && (int) $cache['fetchedAt'] + self::UMAMI_CACHE_TTL > $now) {
+            return $hasPayload ? $cache['payload'] : null;
         }
 
-        $payload = self::fetchUmamiReaderStats($apiBase, $shareId);
-        if ($payload !== null) {
-            self::writeUmamiCache(array('fetchedAt' => time(), 'payload' => $payload));
-            return $payload;
+        // 失败退避：刷新端点是公开的，Umami 故障期间必须限频回源，不能一错就重试。
+        if (isset($cache['retryAt']) && (int) $cache['retryAt'] > $now) {
+            return $hasPayload ? $cache['payload'] : null;
+        }
+
+        // 并发锁：TTL 到期瞬间的并发请求只放行一个回源，其余直接用旧缓存。
+        $lock = self::acquireUmamiFetchLock();
+        if ($lock === null) {
+            return $hasPayload ? $cache['payload'] : null;
+        }
+
+        try {
+            // 拿到锁后复查：等锁期间缓存可能已被并发进程刷新。
+            $cache = self::readUmamiCache();
+            $hasPayload = isset($cache['payload']['daily']) && is_array($cache['payload']['daily']);
+            if (isset($cache['fetchedAt']) && (int) $cache['fetchedAt'] + self::UMAMI_CACHE_TTL > $now) {
+                return $hasPayload ? $cache['payload'] : null;
+            }
+            if (isset($cache['retryAt']) && (int) $cache['retryAt'] > $now) {
+                return $hasPayload ? $cache['payload'] : null;
+            }
+
+            $payload = self::fetchUmamiReaderStats($apiBase, $shareId);
+            if ($payload !== null) {
+                self::writeUmamiCache(array('fetchedAt' => time(), 'retryAt' => 0, 'payload' => $payload));
+                return $payload;
+            }
+
+            // 拉取失败：写入 5 分钟退避时间戳并保留旧数据，避免板块消失的同时限频回源。
+            self::writeUmamiCache(array(
+                'fetchedAt' => isset($cache['fetchedAt']) ? (int) $cache['fetchedAt'] : 0,
+                'retryAt' => $now + 300,
+                'payload' => isset($cache['payload']) ? $cache['payload'] : null,
+            ));
+        } finally {
+            self::releaseUmamiFetchLock($lock);
         }
 
         // 拉取失败时容忍使用过期缓存，避免 Umami 短暂不可用导致板块消失。
-        if (isset($cache['payload']['daily']) && is_array($cache['payload']['daily']) && !empty($cache['payload']['daily'])) {
+        if ($hasPayload) {
             return $cache['payload'];
         }
 
         return null;
+    }
+
+    private static function acquireUmamiFetchLock()
+    {
+        $path = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'qiwi-umami-refresh-' . sha1(__TYPECHO_ROOT_DIR__) . '.lock';
+        $handle = @fopen($path, 'c');
+        if (!$handle) {
+            return null;
+        }
+
+        if (!flock($handle, LOCK_EX | LOCK_NB)) {
+            fclose($handle);
+            return null;
+        }
+
+        return $handle;
+    }
+
+    private static function releaseUmamiFetchLock($handle)
+    {
+        if ($handle) {
+            @flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     /**
@@ -2016,6 +2149,283 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         return (string) $data[$name];
+    }
+
+    /**
+     * 读取数组型主题配置（如 mailValidate / mailNotifyStatus / mailSwitches 多选框）。
+     * 与 getThemeOption 相同的 JSON 优先 + unserialize 回退；空值返回 $default。
+     */
+    public static function getThemeOptionArray($name, $default = array())
+    {
+        if (!is_array($default)) {
+            $default = array();
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', 'theme:qiwi')
+                ->limit(1));
+        } catch (Exception $e) {
+            return $default;
+        } catch (Throwable $e) {
+            return $default;
+        }
+
+        if (empty($row['value'])) {
+            return $default;
+        }
+
+        $raw = (string) $row['value'];
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            $data = @unserialize($raw);
+        }
+        if (!is_array($data) || !isset($data[$name]) || $data[$name] === null || $data[$name] === array() || $data[$name] === '') {
+            return $default;
+        }
+
+        $value = $data[$name];
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            return array($value);
+        }
+
+        return $default;
+    }
+
+    /**
+     * 一次读取整个主题配置行（JSON 优先 + unserialize 回退），
+     * 供需要批量取多个配置键的模块（如评论邮件）避免逐键查库。
+     */
+    public static function getThemeOptionMap()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', 'theme:qiwi')
+                ->limit(1));
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+
+        if (empty($row['value'])) {
+            return null;
+        }
+
+        $raw = (string) $row['value'];
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            $data = @unserialize($raw);
+        }
+
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * 一次性迁移：把原 QiwiSitemap / QiwiCommentMail 的插件配置导入 theme:qiwi 主题配置行。
+     * 只回填主题行中缺失或为空的键，不覆盖已在主题设置里保存的值。
+     * 写回时按主题行原有格式（JSON 或 PHP serialize）同格式编码。
+     */
+    private static function migrateLegacyCompanionSettings()
+    {
+        $migrations = array(
+            'plugin:QiwiSitemap' => self::LEGACY_SITEMAP_BACKUP,
+            'plugin:QiwiCommentMail' => self::LEGACY_MAIL_BACKUP,
+        );
+        $keyMap = array(
+            // QiwiSitemap：配置键与主题配置键同名，1:1 平移
+            'enableSitemap', 'enablePosts', 'enablePages', 'enableCategories', 'enableTags',
+            'enableXsl', 'enableRobots', 'enableMomentsFeed', 'momentsPageCid', 'momentsFeedLimit',
+            'enableFeedDiscovery', 'enableFeedShortcodeCompat', 'enableFeedAvatar', 'avatarUrl', 'excludedCids',
+            // QiwiCommentMail：统一加 mail 前缀
+            'mode' => 'mailMode',
+            'host' => 'mailHost',
+            'port' => 'mailPort',
+            'user' => 'mailUser',
+            'pass' => 'mailPass',
+            'validate' => 'mailValidate',
+            'resendApiKey' => 'mailResendApiKey',
+            'resendFrom' => 'mailResendFrom',
+            'resendApiUrl' => 'mailResendApiUrl',
+            'resendCaFile' => 'mailResendCaFile',
+            'fromName' => 'mailFromName',
+            'mail' => 'mailRecipient',
+            'contactme' => 'mailContactme',
+            'titleForOwner' => 'mailTitleForOwner',
+            'titleForGuest' => 'mailTitleForGuest',
+            'ownerTemplate' => 'mailOwnerTemplate',
+            'guestTemplate' => 'mailGuestTemplate',
+            'status' => 'mailNotifyStatus',
+            'other' => 'mailSwitches',
+            'batchSize' => 'mailBatchSize',
+            'rateLimitPerSecond' => 'mailRateLimitPerSecond',
+            'maxAttempts' => 'mailMaxAttempts',
+            'logKeepDays' => 'mailLogKeepDays',
+            'key' => 'mailQueueKey',
+        );
+
+        try {
+            $db = Typecho_Db::get();
+
+            $legacy = array();
+            foreach ($migrations as $optionName => $backupName) {
+                $data = self::readLegacyOptionRow($optionName);
+                if (empty($data)) {
+                    $data = self::readLegacyOptionRow($backupName);
+                }
+                if (!empty($data) && is_array($data)) {
+                    $legacy = array_merge($legacy, $data);
+                }
+            }
+
+            if (empty($legacy)) {
+                return false;
+            }
+
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', 'theme:qiwi')
+                ->limit(1));
+            $raw = isset($row['value']) ? (string) $row['value'] : '';
+            $theme = json_decode($raw, true);
+            $isJson = is_array($theme);
+            if (!$isJson) {
+                $theme = @unserialize($raw);
+            }
+            if (!is_array($theme)) {
+                $theme = array();
+            }
+
+            $imported = false;
+            foreach ($keyMap as $oldKey => $newKey) {
+                if (is_int($oldKey)) {
+                    $oldKey = $newKey;
+                }
+                if (!isset($legacy[$oldKey]) || $legacy[$oldKey] === null || $legacy[$oldKey] === '') {
+                    continue;
+                }
+
+                $exists = isset($theme[$newKey])
+                    && $theme[$newKey] !== null
+                    && $theme[$newKey] !== ''
+                    && $theme[$newKey] !== array();
+                if ($exists) {
+                    continue;
+                }
+
+                $theme[$newKey] = $legacy[$oldKey];
+                $imported = true;
+            }
+
+            if (!$imported) {
+                return false;
+            }
+
+            $value = $isJson
+                ? json_encode($theme, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                : serialize($theme);
+            // 旧插件配置可能携带非 UTF-8 内容（如 SMTP 密码），会让 JSON 编码失败；
+            // 此时绝不能把 false 写进主题配置行清空全部设置，回退 serialize。
+            if ($value === false) {
+                $value = serialize($theme);
+            }
+            if ($row) {
+                $db->query($db->update('table.options')->rows(array('value' => $value))
+                    ->where('name = ?', 'theme:qiwi'));
+            } else {
+                $db->query($db->insert('table.options')->rows(array(
+                    'name' => 'theme:qiwi',
+                    'user' => 0,
+                    'value' => $value,
+                )));
+            }
+
+            // 主题配置行写入成功后才清掉备份行，避免迁移中途失败导致旧配置彻底丢失；
+            // 同时防止用户之后清空主题设置里的邮件字段又因重新激活被旧值复活。
+            $db->query($db->delete('table.options')
+                ->where('name = ? OR name = ?', self::LEGACY_SITEMAP_BACKUP, self::LEGACY_MAIL_BACKUP));
+
+            return true;
+        } catch (Exception $e) {
+            return false;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private static function readLegacyOptionRow($name)
+    {
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', $name)
+                ->limit(1));
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        if (empty($row['value'])) {
+            return array();
+        }
+
+        $raw = (string) $row['value'];
+        $data = json_decode($raw, true);
+        if (is_array($data)) {
+            return $data;
+        }
+
+        $data = @unserialize($raw);
+        return is_array($data) ? $data : array();
+    }
+
+    /**
+     * 注销已并入的旧伴生插件。
+     * 必须走 Typecho_Plugin API（纯内存注册表操作，不加载旧插件类），
+     * 这样无论是后台激活流程还是 sync 脚本的「deactivate → activate → export 回写」
+     * 流程，注册表都能保持一致；直接改 options 行会被 export() 整体覆盖回去。
+     * 最后删除旧插件的 plugin:* 配置行（配置已在迁移中写入 theme:qiwi 行）。
+     */
+    private static function deactivateLegacyCompanionPlugins()
+    {
+        try {
+            if (Typecho_Plugin::exists('CommentToMail')) {
+                Typecho_Plugin::deactivate('CommentToMail');
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        foreach (array('QiwiSitemap', 'QiwiCommentMail') as $name) {
+            try {
+                if (Typecho_Plugin::exists($name)) {
+                    Typecho_Plugin::deactivate($name);
+                }
+            } catch (Exception $e) {
+            } catch (Throwable $e) {
+            }
+        }
+
+        Helper::removeAction('comment-to-mail');
+        Helper::removePanel(1, 'CommentToMail/page/console.php');
+        Helper::removePanel(1, 'QiwiCommentMail/page/console.php');
+
+        try {
+            $db = Typecho_Db::get();
+            $db->query($db->delete('table.options')
+                ->where('name = ? OR name = ?', 'plugin:QiwiSitemap', 'plugin:QiwiCommentMail'));
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
     }
 
     private static function fetchUmamiReaderStats($apiBase, $shareId)
@@ -2235,6 +2645,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
             '/etc/ssl/certs/ca-certificates.crt',
             '/etc/pki/tls/certs/ca-bundle.crt',
             '/usr/local/etc/openssl/cert.pem',
+            // Windows/phpstudy：phpstudy 自带 cacert.pem 放在 PHP 目录的情况
+            dirname(PHP_BINARY) . '/cacert.pem',
+            dirname(PHP_BINARY) . '/ext/cacert.pem',
         );
 
         foreach ($candidates as $candidate) {

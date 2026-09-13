@@ -1,6 +1,6 @@
 <?php
 
-namespace TypechoPlugin\QiwiCommentMail;
+namespace TypechoPlugin\QiwiTheme;
 
 use \Typecho\{Widget};
 use \Typecho\Db;
@@ -8,15 +8,15 @@ use \Typecho\Widget\Helper\Form;
 use \Typecho\Widget\Helper\Form\Element\{Text, Hidden, Submit, Textarea};
 
 /**
- * QiwiCommentMail
- * Typecho 异步评论邮件提醒插件。基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献。
+ * Qiwi 评论邮件模块控制台（原 QiwiCommentMail Console 并入，
+ * 基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献）。
  *
  * @license GNU General Public License 3.0
  */
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-class Console extends Widget
+class MailConsole extends Widget
 {
     /**
      * @var string
@@ -71,7 +71,7 @@ class Console extends Widget
 
     public function queueStats(): array
     {
-        Plugin::ensureQueueTable();
+        Mail::ensureQueueTable();
 
         $db = Db::get();
         $stats = [
@@ -81,7 +81,7 @@ class Console extends Widget
             'failed' => 0,
         ];
 
-        $rows = $db->fetchAll('SELECT status, COUNT(*) AS total FROM ' . Plugin::queueTableName() . ' GROUP BY status');
+        $rows = $db->fetchAll('SELECT status, COUNT(*) AS total FROM ' . Mail::queueTableName() . ' GROUP BY status');
         foreach ($rows as $row) {
             $status = (string)$row['status'];
             if (array_key_exists($status, $stats)) {
@@ -94,11 +94,11 @@ class Console extends Widget
 
     public function queueRows(int $limit = 50): array
     {
-        Plugin::ensureQueueTable();
+        Mail::ensureQueueTable();
 
         $db = Db::get();
         $limit = max(1, min(100, $limit));
-        $rows = $db->fetchAll("SELECT id, dedupe_key, coid, cid, parent, recipient_type, event, recipient_mail, recipient_name, payload, status, attempts, last_error, next_retry, locked_until, sent_at, created, updated FROM " . Plugin::queueTableName() . " ORDER BY id DESC LIMIT {$limit}");
+        $rows = $db->fetchAll("SELECT id, dedupe_key, coid, cid, parent, recipient_type, event, recipient_mail, recipient_name, payload, status, attempts, last_error, next_retry, locked_until, sent_at, created, updated FROM " . Mail::queueTableName() . " ORDER BY id DESC LIMIT {$limit}");
 
         foreach ($rows as &$row) {
             $payload = $this->decodePayload((string)$row['payload']);
@@ -163,7 +163,7 @@ class Console extends Widget
         $options = Widget::widget('Widget_Options');
         Widget::widget('Widget_Security')->to($security);
         $form = new Form(
-            $security->getIndex('/action/' . Plugin::$_action . '?do=testMail'),
+            $security->getIndex('/action/' . Mail::ACTION_NAME . '?do=testMail'),
             Form::POST_METHOD
         );
 

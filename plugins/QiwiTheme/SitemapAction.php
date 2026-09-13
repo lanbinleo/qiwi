@@ -3,7 +3,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
     exit;
 }
 
-class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
+class QiwiTheme_SitemapAction extends Typecho_Widget implements Widget_Interface_Do
 {
     public function action()
     {
@@ -243,7 +243,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
             $xml .= '<pubDate>' . $this->dateForRss(isset($item['created']) ? (int) $item['created'] : 0) . '</pubDate>' . "\n";
             $xml .= '<dc:creator>' . $this->xml($author['screenName']) . '</dc:creator>' . "\n";
             if ($mediaUrl !== '') {
-                $xml .= QiwiSitemap_Plugin::feedImageMediaSuffix('RSS 2.0', $mediaUrl);
+                $xml .= QiwiTheme_Sitemap::feedImageMediaSuffix('RSS 2.0', $mediaUrl);
             }
             if ($excerpt !== '') {
                 $xml .= '<description><![CDATA[' . $this->cdata(strip_tags($excerpt)) . ']]></description>' . "\n";
@@ -416,7 +416,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $html = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/u', array($this, 'markdownLink'), $html);
         $html = nl2br($html);
 
-        return QiwiSitemap_Plugin::renderFeedHtml($html);
+        return QiwiTheme_Sitemap::renderFeedHtml($html);
     }
 
     private function renderMomentStickerLabels($text)
@@ -528,7 +528,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         $text = preg_replace('/(\*\*|__)(.*?)\1/u', '$2', $text);
         $text = preg_replace('/(\*|_)(.*?)\1/u', '$2', $text);
         $text = preg_replace('/`([^`]+)`/u', '$1', $text);
-        $text = QiwiSitemap_Plugin::renderFeedHtml($text);
+        $text = QiwiTheme_Sitemap::renderFeedHtml($text);
         $text = strip_tags($text);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/\s+/u', ' ', $text);
@@ -705,7 +705,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         }
 
         $url = isset($matches[2]) ? $matches[2] : (isset($matches[1]) ? $matches[1] : '');
-        return QiwiSitemap_Plugin::normalizeFeedImageUrl(
+        return QiwiTheme_Sitemap::normalizeFeedImageUrl(
             html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
             $this->siteOptions()
         );
@@ -713,7 +713,7 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
 
     private function avatarUrl()
     {
-        return QiwiSitemap_Plugin::feedAvatarUrl($this->pluginOptions(), $this->siteOptions());
+        return QiwiTheme_Sitemap::feedAvatarUrl($this->siteOptions());
     }
 
     private function feedUrl()
@@ -771,25 +771,32 @@ class QiwiSitemap_Action extends Typecho_Widget implements Widget_Interface_Do
         return $value;
     }
 
+    /**
+     * 配置来自主题设置：优先读已并入 Widget_Options 的主题配置，
+     * 读不到时回退 QiwiTheme_Plugin::getThemeOption 直读 theme:qiwi 行。
+     */
     private function option($name, $default)
     {
-        $settings = $this->pluginOptions();
-        return isset($settings->{$name}) && $settings->{$name} !== '' ? (string) $settings->{$name} : $default;
+        try {
+            $value = $this->siteOptions()->{$name};
+            if ($value !== null && $value !== '') {
+                return (string) $value;
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        if (class_exists('QiwiTheme_Plugin')) {
+            return (string) QiwiTheme_Plugin::getThemeOption($name, $default);
+        }
+
+        return $default;
     }
 
     private function optionValue($options, $name)
     {
         $value = $options->{$name};
         return $value !== null ? trim((string) $value) : '';
-    }
-
-    private function pluginOptions()
-    {
-        try {
-            return Helper::options()->plugin('QiwiSitemap');
-        } catch (Exception $e) {
-            return new stdClass();
-        }
     }
 
     private function siteOptions()

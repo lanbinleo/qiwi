@@ -1,6 +1,6 @@
 <?php
 
-namespace TypechoPlugin\QiwiCommentMail\lib;
+namespace TypechoPlugin\QiwiTheme\lib;
 
 /**
  * QiwiCommentMail

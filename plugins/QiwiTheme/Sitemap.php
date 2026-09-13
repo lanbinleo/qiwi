@@ -4,21 +4,18 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 }
 
 /**
- * Qiwi companion sitemap and feed discovery plugin.
+ * Qiwi sitemap / feed discovery 模块（原 QiwiSitemap 独立插件并入）。
+ * 配置全部来自主题设置（theme:qiwi 配置行），本模块不再持有插件配置。
  *
- * @package QiwiSitemap
+ * @package QiwiTheme
  * @author  Leo 里奥
  * @version 2.2.0
  * @link    https://bboreo.com/
  */
-class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
+class QiwiTheme_Sitemap
 {
-    const CONFIG_BACKUP_OPTION = 'qiwi_sitemap_config_backup';
-
-    private static $feedContext = null;
-    private static $feedBufferStarted = false;
-
-    private static $routes = array(
+    // 路由 URL 是对外契约（搜索引擎收录、robots.txt 引用），一个字符都不能变。
+    public static $routes = array(
         array('name' => 'index', 'url' => '/sitemap.xml', 'action' => 'action'),
         array('name' => 'posts', 'url' => '/sitemap-posts.xml', 'action' => 'posts'),
         array('name' => 'pages', 'url' => '/sitemap-pages.xml', 'action' => 'pages'),
@@ -29,283 +26,27 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         array('name' => 'robots', 'url' => '/robots.txt', 'action' => 'robots'),
     );
 
-    private static $legacyRoutes = array(
+    public static $legacyRoutes = array(
         'sitemap_action_route',
         'sitemap_tags_route',
         'sitemap_category_route',
     );
 
-    public static function activate()
-    {
-        self::removeRoutes();
-
-        foreach (self::$routes as $route) {
-            Helper::addRoute(
-                'qiwi_sitemap_' . $route['name'] . '_route',
-                $route['url'],
-                'QiwiSitemap_Action',
-                $route['action']
-            );
-        }
-
-        Typecho_Plugin::factory('Widget_Archive')->header = array(__CLASS__, 'header');
-        Typecho_Plugin::factory('Widget_Archive')->handleInit = array(__CLASS__, 'handleInit');
-        Typecho_Plugin::factory('Widget_Archive')->feedItem = array(__CLASS__, 'feedItem');
-        Typecho_Plugin::factory('Widget_Archive')->commentFeedItem = array(__CLASS__, 'commentFeedItem');
-
-        return _t('Qiwi Sitemap 已启用：/sitemap.xml、/timemachine.xml、/robots.txt 和 RSS/Atom 发现链接已准备好。');
-    }
-
-    public static function deactivate()
-    {
-        self::backupConfig();
-        self::removeRoutes();
-    }
-
-    /**
-     * Typecho 停用插件时会直接删除 plugin:QiwiSitemap 配置行，重新启用只剩表单默认值。
-     * 接管核心配置写入：启用初始化时用停用前的备份覆盖默认值，日常保存时同步刷新备份。
-     */
-    public static function configHandle(array $settings, $isInit)
-    {
-        if ($isInit) {
-            $backup = self::readConfigBackup();
-            if (!empty($backup)) {
-                $settings = array_merge($settings, $backup);
-            }
-        }
-
-        Helper::configPlugin('QiwiSitemap', $settings);
-        self::writeConfigBackup($settings);
-    }
-
-    private static function backupConfig()
-    {
-        try {
-            $config = Helper::options()->plugin('QiwiSitemap');
-            $data = method_exists($config, 'toArray') ? $config->toArray() : (array) $config;
-        } catch (Exception $e) {
-            return;
-        } catch (Throwable $e) {
-            return;
-        }
-
-        if (!empty($data)) {
-            self::writeConfigBackup($data);
-        }
-    }
-
-    private static function writeConfigBackup(array $data)
-    {
-        if (empty($data)) {
-            return;
-        }
-
-        try {
-            $db = Typecho_Db::get();
-            $value = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $exists = $db->fetchRow($db->select('name')->from('table.options')
-                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                ->where('user = ?', 0));
-            if ($exists) {
-                $db->query($db->update('table.options')->rows(array('value' => $value))
-                    ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                    ->where('user = ?', 0));
-            } else {
-                $db->query($db->insert('table.options')->rows(array(
-                    'name' => self::CONFIG_BACKUP_OPTION,
-                    'user' => 0,
-                    'value' => $value,
-                )));
-            }
-        } catch (Exception $e) {
-        } catch (Throwable $e) {
-        }
-    }
-
-    private static function readConfigBackup()
-    {
-        try {
-            $db = Typecho_Db::get();
-            $row = $db->fetchRow($db->select('value')->from('table.options')
-                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                ->where('user = ?', 0));
-            if (empty($row['value'])) {
-                return array();
-            }
-
-            $data = json_decode((string) $row['value'], true);
-            return is_array($data) ? $data : array();
-        } catch (Exception $e) {
-            return array();
-        } catch (Throwable $e) {
-            return array();
-        }
-    }
-
-    private static function removeRoutes()
-    {
-        foreach (self::$legacyRoutes as $routeName) {
-            Helper::removeRoute($routeName);
-        }
-
-        foreach (self::$routes as $route) {
-            Helper::removeRoute('qiwi_sitemap_' . $route['name'] . '_route');
-        }
-    }
-
-    public static function config(Typecho_Widget_Helper_Form $form)
-    {
-        $linkSummary = new Typecho_Widget_Helper_Form_Element_Fake('qiwiSitemapLinks', '');
-        $linkSummary->input->setAttribute('type', 'hidden');
-        $linkSummary->label(_t('可用链接'));
-        $linkSummary->description(self::linksDescription());
-        $form->addInput($linkSummary);
-
-        $enableSitemap = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableSitemap',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('Sitemap 输出'),
-            _t('关闭后 sitemap 路由仍存在，但会返回 404。')
-        );
-        $form->addInput($enableSitemap);
-
-        $enablePosts = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enablePosts',
-            array('1' => _t('包含'), '0' => _t('不包含')),
-            '1',
-            _t('包含文章'),
-            _t('输出已发布、未加密、发布时间不晚于当前时间的文章。')
-        );
-        $form->addInput($enablePosts);
-
-        $enablePages = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enablePages',
-            array('1' => _t('包含'), '0' => _t('不包含')),
-            '1',
-            _t('包含独立页面'),
-            _t('输出已发布、未加密、发布时间不晚于当前时间的独立页面。')
-        );
-        $form->addInput($enablePages);
-
-        $enableCategories = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableCategories',
-            array('1' => _t('包含'), '0' => _t('不包含')),
-            '1',
-            _t('包含分类'),
-            _t('分类页 lastmod 会使用该分类下最新公开文章的修改时间。')
-        );
-        $form->addInput($enableCategories);
-
-        $enableTags = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableTags',
-            array('1' => _t('包含'), '0' => _t('不包含')),
-            '1',
-            _t('包含标签'),
-            _t('标签页 lastmod 会使用该标签下最新公开文章的修改时间。')
-        );
-        $form->addInput($enableTags);
-
-        $enableXsl = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableXsl',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('可视化 XSL'),
-            _t('给浏览器访问 sitemap 时使用。搜索引擎会读取原始 XML，不依赖这个样式。')
-        );
-        $form->addInput($enableXsl);
-
-        $enableRobots = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableRobots',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('robots.txt 输出'),
-            _t('输出 Sitemap 地址，并用注释标出 RSS 订阅地址。若站点根目录已有实体 robots.txt，服务器通常会优先返回实体文件。')
-        );
-        $form->addInput($enableRobots);
-
-        $enableMomentsFeed = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableMomentsFeed',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('时光机 RSS'),
-            _t('输出 /timemachine.xml，自动读取使用 page-timemachine.php 模板的独立页面，并只包含页面作者自己的已审核评论。')
-        );
-        $form->addInput($enableMomentsFeed);
-
-        $momentsPageCid = new Typecho_Widget_Helper_Form_Element_Text(
-            'momentsPageCid',
-            null,
-            null,
-            _t('时光机页面 CID'),
-            _t('通常留空自动查找 page-timemachine.php。若有多个时光机页面，可填写指定页面 CID。')
-        );
-        $form->addInput($momentsPageCid);
-
-        $momentsFeedLimit = new Typecho_Widget_Helper_Form_Element_Text(
-            'momentsFeedLimit',
-            null,
-            '20',
-            _t('时光机 RSS 条数'),
-            _t('默认输出最近 20 条，范围 1-100。')
-        );
-        $form->addInput($momentsFeedLimit);
-
-        $enableFeedDiscovery = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableFeedDiscovery',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('RSS / Atom 发现链接'),
-            _t('在页面 head 中补充 RSS、Atom 与 sitemap 发现链接，便于浏览器、阅读器和爬虫识别订阅入口。')
-        );
-        $form->addInput($enableFeedDiscovery);
-
-        $enableFeedShortcodeCompat = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableFeedShortcodeCompat',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('RSS 短代码兼容'),
-            _t('将 [fold]、[red]、[mark]、[badge]、[callout]、[button] 等主题短代码转换为阅读器更容易渲染的普通 HTML。')
-        );
-        $form->addInput($enableFeedShortcodeCompat);
-
-        $enableFeedAvatar = new Typecho_Widget_Helper_Form_Element_Radio(
-            'enableFeedAvatar',
-            array('1' => _t('启用'), '0' => _t('关闭')),
-            '1',
-            _t('RSS / Atom 头像增强'),
-            _t('为 RSS 频道补充 image，为 Atom 补充 icon/logo，帮助阅读器识别博客头像。文章条目封面会优先使用文章头图字段。')
-        );
-        $form->addInput($enableFeedAvatar);
-
-        $avatarUrl = new Typecho_Widget_Helper_Form_Element_Text(
-            'avatarUrl',
-            null,
-            null,
-            _t('博客头像 URL'),
-            _t('留空时会按 Qiwi 主题配置依次读取 sidebarProfileAvatar、aboutAvatar、logoUrl。用于 sitemap 浏览器可视化页面，以及 RSS/Atom 订阅头像增强。')
-        );
-        $form->addInput($avatarUrl);
-
-        $excludedCids = new Typecho_Widget_Helper_Form_Element_Text(
-            'excludedCids',
-            null,
-            null,
-            _t('排除内容 CID'),
-            _t('逗号分隔，例如 12,34,56。可用于排除不希望进入 sitemap 的文章或独立页面。')
-        );
-        $form->addInput($excludedCids);
-    }
-
-    public static function personalConfig(Typecho_Widget_Helper_Form $form)
-    {
-    }
+    private static $feedContext = null;
+    private static $feedBufferStarted = false;
 
     public static function header($archive = null)
     {
-        $settings = self::settings();
-        if (self::setting($settings, 'enableFeedDiscovery', '1') !== '1') {
+        try {
+            self::headerInternal();
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+    }
+
+    private static function headerInternal()
+    {
+        if (self::setting('enableFeedDiscovery', '1') !== '1') {
             return;
         }
 
@@ -331,28 +72,42 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             echo '<link rel="alternate" type="application/atom+xml" title="' . $siteTitle . ' Atom" href="' . self::escapeHtml($atomUrl) . '">' . "\n";
         }
 
-        if (self::setting($settings, 'enableMomentsFeed', '1') === '1') {
+        if (self::setting('enableMomentsFeed', '1') === '1') {
             echo '<link rel="alternate" type="application/rss+xml" title="' . $siteTitle . ' 说说 RSS" href="' . self::escapeHtml($momentsUrl) . '">' . "\n";
         }
     }
 
     public static function handleInit($archive, $select)
     {
-        $feedType = self::archiveFeedType($archive);
-        self::startFeedBuffer($feedType);
+        try {
+            $feedType = self::archiveFeedType($archive);
+            self::startFeedBuffer($feedType);
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
     }
 
     public static function feedItem($feedType, $archive)
     {
-        self::startFeedBuffer($feedType);
-        self::filterFeedItemContent($archive);
-        return self::feedItemMediaSuffix($feedType, $archive);
+        try {
+            self::startFeedBuffer($feedType);
+            self::filterFeedItemContent($archive);
+            return self::feedItemMediaSuffix($feedType, $archive);
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 
     public static function commentFeedItem($feedType, $comments)
     {
-        self::startFeedBuffer($feedType);
-        self::filterFeedItemContent($comments);
+        try {
+            self::startFeedBuffer($feedType);
+            self::filterFeedItemContent($comments);
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
         return null;
     }
 
@@ -363,12 +118,11 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             return;
         }
 
-        $settings = self::settings();
         $options = Helper::options();
-        $enableAvatar = self::setting($settings, 'enableFeedAvatar', '1') === '1';
-        $enableShortcodes = self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1';
+        $enableAvatar = self::setting('enableFeedAvatar', '1') === '1';
+        $enableShortcodes = self::setting('enableFeedShortcodeCompat', '1') === '1';
         $enablePrivacy = true;
-        $avatarUrl = $enableAvatar ? self::feedAvatarUrl($settings, $options) : '';
+        $avatarUrl = $enableAvatar ? self::feedAvatarUrl($options) : '';
 
         if (!$enableShortcodes && !$enablePrivacy && ($avatarUrl === '')) {
             return;
@@ -406,7 +160,6 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
 
     private static function filterFeedItemContent($item)
     {
-        $settings = self::settings();
         if (!is_object($item)) {
             return;
         }
@@ -432,7 +185,7 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
             }
 
             $value = self::sanitizeFeedPrivateContent((string) $value);
-            if (self::setting($settings, 'enableFeedShortcodeCompat', '1') === '1') {
+            if (self::setting('enableFeedShortcodeCompat', '1') === '1') {
                 $value = self::renderFeedHtml($value);
             }
             $item->{$name} = $value;
@@ -518,18 +271,27 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         return $xml;
     }
 
-    private static function settings()
+    /**
+     * 读主题配置：主题配置行在站点处于激活状态时会并入 Widget_Options，
+     * 读不到时回退 QiwiTheme_Plugin::getThemeOption 的 options 行直读。
+     */
+    private static function setting($name, $default)
     {
         try {
-            return Helper::options()->plugin('QiwiSitemap');
+            $options = Helper::options();
+            $value = $options->{$name};
+            if ($value !== null && $value !== '') {
+                return (string) $value;
+            }
         } catch (Exception $e) {
-            return new stdClass();
+        } catch (Throwable $e) {
         }
-    }
 
-    private static function setting($settings, $name, $default)
-    {
-        return isset($settings->{$name}) && $settings->{$name} !== '' ? (string) $settings->{$name} : $default;
+        if (class_exists('QiwiTheme_Plugin')) {
+            return (string) QiwiTheme_Plugin::getThemeOption($name, $default);
+        }
+
+        return $default;
     }
 
     private static function optionValue($options, $name)
@@ -955,9 +717,9 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
         return isset($map[$color]) ? $map[$color] : ($isBackground ? $map['yellow'] : $map['blue']);
     }
 
-    public static function feedAvatarUrl($settings, $options)
+    public static function feedAvatarUrl($options)
     {
-        $settingsAvatar = self::setting($settings, 'avatarUrl', '');
+        $settingsAvatar = self::setting('avatarUrl', '');
         if ($settingsAvatar !== '') {
             return self::normalizeImageUrl($settingsAvatar, $options);
         }
@@ -1040,81 +802,6 @@ class QiwiSitemap_Plugin implements Typecho_Plugin_Interface
     {
         $siteUrl = self::optionValue($options, 'siteUrl');
         return $siteUrl !== '' ? rtrim($siteUrl, '/') : '';
-    }
-
-    private static function linksDescription()
-    {
-        $options = Helper::options();
-        $timemachineUrl = self::timemachinePageUrl($options);
-        $links = array(
-            _t('RSS 2.0') => self::optionValue($options, 'feedUrl'),
-            _t('RSS 1.0') => self::optionValue($options, 'feedRssUrl'),
-            _t('Atom 1.0') => self::optionValue($options, 'feedAtomUrl'),
-            _t('评论 RSS 2.0') => self::optionValue($options, 'commentsFeedUrl'),
-            _t('评论 RSS 1.0') => self::optionValue($options, 'commentsFeedRssUrl'),
-            _t('评论 Atom 1.0') => self::optionValue($options, 'commentsFeedAtomUrl'),
-            _t('Time Machine') => $timemachineUrl,
-            _t('说说 RSS') => self::routeUrl('/timemachine.xml', $options),
-            _t('Sitemap') => self::routeUrl('/sitemap.xml', $options),
-            _t('文章 Sitemap') => self::routeUrl('/sitemap-posts.xml', $options),
-            _t('页面 Sitemap') => self::routeUrl('/sitemap-pages.xml', $options),
-            _t('分类 Sitemap') => self::routeUrl('/sitemap-categories.xml', $options),
-            _t('标签 Sitemap') => self::routeUrl('/sitemap-tags.xml', $options),
-            _t('robots.txt') => self::routeUrl('/robots.txt', $options),
-        );
-
-        $items = array();
-        foreach ($links as $label => $url) {
-            if ($url === '') {
-                continue;
-            }
-
-            $items[] = '<a href="' . self::escapeHtml($url) . '" target="_blank" rel="noopener noreferrer">' . self::escapeHtml($label) . '</a>';
-        }
-
-        return _t('当前可用订阅与索引入口：') . implode(' · ', $items);
-    }
-
-    private static function timemachinePageUrl($options)
-    {
-        try {
-            $settings = self::settings();
-            $cid = (int) self::setting($settings, 'momentsPageCid', '0');
-            $db = Typecho_Db::get();
-            $select = $db->select()->from('table.contents')
-                ->where('table.contents.type = ?', 'page')
-                ->where('table.contents.status = ?', 'publish')
-                ->where('(table.contents.password IS NULL OR table.contents.password = ?)', '')
-                ->where('table.contents.created < ?', $options->gmtTime)
-                ->order('table.contents.order', Typecho_Db::SORT_ASC)
-                ->order('table.contents.cid', Typecho_Db::SORT_ASC)
-                ->limit(1);
-
-            if ($cid > 0) {
-                $select->where('table.contents.cid = ?', $cid);
-            } else {
-                $select->where('table.contents.template = ?', 'page-timemachine.php');
-            }
-
-            $row = $db->fetchRow($select);
-            if (!$row || Typecho_Router::get('page') === null) {
-                return '';
-            }
-
-            if (isset($row['slug'])) {
-                $row['slug'] = rawurlencode($row['slug']);
-            }
-
-            $date = new Typecho_Date($row['created']);
-            $row['date'] = $date;
-            $row['year'] = $date->year;
-            $row['month'] = $date->month;
-            $row['day'] = $date->day;
-
-            return Typecho_Common::url(Typecho_Router::url('page', $row), $options->index);
-        } catch (Exception $e) {
-            return '';
-        }
     }
 
     private static function normalUrl($url)
