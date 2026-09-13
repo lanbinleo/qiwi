@@ -44,6 +44,11 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+# Windows PowerShell 5.1 在旧版 .NET 上可能默认不启用 TLS 1.2，推送 HTTPS 端点会失败
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+} catch { }
+
 # ==== 配置区 ====
 $ExcludeDirs = @('.trash', '.obsidian', '.git', '.makemd', '.space', '.claude', '700 System')
 $ExportRelPath = '700 System/730 Meta/writing-heatmap.json'

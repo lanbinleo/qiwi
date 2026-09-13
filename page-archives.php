@@ -20,6 +20,7 @@ function getWordCount($text) {
 
 // 渲染格子时同时输出图例：左「少」右为口径短词（写作/到访），额外说明仅写作板块需要
 if (!function_exists('qiwiArchivesRenderHeatmap')) {
+    // 注意：$legendNote 按可信 HTML 原样输出（调用方拼色点标记），不接受任何用户输入
     function qiwiArchivesRenderHeatmap(array $cells, $ariaLabel, $legendTone, $legendMetric, $legendNote, $kind, array $daysRaw = [])
     {
         $todayTs = strtotime(date('Y-m-d 00:00:00'));
@@ -393,7 +394,7 @@ $pageContent = qiwiGetContent($this);
                 <?php if ($totalMoments > 0): ?>
                 <li class="stats-item">除了文章外，还写了 <?php echo number_format($totalMoments); ?> 条说说<br>
                 </li>
-                <li class="stats-item"> 
+                <li class="stats-item">
                     共 <span class="stats-highlight"><?php echo number_format($totalMomentWords); ?></span> 字
                 </li>
                 <?php endif; ?>
@@ -776,7 +777,18 @@ $pageContent = qiwiGetContent($this);
                     return; // 本次渲染没有缓存可展示，刷新后的下次访问自然出现
                 }
                 var grid = section.querySelector('.qiwi-heatmap');
-                grid.setAttribute('data-hm-days', JSON.stringify(json.data.daily || {}));
+                // 端点返回 {visits,views}，页面热力图数据用短键 {v,w}，这里做一次映射，
+                // 否则原地刷新后所有格子会因读到 0 而被清空。
+                var incoming = json.data.daily || {};
+                var mapped = {};
+                Object.keys(incoming).forEach(function (day) {
+                    var info = incoming[day] || {};
+                    mapped[day] = {
+                        v: Number(info.v != null ? info.v : info.visits) || 0,
+                        w: Number(info.w != null ? info.w : info.views) || 0
+                    };
+                });
+                grid.setAttribute('data-hm-days', JSON.stringify(mapped));
                 var toggle = section.querySelector('.hm-toggle');
                 applyReaderMode(section, toggle ? toggle.getAttribute('data-hm-mode') || 'visits' : 'visits');
                 var nums = section.querySelectorAll('.heatmap-summary .hm-num');
