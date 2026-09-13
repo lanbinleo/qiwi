@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TYPECHO_USR_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 THEME_PLUGIN_DIR="$SCRIPT_DIR/plugins"
 TYPECHO_PLUGIN_DIR="$TYPECHO_USR_DIR/plugins"
-OBSOLETE_COMPANION_PLUGINS=("CommentToMail")
+OBSOLETE_COMPANION_PLUGINS=("CommentToMail" "QiwiSitemap" "QiwiCommentMail")
 
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'

@@ -765,6 +765,58 @@ if (!function_exists('qiwiArchiveVisibilityHookRegistered')) {
     }
 }
 
+if (!function_exists('qiwiCompanionModulesHealth')) {
+    function qiwiCompanionModulesHealth()
+    {
+        // 站点地图与评论邮件已并入 QiwiTheme；注册记录只在插件激活时写入数据库。
+        // 这里检测旧伴生插件残留和合并模块的注册状态，供主题设置后台提示。
+        $status = array(
+            'legacyPluginsActive' => array(),
+            'sitemapRouteActive' => false,
+            'mailHookActive' => false,
+        );
+
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            $plugins = isset($options->plugins) && is_array($options->plugins) ? $options->plugins : array();
+
+            if (isset($plugins['activated']) && is_array($plugins['activated'])) {
+                foreach (array('QiwiSitemap', 'QiwiCommentMail') as $name) {
+                    if (isset($plugins['activated'][$name])) {
+                        $status['legacyPluginsActive'][] = $name;
+                    }
+                }
+            }
+
+            $routingTable = $options->routingTable;
+            if (is_array($routingTable) && isset($routingTable['qiwi_sitemap_index_route'])) {
+                $status['sitemapRouteActive'] = true;
+            }
+
+            $handles = isset($plugins['handles']) && is_array($plugins['handles']) ? $plugins['handles'] : array();
+            foreach (array('\Widget\Feedback:finishComment', 'Widget_Feedback:finishComment') as $eventKey) {
+                if (!isset($handles[$eventKey]) || !is_array($handles[$eventKey])) {
+                    continue;
+                }
+                foreach ($handles[$eventKey] as $callback) {
+                    if (!is_array($callback) || !isset($callback[0], $callback[1]) || !is_string($callback[0])) {
+                        continue;
+                    }
+                    if (ltrim($callback[0], '\\') === 'TypechoPlugin\QiwiTheme\Mail'
+                        && (string) $callback[1] === 'handleCommentFinished') {
+                        $status['mailHookActive'] = true;
+                        break 2;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return $status;
+    }
+}
+
 if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
     function qiwiAdminConfigEnhancerAssets()
     {
@@ -812,6 +864,7 @@ if (!function_exists('qiwiAdminConfigEnhancerAssets')) {
             'ipLocationRebuildEndpoint' => qiwiGetThemeActionEndpoint('rebuild-ip-locations'),
             'categories' => $categories,
             'visibilityHookActive' => qiwiArchiveVisibilityHookRegistered(),
+            'companionStatus' => function_exists('qiwiCompanionModulesHealth') ? qiwiCompanionModulesHealth() : null,
         ];
         $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
@@ -1063,6 +1116,403 @@ function themeConfig($form)
         _t('开启后主题会加载 busuanzi.cc 的统计脚本；如果你已通过“JS 追踪代码”手动加入，可保持关闭。')
     );
     $form->addInput($enableBusuanzi);
+
+    $umamiApiBase = new Typecho_Widget_Helper_Form_Element_Text(
+        'umamiApiBase',
+        null, null,
+        _t('Umami 统计地址'),
+        _t('填写自建 Umami 的根地址（例如 https://trace.example.com，仅支持 HTTPS），与下方分享 ID 一起填写后，归档页会展示「读者来访」热力图；需要 QiwiTheme 插件处于启用状态。')
+    );
+    $form->addInput($umamiApiBase);
+
+    $umamiShareId = new Typecho_Widget_Helper_Form_Element_Text(
+        'umamiShareId',
+        null, null,
+        _t('Umami 分享 ID'),
+        _t('在 Umami 网站设置的 Share URL 中开启分享后，取链接里 /share/ 后面那串 ID 填在这里。分享链接本身只读且不含任何密钥。建议 Umami 网站时区与博客一致，热力图日期才会对齐。')
+    );
+    $form->addInput($umamiShareId);
+
+    $obsidianPushToken = new Typecho_Widget_Helper_Form_Element_Text(
+        'obsidianPushToken',
+        null, null,
+        _t('Obsidian 随笔推送令牌'),
+        _t('随机长字符串（例如 32 位以上）。留空表示关闭推送入口；填写后，主题 tools/obsidian-sync 采集脚本（或未来的 Obsidian 插件）携带同一令牌即可把「当天新建笔记数」推进「写作经历」热力图。只会接收日期与篇数聚合，不涉及任何笔记内容。')
+    );
+    $form->addInput($obsidianPushToken);
+
+    // === 站点地图 / 订源（由 QiwiTheme 插件的 Sitemap 模块提供） ===
+    $enableSitemap = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableSitemap',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('Sitemap 输出'),
+        _t('关闭后 sitemap 路由仍存在，但会返回 404。')
+    );
+    $form->addInput($enableSitemap);
+
+    $enablePosts = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enablePosts',
+        array('1' => _t('包含'), '0' => _t('不包含')),
+        '1',
+        _t('包含文章'),
+        _t('输出已发布、未加密、发布时间不晚于当前时间的文章。')
+    );
+    $form->addInput($enablePosts);
+
+    $enablePages = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enablePages',
+        array('1' => _t('包含'), '0' => _t('不包含')),
+        '1',
+        _t('包含独立页面'),
+        _t('输出已发布、未加密、发布时间不晚于当前时间的独立页面。')
+    );
+    $form->addInput($enablePages);
+
+    $enableCategories = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableCategories',
+        array('1' => _t('包含'), '0' => _t('不包含')),
+        '1',
+        _t('包含分类'),
+        _t('分类页 lastmod 会使用该分类下最新公开文章的修改时间。')
+    );
+    $form->addInput($enableCategories);
+
+    $enableTags = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableTags',
+        array('1' => _t('包含'), '0' => _t('不包含')),
+        '1',
+        _t('包含标签'),
+        _t('标签页 lastmod 会使用该标签下最新公开文章的修改时间。')
+    );
+    $form->addInput($enableTags);
+
+    $enableXsl = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableXsl',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('可视化 XSL'),
+        _t('给浏览器访问 sitemap 时使用。搜索引擎会读取原始 XML，不依赖这个样式。')
+    );
+    $form->addInput($enableXsl);
+
+    $enableRobots = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableRobots',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('robots.txt 输出'),
+        _t('输出 Sitemap 地址，并用注释标出 RSS 订阅地址。若站点根目录已有实体 robots.txt，服务器通常会优先返回实体文件。')
+    );
+    $form->addInput($enableRobots);
+
+    $enableMomentsFeed = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableMomentsFeed',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('时光机 RSS'),
+        _t('输出 /timemachine.xml，自动读取使用 page-timemachine.php 模板的独立页面，并只包含页面作者自己的已审核评论。')
+    );
+    $form->addInput($enableMomentsFeed);
+
+    $momentsPageCid = new Typecho_Widget_Helper_Form_Element_Text(
+        'momentsPageCid',
+        null,
+        null,
+        _t('时光机页面 CID'),
+        _t('通常留空自动查找 page-timemachine.php。若有多个时光机页面，可填写指定页面 CID。')
+    );
+    $form->addInput($momentsPageCid);
+
+    $momentsFeedLimit = new Typecho_Widget_Helper_Form_Element_Text(
+        'momentsFeedLimit',
+        null,
+        '20',
+        _t('时光机 RSS 条数'),
+        _t('默认输出最近 20 条，范围 1-100。')
+    );
+    $form->addInput($momentsFeedLimit);
+
+    $enableFeedDiscovery = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableFeedDiscovery',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('RSS / Atom 发现链接'),
+        _t('在页面 head 中补充 RSS、Atom 与 sitemap 发现链接，便于浏览器、阅读器和爬虫识别订阅入口。')
+    );
+    $form->addInput($enableFeedDiscovery);
+
+    $enableFeedShortcodeCompat = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableFeedShortcodeCompat',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('RSS 短代码兼容'),
+        _t('将 [fold]、[red]、[mark]、[badge]、[callout]、[button] 等主题短代码转换为阅读器更容易渲染的普通 HTML。')
+    );
+    $form->addInput($enableFeedShortcodeCompat);
+
+    $enableFeedAvatar = new Typecho_Widget_Helper_Form_Element_Radio(
+        'enableFeedAvatar',
+        array('1' => _t('启用'), '0' => _t('关闭')),
+        '1',
+        _t('RSS / Atom 头像增强'),
+        _t('为 RSS 频道补充 image，为 Atom 补充 icon/logo，帮助阅读器识别博客头像。文章条目封面会优先使用文章头图字段。')
+    );
+    $form->addInput($enableFeedAvatar);
+
+    $avatarUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'avatarUrl',
+        null,
+        null,
+        _t('博客头像 URL'),
+        _t('留空时会按 Qiwi 主题配置依次读取 sidebarProfileAvatar、aboutAvatar、logoUrl。用于 sitemap 浏览器可视化页面，以及 RSS/Atom 订阅头像增强。')
+    );
+    $form->addInput($avatarUrl);
+
+    $excludedCids = new Typecho_Widget_Helper_Form_Element_Text(
+        'excludedCids',
+        null,
+        null,
+        _t('排除内容 CID'),
+        _t('逗号分隔，例如 12,34,56。可用于排除不希望进入 sitemap 的文章或独立页面。')
+    );
+    $form->addInput($excludedCids);
+
+    // === 邮件通知（由 QiwiTheme 插件的评论邮件模块提供） ===
+    $mailMode = new Typecho_Widget_Helper_Form_Element_Radio(
+        'mailMode',
+        array(
+            'smtp' => 'smtp',
+            'resend' => 'Resend API',
+            'mail' => 'mail()',
+            'sendmail' => 'sendmail()'
+        ),
+        'smtp',
+        _t('发信方式')
+    );
+    $form->addInput($mailMode);
+
+    $mailHost = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailHost',
+        null,
+        '',
+        _t('SMTP地址'),
+        _t('使用 SMTP 时填写 SMTP 服务器地址。使用 Resend API 时可留空。')
+    );
+    $form->addInput($mailHost);
+
+    $mailPort = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailPort',
+        null,
+        '25',
+        _t('SMTP端口'),
+        _t('SMTP服务端口, 一般为25. SSL一般为465')
+    );
+    $form->addInput($mailPort->addRule('isInteger', _t('端口号必须为数字')));
+
+    $mailUser = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailUser',
+        null,
+        null,
+        _t('SMTP用户'),
+        _t('SMTP服务验证用户名, 一般为邮箱账户。使用 SMTP 时也会作为默认发件邮箱。')
+    );
+    $form->addInput($mailUser);
+
+    $mailPass = new Typecho_Widget_Helper_Form_Element_Password(
+        'mailPass',
+        null,
+        null,
+        _t('SMTP密码'),
+        _t('不会出现在主题设置整包导出里，仅保存在本站。')
+    );
+    $form->addInput($mailPass);
+
+    $mailValidate = new Typecho_Widget_Helper_Form_Element_Checkbox(
+        'mailValidate',
+        array(
+            'validate' => '服务器需要验证',
+            'ssl' => 'ssl加密',
+            'tls' => 'tls加密',
+            'solve544' => '启用抄送以规避 544 错误'
+        ),
+        array('validate'),
+        _t('SMTP验证')
+    );
+    $form->addInput($mailValidate);
+
+    $mailResendApiKey = new Typecho_Widget_Helper_Form_Element_Password(
+        'mailResendApiKey',
+        null,
+        null,
+        _t('Resend API Key'),
+        _t('发信方式选择 Resend API 时填写, 例如 re_xxxxxxxxx。不会出现在主题设置整包导出里。')
+    );
+    $form->addInput($mailResendApiKey);
+
+    $mailResendFrom = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailResendFrom',
+        null,
+        null,
+        _t('Resend 发件邮箱'),
+        _t('必须是 Resend 已验证域名下的邮箱地址, 例如 no-reply@example.com。发件人名称使用下方“发件人名称”。')
+    );
+    $form->addInput($mailResendFrom->addRule('email', _t('请填写正确的 Resend 发件邮箱!')));
+
+    $mailResendApiUrl = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailResendApiUrl',
+        null,
+        'https://api.resend.com/emails',
+        _t('Resend API 地址'),
+        _t('默认即可。如需代理或自建网关, 请填写完整 HTTPS 地址。')
+    );
+    $form->addInput($mailResendApiUrl);
+
+    $mailResendCaFile = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailResendCaFile',
+        null,
+        null,
+        _t('Resend CA 证书路径'),
+        _t('可选。Windows 或 phpstudy 无法验证 HTTPS 证书时填写 cacert.pem 的绝对路径；正常环境留空。')
+    );
+    $form->addInput($mailResendCaFile);
+
+    $mailFromName = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailFromName',
+        null,
+        null,
+        _t('发件人名称'),
+        _t('发件人名称, 留空则使用博客标题')
+    );
+    $form->addInput($mailFromName);
+
+    $mailRecipient = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailRecipient',
+        null,
+        null,
+        _t('管理员接收邮件地址'),
+        _t('接收管理员通知的邮箱。留空则使用文章作者个人设置中的邮箱地址。')
+    );
+    $form->addInput($mailRecipient->addRule('email', _t('请填写正确的邮件地址!')));
+
+    $mailContactme = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailContactme',
+        null,
+        null,
+        _t('模板中“联系我”的邮件地址'),
+        _t('联系我用的邮件地址, 留空则使用文章作者个人设置中的邮件地址。')
+    );
+    $form->addInput($mailContactme->addRule('email', _t('请填写正确的邮件地址!')));
+
+    $mailTitleForOwner = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailTitleForOwner',
+        null,
+        '[{{title}}] 一文有新的评论',
+        _t('管理员通知邮件标题')
+    );
+    $form->addInput($mailTitleForOwner->addRule('required', _t('管理员通知邮件标题不能为空')));
+
+    $mailTitleForGuest = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailTitleForGuest',
+        null,
+        '您在 [{{title}}] 的评论有了回复',
+        _t('用户回复通知邮件标题')
+    );
+    $form->addInput($mailTitleForGuest->addRule('required', _t('用户回复通知邮件标题不能为空')));
+
+    $mailTemplateHelp = _t('支持变量: {{siteTitle}}, {{title}}, {{author}}, {{author_p}}, {{ip}}, {{mail}}, {{permalink}}, {{manage}}, {{text}}, {{text_p}}, {{contactme}}, {{time}}, {{status}}。留空时使用 QiwiTheme 插件 template 目录中的默认模板，也可在后台「Qiwi 评论邮件」控制台的“编辑邮件模板”里直接改文件。');
+
+    $mailOwnerTemplate = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'mailOwnerTemplate',
+        null,
+        null,
+        _t('管理员通知邮件模板'),
+        $mailTemplateHelp
+    );
+    $form->addInput($mailOwnerTemplate);
+
+    $mailGuestTemplate = new Typecho_Widget_Helper_Form_Element_Textarea(
+        'mailGuestTemplate',
+        null,
+        null,
+        _t('用户回复通知邮件模板'),
+        $mailTemplateHelp
+    );
+    $form->addInput($mailGuestTemplate);
+
+    $mailNotifyStatus = new Typecho_Widget_Helper_Form_Element_Checkbox(
+        'mailNotifyStatus',
+        array(
+            'approved' => '提醒已通过评论',
+            'waiting' => '提醒待审核评论',
+            'spam' => '提醒垃圾评论'
+        ),
+        array('approved', 'waiting'),
+        _t('管理员提醒状态'),
+        _t('该选项仅针对管理员通知。待审核评论会固定提醒管理员，用户回复通知只会在回复已通过后发送。')
+    );
+    $form->addInput($mailNotifyStatus);
+
+    $mailSwitches = new Typecho_Widget_Helper_Form_Element_Checkbox(
+        'mailSwitches',
+        array(
+            'to_owner' => '有新评论及回复时, 发邮件通知管理员。',
+            'to_guest' => '评论被公开回复时, 发邮件通知被回复者。',
+            'to_me' => '自己回复自己时也发邮件。',
+            'auto_process' => '评论入队后自动处理邮件队列。',
+        ),
+        array('to_owner', 'to_guest', 'auto_process'),
+        _t('通知与队列设置'),
+        null
+    );
+    $form->addInput($mailSwitches->multiMode());
+
+    $mailBatchSize = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailBatchSize',
+        null,
+        '2',
+        _t('每次最多处理邮件数'),
+        _t('一次 worker 最多处理多少封邮件。建议 1 到 2 封。')
+    );
+    $form->addInput($mailBatchSize->addRule('isInteger', _t('每次最多处理邮件数必须为数字')));
+
+    $mailRateLimitPerSecond = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailRateLimitPerSecond',
+        null,
+        '2',
+        _t('每秒最多发送邮件数'),
+        _t('默认 2，适合 Resend 等常见 API 限制。该限制按邮件任务计算。')
+    );
+    $form->addInput($mailRateLimitPerSecond->addRule('isInteger', _t('每秒最多发送邮件数必须为数字')));
+
+    $mailMaxAttempts = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailMaxAttempts',
+        null,
+        '5',
+        _t('最大重试次数'),
+        _t('超过次数后任务标记为失败, 可在后台手动重试。')
+    );
+    $form->addInput($mailMaxAttempts->addRule('isInteger', _t('最大重试次数必须为数字')));
+
+    $mailLogKeepDays = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailLogKeepDays',
+        null,
+        '30',
+        _t('日志保留天数'),
+        _t('成功发送记录会保留指定天数, 失败记录会一直保留到手动清理或重试成功。')
+    );
+    $form->addInput($mailLogKeepDays->addRule('isInteger', _t('日志保留天数必须为数字')));
+
+    $qiwiMailOptions = Typecho_Widget::widget('Widget_Options');
+    $qiwiMailEntryUrl = ($qiwiMailOptions->rewrite) ? $qiwiMailOptions->siteUrl : $qiwiMailOptions->siteUrl . 'index.php';
+    $qiwiMailDeliverUrl = rtrim($qiwiMailEntryUrl, '/') . '/action/qiwi-comment-mail?do=deliverMail&key={KEY}';
+    $mailQueueKey = new Typecho_Widget_Helper_Form_Element_Text(
+        'mailQueueKey',
+        null,
+        \Typecho\Common::randString(16),
+        _t('邮件队列触发密钥'),
+        _t('外部定时任务地址为 ' . $qiwiMailDeliverUrl . '。自动处理无法使用时，可用该地址定时触发。密钥在首次保存主题设置后生效，未保存前队列不会自动触发。')
+    );
+    $form->addInput($mailQueueKey->addRule('required', _t('触发密钥不能为空')));
 
     // 开往功能
     $enableTravellings = new Typecho_Widget_Helper_Form_Element_Radio(

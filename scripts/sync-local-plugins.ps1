@@ -1,9 +1,9 @@
 param(
     [string]$TypechoRoot = "D:\phpstudy_pro\WWW\localhost",
     [string]$PhpBin = "D:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe",
-    [string[]]$Plugins = @("Geetest", "QiwiCap", "QiwiSitemap", "QiwiTheme", "QiwiCommentMail"),
-    [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCommentMail", "QiwiCap"),
-    [string[]]$ObsoletePlugins = @("CommentToMail")
+    [string[]]$Plugins = @("Geetest", "QiwiCap", "QiwiTheme"),
+    [string[]]$RefreshPlugins = @("QiwiTheme", "QiwiCap"),
+    [string[]]$ObsoletePlugins = @("CommentToMail", "QiwiSitemap", "QiwiCommentMail")
 )
 
 $ErrorActionPreference = "Stop"

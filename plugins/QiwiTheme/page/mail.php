@@ -2,8 +2,8 @@
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 /**
- * QiwiCommentMail
- * Typecho 异步评论邮件提醒插件。基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献。
+ * Qiwi 评论邮件控制台（原 QiwiCommentMail 控制台并入 QiwiTheme）。
+ * 基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献。
  *
  * @license GNU General Public License 3.0
  */
@@ -12,7 +12,7 @@ require_once 'header.php';
 require_once 'menu.php';
 
 use \Typecho\Widget;
-use \TypechoPlugin\QiwiCommentMail\Plugin;
+use \TypechoPlugin\QiwiTheme\Mail;
 
 Widget::widget('Widget_Security')->to($security);
 
@@ -22,7 +22,7 @@ $title = $current == 'index' ? $menu->title : ($current == 'queue' ? '队列与�
 
 $actionUrl = function ($do, array $query = []) use ($security) {
     $query = array_merge(['do' => $do], $query);
-    return $security->getIndex('/action/' . Plugin::$_action . '?' . http_build_query($query));
+    return $security->getIndex('/action/' . Mail::ACTION_NAME . '?' . http_build_query($query));
 };
 
 $escape = function ($value) {
@@ -85,6 +85,8 @@ $eventShort = [
     'reply_published' => '回',
     'reply_approved' => '审',
 ];
+
+$mailPanel = 'QiwiTheme/page/mail.php';
 ?>
 <div class="main">
     <div class="body container">
@@ -95,31 +97,31 @@ $eventShort = [
             <div class="col-mb-12">
                 <ul class="typecho-option-tabs fix-tabs clearfix">
                     <li <?= ($current == 'index' ? ' class="current"' : '') ?>>
-                        <a href="<?php $options->adminUrl('extending.php?panel=' . Plugin::$_panel); ?>"><?php _e('邮件发送测试'); ?></a>
+                        <a href="<?php $options->adminUrl('extending.php?panel=' . $mailPanel); ?>"><?php _e('邮件发送测试'); ?></a>
                     </li>
                     <li <?= ($current == 'theme' ? ' class="current"' : '') ?>>
-                        <a href="<?php $options->adminUrl('extending.php?panel=' . Plugin::$_panel . '&act=theme'); ?>">
+                        <a href="<?php $options->adminUrl('extending.php?panel=' . $mailPanel . '&act=theme'); ?>">
                             <?php _e('编辑邮件模板'); ?>
                         </a>
                     </li>
                     <li <?= ($current == 'queue' ? ' class="current"' : '') ?>>
-                        <a href="<?php $options->adminUrl('extending.php?panel=' . Plugin::$_panel . '&act=queue'); ?>">
+                        <a href="<?php $options->adminUrl('extending.php?panel=' . $mailPanel . '&act=queue'); ?>">
                             <?php _e('队列与日志'); ?>
                         </a>
                     </li>
                     <li>
-                        <a href="<?php $options->adminUrl('options-plugin.php?config=QiwiCommentMail') ?>"><?php _e('插件设置'); ?></a>
+                        <a href="<?php $options->adminUrl('options-theme.php'); ?>"><?php _e('邮件设置（主题设置）'); ?></a>
                     </li>
                 </ul>
             </div>
             <?php if ($current == 'index') : ?>
                 <div class="typecho-edit-theme">
                     <div class="col-mb-12 content">
-                        <?php Widget::widget('TypechoPlugin\QiwiCommentMail\Console')->testMailForm()->render(); ?>
+                        <?php Widget::widget('TypechoPlugin\QiwiTheme\MailConsole')->testMailForm()->render(); ?>
                     </div>
                 </div>
             <?php elseif ($current == 'queue') :
-                $console = Widget::widget('TypechoPlugin\QiwiCommentMail\Console');
+                $console = Widget::widget('TypechoPlugin\QiwiTheme\MailConsole');
                 $stats = $console->queueStats();
                 $rows = $console->queueRows();
             ?>
@@ -283,7 +285,7 @@ $eventShort = [
                         </form>
                     </div>
                     <div class="qcm-table-wrap">
-                        <div class="qcm-queue-grid" role="table" aria-label="QiwiCommentMail 队列与日志">
+                        <div class="qcm-queue-grid" role="table" aria-label="Qiwi 评论邮件队列与日志">
                             <div class="qcm-queue-row qcm-queue-head" role="row">
                                 <div class="qcm-queue-cell" role="columnheader">ID</div>
                                 <div class="qcm-queue-cell qcm-center" role="columnheader" title="状态">状态</div>
@@ -388,7 +390,7 @@ $eventShort = [
                     </div>
                 </div>
             <?php else :
-                Widget::widget('TypechoPlugin\QiwiCommentMail\Console')->to($files);
+                Widget::widget('TypechoPlugin\QiwiTheme\MailConsole')->to($files);
             ?>
                 <div class="typecho-edit-theme">
                     <div class="col-mb-12 content">
@@ -409,7 +411,7 @@ $eventShort = [
                         <li><strong>模板文件</strong></li>
                         <?php while ($files->next()) : ?>
                             <li <?php if ($files->current) echo "class='current'"; ?>>
-                                <a href="<?php $options->adminUrl('extending.php?panel=' . Plugin::$_panel . '&act=theme' . '&file=' . rawurlencode($files->file)); ?>">
+                                <a href="<?php $options->adminUrl('extending.php?panel=' . $mailPanel . '&act=theme' . '&file=' . rawurlencode($files->file)); ?>">
                                     <?php $files->file(); ?>
                                 </a>
                             </li>

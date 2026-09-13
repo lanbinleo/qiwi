@@ -1,406 +1,35 @@
 <?php
 
-namespace TypechoPlugin\QiwiCommentMail;
+namespace TypechoPlugin\QiwiTheme;
 
-use \Typecho\Plugin\PluginInterface;
 use \Utils\Helper;
 use \Typecho\{Widget, Db};
-use \Typecho\Widget\Helper\Form\Element\{Password, Text, Radio, Checkbox, Textarea};
 
 /**
- * Qiwi 评论邮件提醒插件。基于 CommentToMail 原版维护，感谢 xcsoft 的原始贡献。
+ * Qiwi 评论邮件提醒模块（原 QiwiCommentMail 独立插件并入，基于 CommentToMail 原版维护，
+ * 感谢 xcsoft 的原始贡献）。
  *
- * @package QiwiCommentMail
+ * 设置全部来自主题配置（theme:qiwi 配置行），配置键统一带 mail 前缀。
+ * 队列表名、payload schema、worker 锁文件名、action 名与原插件保持一致，
+ * 保证升级合并后存量队列任务与外部定时任务地址继续可用。
+ *
+ * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.5
+ * @version 2.2.0
  * @link https://bboreo.com/
- * @LastEditDate 20260623
  */
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-require_once 'Log.php';
-
-class Plugin implements PluginInterface
+class Mail
 {
     const TABLE = 'qiwi_comment_mail_queue';
-    const CONFIG_BACKUP_OPTION = 'qiwi_comment_mail_config_backup';
 
-    /**
-     * action name
-     *
-     * @var string
-     */
-    public static $_action = 'qiwi-comment-mail';
-
-    /**
-     * @var string
-     */
-    public static $_panel  = 'QiwiCommentMail/page/console.php';
+    // 原 QiwiCommentMail 的 action 名。外部定时任务地址依赖它，不能改。
+    const ACTION_NAME = 'qiwi-comment-mail';
 
     private static $_queueTableReady = false;
-
-    public static function activate()
-    {
-        $msg = self::dbInstall();
-
-        try {
-            if (\Typecho\Plugin::exists('CommentToMail')) {
-                \Typecho\Plugin::deactivate('CommentToMail');
-            }
-        } catch (\Exception $e) {
-        } catch (\Throwable $e) {
-        }
-
-        Helper::removeAction('comment-to-mail');
-        Helper::removePanel(1, 'CommentToMail/page/console.php');
-
-        \Typecho\Plugin::factory('\Widget\Feedback')->finishComment = [__CLASS__, 'handleCommentFinished'];
-        \Typecho\Plugin::factory('\Widget\Comments\Edit')->mark = [__CLASS__, 'handleCommentApproved'];
-
-        Helper::addAction(self::$_action, 'TypechoPlugin\QiwiCommentMail\Action');
-        Helper::addPanel(1, self::$_panel, 'Qiwi 评论邮件', 'Qiwi 评论邮件控制台', 'administrator');
-        return _t($msg);
-    }
-
-    public static function deactivate()
-    {
-        self::backupConfig();
-        Helper::removeAction(self::$_action);
-        Helper::removePanel(1, self::$_panel);
-    }
-
-    /**
-     * Typecho 停用插件时会直接删除 plugin:QiwiCommentMail 配置行（Widget\Plugins\Edit::deactivate），
-     * 重新启用只会写回表单默认值，SMTP 等邮件配置因此"重启即丢"。
-     * 这里接管核心的配置写入：启用初始化时用停用前的备份覆盖默认值，日常保存时同步刷新备份。
-     */
-    public static function configHandle(array $settings, bool $isInit)
-    {
-        if ($isInit) {
-            $backup = self::readConfigBackup();
-            if (!empty($backup)) {
-                $settings = array_merge($settings, $backup);
-            }
-        }
-
-        Helper::configPlugin('QiwiCommentMail', $settings);
-        self::writeConfigBackup($settings);
-    }
-
-    private static function backupConfig()
-    {
-        try {
-            $config = Helper::options()->plugin('QiwiCommentMail');
-            $data = method_exists($config, 'toArray') ? $config->toArray() : (array) $config;
-        } catch (\Exception $e) {
-            return;
-        } catch (\Throwable $e) {
-            return;
-        }
-
-        if (!empty($data)) {
-            self::writeConfigBackup($data);
-        }
-    }
-
-    private static function writeConfigBackup(array $data)
-    {
-        if (empty($data)) {
-            return;
-        }
-
-        try {
-            $db = Db::get();
-            $value = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $exists = $db->fetchRow($db->select('name')->from('table.options')
-                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                ->where('user = ?', 0));
-            if ($exists) {
-                $db->query($db->update('table.options')->rows(['value' => $value])
-                    ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                    ->where('user = ?', 0));
-            } else {
-                $db->query($db->insert('table.options')->rows([
-                    'name' => self::CONFIG_BACKUP_OPTION,
-                    'user' => 0,
-                    'value' => $value,
-                ]));
-            }
-        } catch (\Exception $e) {
-        } catch (\Throwable $e) {
-        }
-    }
-
-    private static function readConfigBackup()
-    {
-        try {
-            $db = Db::get();
-            $row = $db->fetchRow($db->select('value')->from('table.options')
-                ->where('name = ?', self::CONFIG_BACKUP_OPTION)
-                ->where('user = ?', 0));
-            if (empty($row['value'])) {
-                return [];
-            }
-
-            $data = json_decode((string) $row['value'], true);
-            return is_array($data) ? $data : [];
-        } catch (\Exception $e) {
-            return [];
-        } catch (\Throwable $e) {
-            return [];
-        }
-    }
-
-    public static function config(\Typecho\Widget\Helper\Form $form)
-    {
-        $options = Widget::widget('Widget_Options');
-
-        $mode = new Radio(
-            'mode',
-            [
-                'smtp' => 'smtp',
-                'resend' => 'Resend API',
-                'mail' => 'mail()',
-                'sendmail' => 'sendmail()'
-            ],
-            'smtp',
-            '发信方式'
-        );
-        $form->addInput($mode);
-
-        $host = new Text(
-            'host',
-            null,
-            '',
-            _t('SMTP地址'),
-            _t('使用 SMTP 时填写 SMTP 服务器地址。使用 Resend API 时可留空。')
-        );
-        $form->addInput($host);
-
-        $port = new Text(
-            'port',
-            null,
-            '25',
-            _t('SMTP端口'),
-            _t('SMTP服务端口, 一般为25. SSL一般为465')
-        );
-        $port->input->setAttribute('class', 'mini');
-        $form->addInput($port->addRule('isInteger', _t('端口号必须为数字')));
-
-        $user = new Text(
-            'user',
-            null,
-            null,
-            _t('SMTP用户'),
-            _t('SMTP服务验证用户名, 一般为邮箱账户。使用 SMTP 时也会作为默认发件邮箱。')
-        );
-        $form->addInput($user);
-
-        $pass = new Password(
-            'pass',
-            null,
-            null,
-            _t('SMTP密码')
-        );
-        $form->addInput($pass);
-
-        $validate = new Checkbox(
-            'validate',
-            [
-                'validate' => '服务器需要验证',
-                'ssl' => 'ssl加密',
-                'tls' => 'tls加密',
-                'solve544' => '启用抄送以规避 544 错误'
-            ],
-            ['validate'],
-            'SMTP验证'
-        );
-        $form->addInput($validate);
-
-        $resendApiKey = new Password(
-            'resendApiKey',
-            null,
-            null,
-            _t('Resend API Key'),
-            _t('发信方式选择 Resend API 时填写, 例如 re_xxxxxxxxx。')
-        );
-        $form->addInput($resendApiKey);
-
-        $resendFrom = new Text(
-            'resendFrom',
-            null,
-            null,
-            _t('Resend 发件邮箱'),
-            _t('必须是 Resend 已验证域名下的邮箱地址, 例如 no-reply@example.com。发件人名称使用下方“发件人名称”。')
-        );
-        $form->addInput($resendFrom->addRule('email', _t('请填写正确的 Resend 发件邮箱!')));
-
-        $resendApiUrl = new Text(
-            'resendApiUrl',
-            null,
-            'https://api.resend.com/emails',
-            _t('Resend API 地址'),
-            _t('默认即可。如需代理或自建网关, 请填写完整 HTTPS 地址。')
-        );
-        $form->addInput($resendApiUrl);
-
-        $resendCaFile = new Text(
-            'resendCaFile',
-            null,
-            null,
-            _t('Resend CA 证书路径'),
-            _t('可选。Windows 或 phpstudy 无法验证 HTTPS 证书时填写 cacert.pem 的绝对路径；正常环境留空。')
-        );
-        $form->addInput($resendCaFile);
-
-        $fromName = new Text(
-            'fromName',
-            null,
-            null,
-            _t('发件人名称'),
-            _t('发件人名称, 留空则使用博客标题')
-        );
-        $form->addInput($fromName);
-
-        $mail = new Text(
-            'mail',
-            null,
-            null,
-            _t('管理员接收邮件地址'),
-            _t('接收管理员通知的邮箱。留空则使用文章作者个人设置中的邮箱地址。')
-        );
-        $form->addInput($mail->addRule('email', _t('请填写正确的邮件地址!')));
-
-        $contactme = new Text(
-            'contactme',
-            null,
-            null,
-            _t('模板中“联系我”的邮件地址'),
-            _t('联系我用的邮件地址, 留空则使用文章作者个人设置中的邮件地址。')
-        );
-        $form->addInput($contactme->addRule('email', _t('请填写正确的邮件地址!')));
-
-        $titleForOwner = new Text(
-            'titleForOwner',
-            null,
-            '[{{title}}] 一文有新的评论',
-            _t('管理员通知邮件标题')
-        );
-        $form->addInput($titleForOwner->addRule('required', _t('管理员通知邮件标题不能为空')));
-
-        $titleForGuest = new Text(
-            'titleForGuest',
-            null,
-            '您在 [{{title}}] 的评论有了回复',
-            _t('用户回复通知邮件标题')
-        );
-        $form->addInput($titleForGuest->addRule('required', _t('用户回复通知邮件标题不能为空')));
-
-        $templateHelp = _t('支持变量: {{siteTitle}}, {{title}}, {{author}}, {{author_p}}, {{ip}}, {{mail}}, {{permalink}}, {{manage}}, {{text}}, {{text_p}}, {{contactme}}, {{time}}, {{status}}。留空时使用插件 template 目录中的默认模板。');
-
-        $ownerTemplate = new Textarea(
-            'ownerTemplate',
-            null,
-            self::defaultTemplate('owner'),
-            _t('管理员通知邮件模板'),
-            $templateHelp
-        );
-        $ownerTemplate->input->setAttribute('class', 'w-100 mono');
-        $form->addInput($ownerTemplate);
-
-        $guestTemplate = new Textarea(
-            'guestTemplate',
-            null,
-            self::defaultTemplate('guest'),
-            _t('用户回复通知邮件模板'),
-            $templateHelp
-        );
-        $guestTemplate->input->setAttribute('class', 'w-100 mono');
-        $form->addInput($guestTemplate);
-
-        $status = new Checkbox(
-            'status',
-            [
-                'approved' => '提醒已通过评论',
-                'waiting' => '提醒待审核评论',
-                'spam' => '提醒垃圾评论'
-            ],
-            ['approved', 'waiting'],
-            '管理员提醒状态',
-            _t('该选项仅针对管理员通知。待审核评论会固定提醒管理员，用户回复通知只会在回复已通过后发送。')
-        );
-        $form->addInput($status);
-
-        $other = new Checkbox(
-            'other',
-            [
-                'to_owner' => '有新评论及回复时, 发邮件通知管理员。',
-                'to_guest' => '评论被公开回复时, 发邮件通知被回复者。',
-                'to_me' => '自己回复自己时也发邮件。',
-                'auto_process' => '评论入队后自动处理邮件队列。',
-            ],
-            ['to_owner', 'to_guest', 'auto_process'],
-            '通知与队列设置',
-            null
-        );
-        $form->addInput($other->multiMode());
-
-        $batchSize = new Text(
-            'batchSize',
-            null,
-            '2',
-            _t('每次最多处理邮件数'),
-            _t('一次 worker 最多处理多少封邮件。建议 1 到 2 封。')
-        );
-        $batchSize->input->setAttribute('class', 'mini');
-        $form->addInput($batchSize->addRule('isInteger', _t('每次最多处理邮件数必须为数字')));
-
-        $rateLimitPerSecond = new Text(
-            'rateLimitPerSecond',
-            null,
-            '2',
-            _t('每秒最多发送邮件数'),
-            _t('默认 2，适合 Resend 等常见 API 限制。该限制按邮件任务计算。')
-        );
-        $rateLimitPerSecond->input->setAttribute('class', 'mini');
-        $form->addInput($rateLimitPerSecond->addRule('isInteger', _t('每秒最多发送邮件数必须为数字')));
-
-        $maxAttempts = new Text(
-            'maxAttempts',
-            null,
-            '5',
-            _t('最大重试次数'),
-            _t('超过次数后任务标记为失败, 可在后台手动重试。')
-        );
-        $maxAttempts->input->setAttribute('class', 'mini');
-        $form->addInput($maxAttempts->addRule('isInteger', _t('最大重试次数必须为数字')));
-
-        $logKeepDays = new Text(
-            'logKeepDays',
-            null,
-            '30',
-            _t('日志保留天数'),
-            _t('成功发送记录会保留指定天数, 失败记录会一直保留到手动清理或重试成功。')
-        );
-        $logKeepDays->input->setAttribute('class', 'mini');
-        $form->addInput($logKeepDays->addRule('isInteger', _t('日志保留天数必须为数字')));
-
-        $entryUrl = ($options->rewrite) ? $options->siteUrl : $options->siteUrl . 'index.php';
-        $deliverMailUrl = rtrim($entryUrl, '/') . '/action/' . self::$_action . '?do=deliverMail&key={KEY}';
-        $key = new Text(
-            'key',
-            null,
-            \Typecho\Common::randString(16),
-            _t('Key'),
-            _t('外部定时任务地址为 ' . $deliverMailUrl . '。自动处理无法使用时，可用该地址定时触发。')
-        );
-        $form->addInput($key->addRule('required', _t('key 不能为空.')));
-    }
-
-    public static function personalConfig(\Typecho\Widget\Helper\Form $form)
-    {
-    }
+    private static $_cfgCache = null;
 
     public static function queueTableName()
     {
@@ -440,13 +69,105 @@ class Plugin implements PluginInterface
                 if ($script) $installDb->query($script, Db::WRITE);
             }
             self::$_queueTableReady = true;
-            return 'QiwiCommentMail 邮件任务表已准备完成, 请继续设置发信信息';
+            return true;
         } catch (\Typecho\Db\Exception $e) {
-            throw new \Typecho\Plugin\Exception('数据表建立失败, 插件启用失败。错误代码:' . $e->getCode());
+            throw new \Typecho\Plugin\Exception('数据表建立失败: ' . $e->getMessage());
         }
     }
 
+    /**
+     * 配置读取入口：一次读取主题配置行，组装一份带 mail 前缀键名的配置对象。
+     * 数组型配置（SMTP 验证、提醒状态、通知开关）按数组语义归一。
+     */
+    public static function cfg()
+    {
+        if (self::$_cfgCache !== null) {
+            return self::$_cfgCache;
+        }
+
+        $map = class_exists('\QiwiTheme_Plugin') ? \QiwiTheme_Plugin::getThemeOptionMap() : null;
+        if (!is_array($map)) {
+            $map = array();
+        }
+
+        $cfg = new \stdClass();
+        $stringKeys = [
+            'mailMode' => 'smtp',
+            'mailHost' => '',
+            'mailPort' => '25',
+            'mailUser' => '',
+            'mailPass' => '',
+            'mailResendApiKey' => '',
+            'mailResendFrom' => '',
+            'mailResendApiUrl' => 'https://api.resend.com/emails',
+            'mailResendCaFile' => '',
+            'mailFromName' => '',
+            'mailRecipient' => '',
+            'mailContactme' => '',
+            'mailTitleForOwner' => '[{{title}}] 一文有新的评论',
+            'mailTitleForGuest' => '您在 [{{title}}] 的评论有了回复',
+            'mailOwnerTemplate' => '',
+            'mailGuestTemplate' => '',
+            'mailBatchSize' => '2',
+            'mailRateLimitPerSecond' => '2',
+            'mailMaxAttempts' => '5',
+            'mailLogKeepDays' => '30',
+            'mailQueueKey' => '',
+        ];
+
+        foreach ($stringKeys as $key => $default) {
+            $value = isset($map[$key]) ? $map[$key] : null;
+            $cfg->{$key} = ($value !== null && $value !== '' && !is_array($value)) ? (string)$value : $default;
+        }
+
+        $arrayKeys = [
+            'mailValidate' => ['validate'],
+            'mailNotifyStatus' => ['approved', 'waiting'],
+            'mailSwitches' => ['to_owner', 'to_guest', 'auto_process'],
+        ];
+        foreach ($arrayKeys as $key => $default) {
+            $value = isset($map[$key]) ? $map[$key] : null;
+            if (is_array($value) && !empty($value)) {
+                $cfg->{$key} = $value;
+            } elseif (is_string($value) && $value !== '') {
+                $cfg->{$key} = [$value];
+            } else {
+                $cfg->{$key} = $default;
+            }
+        }
+
+        self::$_cfgCache = $cfg;
+        return $cfg;
+    }
+
+    public static function cfgValue($cfg, $key, $default = '')
+    {
+        return isset($cfg->{$key}) ? $cfg->{$key} : $default;
+    }
+
+    public static function cfgArray($cfg, $key, array $default = [])
+    {
+        $value = self::cfgValue($cfg, $key, $default);
+        if (empty($value)) return [];
+        return is_array($value) ? $value : [$value];
+    }
+
+    public static function cfgEnabled($cfg, $key, $value, array $default = [])
+    {
+        return in_array($value, self::cfgArray($cfg, $key, $default), true);
+    }
+
     public static function handleCommentFinished($comment)
+    {
+        // 邮件入队失败绝不能影响评论主流程。
+        try {
+            self::handleCommentFinishedInternal($comment);
+        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private static function handleCommentFinishedInternal($comment)
     {
         self::ensureQueueTable();
 
@@ -471,6 +192,15 @@ class Plugin implements PluginInterface
 
     public static function handleCommentApproved($comment, $edit, $status)
     {
+        try {
+            self::handleCommentApprovedInternal($comment, $edit, $status);
+        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private static function handleCommentApprovedInternal($comment, $edit, $status)
+    {
         if ($status !== 'approved') return;
 
         self::ensureQueueTable();
@@ -491,40 +221,6 @@ class Plugin implements PluginInterface
         if ($created > 0) {
             self::wakeQueueWorker();
         }
-    }
-
-    private static function defaultTemplate($name)
-    {
-        $file = __DIR__ . '/template/' . $name . '.html';
-        return file_exists($file) ? file_get_contents($file) : '';
-    }
-
-    private static function cfg()
-    {
-        try {
-            return Helper::options()->plugin('QiwiCommentMail');
-        } catch (\Exception $e) {
-            return new \stdClass();
-        } catch (\Throwable $e) {
-            return new \stdClass();
-        }
-    }
-
-    private static function cfgValue($cfg, $key, $default = '')
-    {
-        return isset($cfg->{$key}) ? $cfg->{$key} : $default;
-    }
-
-    private static function cfgArray($cfg, $key, array $default = [])
-    {
-        $value = self::cfgValue($cfg, $key, $default);
-        if (empty($value)) return [];
-        return is_array($value) ? $value : [$value];
-    }
-
-    private static function cfgEnabled($cfg, $key, $value, array $default = [])
-    {
-        return in_array($value, self::cfgArray($cfg, $key, $default), true);
     }
 
     private static function commentData($comment)
@@ -732,17 +428,17 @@ class Plugin implements PluginInterface
     private static function shouldCreateOwnerTask(array $data)
     {
         $cfg = self::cfg();
-        if (!self::cfgEnabled($cfg, 'other', 'to_owner', ['to_owner', 'to_guest', 'auto_process'])) {
+        if (!self::cfgEnabled($cfg, 'mailSwitches', 'to_owner', ['to_owner', 'to_guest', 'auto_process'])) {
             return false;
         }
         $status = (string)$data['status'];
-        if ($status !== 'waiting' && !in_array($status, self::cfgArray($cfg, 'status', ['approved', 'waiting']), true)) {
+        if ($status !== 'waiting' && !in_array($status, self::cfgArray($cfg, 'mailNotifyStatus', ['approved', 'waiting']), true)) {
             return false;
         }
         if (self::isTimeMachineAuthorMoment($data)) {
             return false;
         }
-        if (!self::cfgEnabled($cfg, 'other', 'to_me', ['to_owner', 'to_guest', 'auto_process'])
+        if (!self::cfgEnabled($cfg, 'mailSwitches', 'to_me', ['to_owner', 'to_guest', 'auto_process'])
             && (int)$data['authorId'] > 0
             && (int)$data['ownerId'] > 0
             && (int)$data['authorId'] === (int)$data['ownerId']) {
@@ -756,7 +452,7 @@ class Plugin implements PluginInterface
     private static function shouldCreateGuestTask(array $data)
     {
         $cfg = self::cfg();
-        if (!self::cfgEnabled($cfg, 'other', 'to_guest', ['to_owner', 'to_guest', 'auto_process'])) {
+        if (!self::cfgEnabled($cfg, 'mailSwitches', 'to_guest', ['to_owner', 'to_guest', 'auto_process'])) {
             return false;
         }
         if ((int)$data['parent'] <= 0 || $data['status'] !== 'approved') {
@@ -772,7 +468,7 @@ class Plugin implements PluginInterface
             return false;
         }
 
-        if (!self::cfgEnabled($cfg, 'other', 'to_me', ['to_owner', 'to_guest', 'auto_process'])) {
+        if (!self::cfgEnabled($cfg, 'mailSwitches', 'to_me', ['to_owner', 'to_guest', 'auto_process'])) {
             $sameMail = strtolower(trim((string)$data['mail'])) !== ''
                 && strtolower(trim((string)$data['mail'])) === strtolower(trim((string)$original['mail']));
             $sameUser = (int)$data['authorId'] > 0
@@ -789,7 +485,7 @@ class Plugin implements PluginInterface
     private static function ownerRecipient(array $data, $cfg)
     {
         $owner = self::userRow((int)$data['ownerId']);
-        $mail = trim((string)self::cfgValue($cfg, 'mail', ''));
+        $mail = trim((string)self::cfgValue($cfg, 'mailRecipient', ''));
         if ($mail === '' && $owner && !empty($owner['mail'])) {
             $mail = (string)$owner['mail'];
         }
@@ -890,18 +586,18 @@ class Plugin implements PluginInterface
     private static function wakeQueueWorker()
     {
         $cfg = self::cfg();
-        if (!self::cfgEnabled($cfg, 'other', 'auto_process', ['to_owner', 'to_guest', 'auto_process'])) {
+        if (!self::cfgEnabled($cfg, 'mailSwitches', 'auto_process', ['to_owner', 'to_guest', 'auto_process'])) {
             return;
         }
 
-        $key = (string)self::cfgValue($cfg, 'key', '');
+        $key = (string)self::cfgValue($cfg, 'mailQueueKey', '');
         if ($key === '') {
             return;
         }
 
         $options = Widget::widget('Widget_Options');
         $entryUrl = ($options->rewrite) ? $options->siteUrl : $options->siteUrl . 'index.php';
-        $deliverUrl = rtrim($entryUrl, '/') . '/action/' . self::$_action . '?do=deliverMail&key=' . rawurlencode($key);
+        $deliverUrl = rtrim($entryUrl, '/') . '/action/' . self::ACTION_NAME . '?do=deliverMail&key=' . rawurlencode($key);
         self::triggerQueueAsync($deliverUrl);
     }
 
@@ -927,7 +623,7 @@ class Plugin implements PluginInterface
         if (!$socket) return;
 
         stream_set_timeout($socket, 1);
-        $request = "GET {$target} HTTP/1.1\r\nHost: {$hostHeader}\r\nUser-Agent: QiwiCommentMail/2.0.0\r\nConnection: close\r\n\r\n";
+        $request = "GET {$target} HTTP/1.1\r\nHost: {$hostHeader}\r\nUser-Agent: QiwiCommentMail/2.2.0\r\nConnection: close\r\n\r\n";
         $written = 0;
         $length = strlen($request);
         while ($written < $length) {

@@ -2375,6 +2375,48 @@
         'enableTravellings',
         'sidebarProfileAvatar',
         'enableBusuanzi',
+        'umamiApiBase',
+        'umamiShareId',
+        'obsidianPushToken',
+        'enableSitemap',
+        'enablePosts',
+        'enablePages',
+        'enableCategories',
+        'enableTags',
+        'enableXsl',
+        'enableRobots',
+        'enableMomentsFeed',
+        'momentsPageCid',
+        'momentsFeedLimit',
+        'enableFeedDiscovery',
+        'enableFeedShortcodeCompat',
+        'enableFeedAvatar',
+        'avatarUrl',
+        'excludedCids',
+        'mailMode',
+        'mailHost',
+        'mailPort',
+        'mailUser',
+        'mailPass',
+        'mailValidate',
+        'mailResendApiKey',
+        'mailResendFrom',
+        'mailResendApiUrl',
+        'mailResendCaFile',
+        'mailFromName',
+        'mailRecipient',
+        'mailContactme',
+        'mailTitleForOwner',
+        'mailTitleForGuest',
+        'mailOwnerTemplate',
+        'mailGuestTemplate',
+        'mailNotifyStatus',
+        'mailSwitches',
+        'mailBatchSize',
+        'mailRateLimitPerSecond',
+        'mailMaxAttempts',
+        'mailLogKeepDays',
+        'mailQueueKey',
         'sidebarMomentCount',
         'homeVisibilityDefault',
         'rssVisibilityDefault',
@@ -2420,6 +2462,27 @@
         customCSS: '留空不追加自定义 CSS',
         customJS: '留空不追加自定义 JS',
         trackingCode: '留空不加载第三方统计代码',
+        umamiApiBase: '例如 https://trace.example.com（仅 HTTPS）',
+        umamiShareId: 'Umami 分享链接 /share/ 后面的一串 ID',
+        obsidianPushToken: '随机长字符串，留空关闭推送入口',
+        momentsFeedLimit: '20',
+        momentsPageCid: '留空时自动查找 page-timemachine.php 页面',
+        avatarUrl: '留空时依次使用侧栏头像 / 关于页头像 / LOGO',
+        excludedCids: '逗号分隔，例如 12,34,56',
+        mailHost: '例如 smtp.example.com，使用 Resend 时可留空',
+        mailPort: '25，SSL 一般为 465',
+        mailUser: 'SMTP 用户名，一般为邮箱账户',
+        mailResendApiKey: 're_ 开头的 API Key',
+        mailResendFrom: '例如 no-reply@example.com（需已验证域名）',
+        mailResendApiUrl: '默认 https://api.resend.com/emails',
+        mailFromName: '留空使用博客标题',
+        mailRecipient: '留空时使用文章作者个人设置中的邮箱',
+        mailContactme: '留空时使用文章作者个人设置中的邮箱',
+        mailBatchSize: '2',
+        mailRateLimitPerSecond: '2',
+        mailMaxAttempts: '5',
+        mailLogKeepDays: '30',
+        mailQueueKey: '外部定时任务触发地址中的密钥',
         aboutBio: '写一点关于你的简短介绍',
         aboutAvatar: '留空时使用默认头像',
         friendsData: '通过友链结构化 UI 管理，原始数据可留空',
@@ -2461,9 +2524,14 @@
 
     var CONFIG_SCHEMA_VERSION = 1;
 
+    // 密钥字段不进整包导出，导入时也跳过：SMTP 密码、Resend API Key
+    // 与邮件队列触发密钥（worker 入口的能力凭证）只留在本站。
+    var CONFIG_SECRET_FIELD_NAMES = ['mailPass', 'mailResendApiKey', 'mailQueueKey'];
+
     function buildConfigPayload() {
         var settings = {};
         CONFIG_FIELD_NAMES.forEach(function(name) {
+            if (CONFIG_SECRET_FIELD_NAMES.indexOf(name) !== -1) return;
             if (fieldByName(name)) {
                 settings[name] = getFieldValueByName(name);
             }
@@ -2502,18 +2570,29 @@
         }
 
         // 只按已知字段白名单写入，未知键（含已移除的旧选项）静默忽略；
-        // 更高版本的备份仍尝试导入，但提示可能不完全兼容。
+        // 密钥字段同样跳过并给出提示；更高版本的备份仍尝试导入，但提示可能不完全兼容。
         var payloadVersion = parseInt(payload.version, 10);
         var notes = [];
         if (!isNaN(payloadVersion) && payloadVersion > CONFIG_SCHEMA_VERSION) {
             notes.push('该配置来自更新的版本（v' + payloadVersion + '），部分字段可能未被识别');
         }
 
+        var skippedSecrets = [];
         CONFIG_FIELD_NAMES.forEach(function(name) {
+            if (CONFIG_SECRET_FIELD_NAMES.indexOf(name) !== -1) {
+                if (Object.prototype.hasOwnProperty.call(settings, name)) {
+                    skippedSecrets.push(name);
+                }
+                return;
+            }
             if (Object.prototype.hasOwnProperty.call(settings, name)) {
                 setFieldValueByName(name, settings[name]);
             }
         });
+
+        if (skippedSecrets.length) {
+            notes.push('密钥字段（' + skippedSecrets.join('、') + '）不会随整包导入，请在本站手动填写');
+        }
 
         Object.keys(editors || {}).forEach(function(key) {
             if (editors[key] && editors[key].refresh) {
@@ -2573,12 +2652,12 @@
 
         $('[data-config-export="json"]', panel).addEventListener('click', function() {
             textarea.value = JSON.stringify(buildConfigPayload(), null, 2);
-            setStatus('已生成 JSON 配置。');
+            setStatus('已生成 JSON 配置（SMTP 密码、Resend API Key 与邮件队列密钥不会包含在内）。');
         });
 
         $('[data-config-export="base64"]', panel).addEventListener('click', function() {
             textarea.value = encodeBase64Utf8(JSON.stringify(buildConfigPayload()));
-            setStatus('已生成 Base64 配置。');
+            setStatus('已生成 Base64 配置（SMTP 密码、Resend API Key 与邮件队列密钥不会包含在内）。');
         });
 
         $('[data-config-import]', panel).addEventListener('click', function() {
@@ -3282,6 +3361,74 @@
         updateVisibility();
     }
 
+    // 邮件通知 tab：按发信方式（SMTP / Resend / mail() / sendmail()）联动显隐专属字段。
+    function initMailModeToggle(panel) {
+        var mailPane = $('[data-qiwi-pane="mail"]', panel);
+        if (!mailPane || mailPane.dataset.qiwiMailModeReady) return;
+        mailPane.dataset.qiwiMailModeReady = '1';
+
+        var groups = {
+            smtp: ['mailHost', 'mailPort', 'mailUser', 'mailPass', 'mailValidate'],
+            resend: ['mailResendApiKey', 'mailResendFrom', 'mailResendApiUrl', 'mailResendCaFile']
+        };
+
+        Object.keys(groups).forEach(function(mode) {
+            groups[mode].forEach(function(name) {
+                var row = fieldRow(fieldByName(name));
+                if (row) row.setAttribute('data-mail-mode', mode);
+            });
+        });
+
+        function update() {
+            var checked = $('input[name="mailMode"]:checked', panel) || $('input[name="mailMode"]', panel);
+            var mode = checked ? checked.value : '';
+            $all('[data-mail-mode]', mailPane).forEach(function(row) {
+                row.hidden = !!row.getAttribute('data-mail-mode') && row.getAttribute('data-mail-mode') !== mode;
+            });
+        }
+
+        $all('input[name="mailMode"]', panel).forEach(function(radio) {
+            radio.addEventListener('change', update);
+        });
+        update();
+    }
+
+    // 站点地图 / 邮件通知 tab：旧伴生插件残留或 QiwiTheme 合并模块未注册时给出提示。
+    // 两类模块的问题分别提示在各自的 tab，旧插件残留两边都提示。
+    function initCompanionWarnings(panel) {
+        var status = window.QIWI_ADMIN_CONFIG && window.QIWI_ADMIN_CONFIG.companionStatus;
+        if (!status) return;
+
+        var legacyIssue = '';
+        if (status.legacyPluginsActive && status.legacyPluginsActive.length) {
+            legacyIssue = '检测到旧伴生插件 ' + status.legacyPluginsActive.join('、') + ' 仍处于启用状态，它们的功能已并入 QiwiTheme。请停用这些旧插件，并停用后重新启用一次 QiwiTheme 以完成配置迁移。';
+        }
+
+        var tabIssues = {
+            sitemap: legacyIssue,
+            mail: legacyIssue
+        };
+        if (!status.sitemapRouteActive) {
+            tabIssues.sitemap += ' 站点地图 / robots.txt 路由尚未注册：请到后台「插件」页停用再启用一次 QiwiTheme。';
+        }
+        if (!status.mailHookActive) {
+            tabIssues.mail += ' 评论邮件钩子尚未注册：请到后台「插件」页停用再启用一次 QiwiTheme。';
+        }
+
+        Object.keys(tabIssues).forEach(function(key) {
+            var text = trim(tabIssues[key]);
+            if (!text) return;
+            var slot = $('[data-qiwi-companion-warning="' + key + '"]', panel);
+            if (!slot) return;
+            var warning = document.createElement('div');
+            warning.className = 'qiwi-category-visibility-warning';
+            warning.innerHTML =
+                '<strong>QiwiTheme 伴生模块需要重新激活</strong>' +
+                '<span>' + escapeHtml(text) + '</span>';
+            slot.appendChild(warning);
+        });
+    }
+
     function init() {
         initThreadCategoryEditor();
 
@@ -3329,6 +3476,8 @@
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="likes" data-qiwi-title="点赞记录" data-qiwi-desc="说说和文章点赞身份、邮箱 hash 与评论匹配。"><i class="fa-regular fa-heart" aria-hidden="true"></i><span>点赞记录</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="post-likes" data-qiwi-title="文章点赞" data-qiwi-desc="按文章查看点赞数量和最近点赞时间。"><i class="fa-solid fa-heart-circle-check" aria-hidden="true"></i><span>文章点赞</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security" data-qiwi-title="后台与安全" data-qiwi-desc="版本提示、验证码与后台开关。"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>后台与安全</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sitemap" data-qiwi-title="站点地图 / 订源" data-qiwi-desc="sitemap、robots.txt、时光机 RSS 与订阅增强，由 QiwiTheme 插件提供。"><i class="fa-solid fa-sitemap" aria-hidden="true"></i><span>站点地图 / 订源</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="mail" data-qiwi-title="邮件通知" data-qiwi-desc="评论邮件通知的发信方式、模板与队列，由 QiwiTheme 插件提供。"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span>邮件通知</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw" data-qiwi-title="原始数据" data-qiwi-desc="结构化编辑器背后的兼容数据。"><i class="fa-solid fa-code" aria-hidden="true"></i><span>原始数据</span></button>' +
                         '</div>' +
                     '</nav>' +
@@ -3431,6 +3580,8 @@
                     '<section class="qiwi-admin-pane" data-qiwi-pane="likes"><div class="qiwi-link-stats qiwi-like-records" data-qiwi-like-records></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="post-likes"><div class="qiwi-link-stats qiwi-like-records" data-qiwi-post-like-stats></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div data-qiwi-update-panel></div><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="sitemap"><div data-qiwi-companion-warning="sitemap"></div><div class="qiwi-admin-fields" data-qiwi-sitemap-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="mail"><div data-qiwi-companion-warning="mail"></div><div class="qiwi-admin-fields" data-qiwi-mail-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
                 '</main>' +
             '</div>';
@@ -3438,17 +3589,21 @@
         navRow.parentNode.insertBefore(panel, navRow);
 
         moveFields(['logoUrl', 'sidebarProfileAvatar', 'v2EnglishTitle', 'v2SidebarSlogan', 'homeNavTitle', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
-        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'enableBusuanzi', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'enableBusuanzi', 'umamiApiBase', 'umamiShareId', 'obsidianPushToken', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
+        moveFields(['enableSitemap', 'enablePosts', 'enablePages', 'enableCategories', 'enableTags', 'enableXsl', 'enableRobots', 'enableMomentsFeed', 'momentsPageCid', 'momentsFeedLimit', 'enableFeedDiscovery', 'enableFeedShortcodeCompat', 'enableFeedAvatar', 'avatarUrl', 'excludedCids'], $('[data-qiwi-sitemap-fields]', panel));
+        moveFields(['mailMode', 'mailHost', 'mailPort', 'mailUser', 'mailPass', 'mailValidate', 'mailResendApiKey', 'mailResendFrom', 'mailResendApiUrl', 'mailResendCaFile', 'mailFromName', 'mailRecipient', 'mailContactme', 'mailTitleForOwner', 'mailTitleForGuest', 'mailNotifyStatus', 'mailSwitches', 'mailBatchSize', 'mailRateLimitPerSecond', 'mailMaxAttempts', 'mailLogKeepDays', 'mailQueueKey'], $('[data-qiwi-mail-fields]', panel));
 
         var rawPane = $('[data-qiwi-pane="raw"]', panel);
         [
             ['navItems', '顶部导航配置'],
             ['friendsData', '友链数据'],
             ['bookReference', '归档统计数据'],
-            ['categoryVisibilityData', '分类展示设置']
+            ['categoryVisibilityData', '分类展示设置'],
+            ['mailOwnerTemplate', '管理员通知邮件模板'],
+            ['mailGuestTemplate', '用户回复通知邮件模板']
         ].forEach(function(item) {
             var row = moveField(item[0], rawPane);
             wrapRawField(row, item[1]);
@@ -3471,6 +3626,8 @@
         initUpdatePanel($('[data-qiwi-update-panel]', panel));
         initConfigImportExport(rawPane, editors);
         applyRecommendedDefaults();
+        initMailModeToggle(panel);
+        initCompanionWarnings(panel);
         enhanceSpecialTextareas();
     }
 
