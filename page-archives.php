@@ -42,7 +42,7 @@ if (!function_exists('qiwiArchivesRenderHeatmap')) {
 
         $daysJson = htmlspecialchars(json_encode($daysRaw, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
 
-        echo '<div class="qiwi-heatmap" data-hm-kind="' . htmlspecialchars($kind, ENT_QUOTES, 'UTF-8') . '" data-hm-days="' . $daysJson . '" role="img" aria-label="' . htmlspecialchars($ariaLabel, ENT_QUOTES, 'UTF-8') . '">';
+        echo '<div class="qiwi-heatmap" data-hm-kind="' . htmlspecialchars($kind, ENT_QUOTES, 'UTF-8') . '" data-hm-days="' . $daysJson . '" data-hm-view="day" role="img" aria-label="' . htmlspecialchars($ariaLabel, ENT_QUOTES, 'UTF-8') . '">';
         echo '<div class="heatmap-scroll"><div class="heatmap-frame">';
         echo '<div class="heatmap-months" style="grid-template-columns:repeat(' . $columnCount . ',var(--hm-cell))">' . $monthLabels . '</div>';
         echo '<div class="heatmap-body">';
@@ -279,23 +279,26 @@ if ($umamiApiBase !== '' && $umamiShareId !== '' && class_exists('QiwiTheme_Plug
     }
 }
 
+// 来访格子：日视图固定「全部」口径，按 到访+浏览 合计分四档纯色着色（深浅即总量）
 $readerCells = [];
 $readerDaysRaw = [];
 if (is_array($umamiReader) && !empty($umamiReader['daily'])) {
-    $maxVisits = 0;
+    $maxTraffic = 0;
     foreach ($umamiReader['daily'] as $info) {
-        $maxVisits = max($maxVisits, (int) $info['visits']);
+        $maxTraffic = max($maxTraffic, (int) $info['visits'] + (int) $info['views']);
     }
     foreach ($umamiReader['daily'] as $day => $info) {
         $visits = (int) $info['visits'];
-        $readerDaysRaw[$day] = ['v' => $visits, 'w' => (int) $info['views']];
-        if ($visits <= 0) {
+        $views = (int) $info['views'];
+        $readerDaysRaw[$day] = ['v' => $visits, 'w' => $views];
+        $traffic = $visits + $views;
+        if ($traffic <= 0) {
             continue;
         }
         $readerCells[$day] = [
-            'level' => max(1, min(4, (int) ceil($visits * 4 / max(1, $maxVisits)))),
+            'level' => max(1, min(4, (int) ceil($traffic * 4 / max(1, $maxTraffic)))),
             'tone' => 'reader',
-            'title' => date('Y年n月j日', strtotime($day . ' 00:00:00')) . ' · 到访 ' . $visits . ' · 浏览 ' . (int) $info['views'],
+            'title' => date('Y年n月j日', strtotime($day . ' 00:00:00')) . ' · 到访 ' . $visits . ' · 浏览 ' . $views,
         ];
     }
 }
@@ -414,6 +417,7 @@ $pageContent = qiwiGetContent($this);
             <div class="heatmap-section-head">
                 <h2 class="heatmap-section-title">写作经历<span class="heatmap-section-note">共 <?php echo (int) $pastYearActiveDays; ?> 天在写作</span></h2>
                 <button type="button" class="hm-toggle" data-hm-toggle-kind="writing" data-hm-mode="all" hidden aria-label="切换热力图口径，当前：全部"><span class="hm-toggle-dot"></span><span class="hm-toggle-text">全部</span></button>
+                <button type="button" class="hm-toggle hm-toggle-view" data-hm-toggle-kind="view" data-hm-mode="day" hidden aria-label="切换热力图视图，当前：日"><span class="hm-toggle-text">日</span></button>
             </div>
             <?php qiwiArchivesRenderHeatmap(
                 $heatmapCells,
@@ -431,14 +435,15 @@ $pageContent = qiwiGetContent($this);
         <section class="archives-heatmap-section" data-hm-reader>
             <div class="heatmap-section-head">
                 <h2 class="heatmap-section-title">来访记录<?php if ($totalViews > 0): ?><span class="heatmap-section-note">文章累计阅读 <?php echo number_format($totalViews); ?> 次</span><?php endif; ?></h2>
-                <button type="button" class="hm-toggle" data-hm-toggle-kind="reader" data-hm-mode="visits" hidden aria-label="切换统计口径，当前：访客"><span class="hm-toggle-dot"></span><span class="hm-toggle-text">访客</span></button>
+                <button type="button" class="hm-toggle" data-hm-toggle-kind="reader" data-hm-mode="combined" hidden aria-label="切换统计口径，当前：全部"><span class="hm-toggle-dot"></span><span class="hm-toggle-text">全部</span></button>
+                <button type="button" class="hm-toggle hm-toggle-view" data-hm-toggle-kind="view" data-hm-mode="day" hidden aria-label="切换热力图视图，当前：日"><span class="hm-toggle-text">日</span></button>
             </div>
             <?php qiwiArchivesRenderHeatmap(
                 $readerCells,
                 '来访记录热力图（过去一年）',
                 'reader',
-                '到访',
-                '',
+                '来访',
+                '<span class="hm-dot hm-tone-visitors"></span>访客 <span class="hm-dot hm-tone-views"></span>浏览',
                 'reader',
                 $readerDaysRaw
             ); ?>
@@ -560,7 +565,8 @@ $pageContent = qiwiGetContent($this);
 
     function showTooltip(grid, cell) {
         var tip = ensureTooltip();
-        tip.textContent = tipText(grid, cell.getAttribute('data-hm-day'));
+        var custom = cell.getAttribute('data-hm-tip');
+        tip.textContent = custom !== null && custom !== '' ? custom : tipText(grid, cell.getAttribute('data-hm-day'));
         tip.classList.add('is-visible');
 
         var rect = cell.getBoundingClientRect();
@@ -634,39 +640,390 @@ $pageContent = qiwiGetContent($this);
         }
     }
 
-    // 来访口径：访客（sessions）/ 浏览（pageviews），深浅按所选口径对最大值分四档
-    function applyReaderMode(section, mode) {
+    // 来访日视图：按当前口径纯色分四档（全部=访客+浏览合计、访客、浏览），与 PHP 着色同一套规则
+    function applyReaderDay(section, mode) {
         var grid = gridOf(section);
         if (!grid || grid.getAttribute('data-hm-kind') !== 'reader') {
             return;
         }
         var data = daysMapOf(grid) || {};
-        var field = mode === 'views' ? 'w' : 'v';
+        var field = mode === 'visits' ? 'v' : (mode === 'views' ? 'w' : null);
         var max = 0;
         for (var day in data) {
             if (Object.prototype.hasOwnProperty.call(data, day)) {
-                max = Math.max(max, data[day][field] || 0);
+                var sum = field ? (data[day][field] || 0) : (data[day].v || 0) + (data[day].w || 0);
+                max = Math.max(max, sum);
             }
         }
         var cells = grid.querySelectorAll('.hm-cell[data-hm-day]');
         for (var j = 0; j < cells.length; j++) {
             var cell = cells[j];
             var info = data[cell.getAttribute('data-hm-day')];
-            var value = info ? (info[field] || 0) : 0;
-            var level = value > 0 ? Math.max(1, Math.min(4, Math.ceil(value * 4 / Math.max(1, max)))) : 0;
+            var total = info ? (field ? (info[field] || 0) : (info.v || 0) + (info.w || 0)) : 0;
+            var level = total > 0 ? Math.max(1, Math.min(4, Math.ceil(total * 4 / Math.max(1, max)))) : 0;
             cell.className = level > 0 ? 'hm-cell hm-l' + level + ' hm-tone-reader' : 'hm-cell hm-l0';
         }
         var metric = section.querySelector('.heatmap-legend-metric');
         if (metric) {
-            metric.textContent = mode === 'views' ? '浏览' : '到访';
+            metric.textContent = mode === 'visits' ? '访客' : (mode === 'views' ? '浏览' : '来访');
         }
+    }
+
+    /* ===== 周/累计柱状图视图：把一根 7 格的条当柱状图，自底向上按量填充 ===== */
+
+    function escAttr(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function rangeText(startDay, endDay) {
+        if (startDay === endDay) {
+            return dayText(startDay);
+        }
+        var startYear = parseInt(startDay.slice(0, 4), 10);
+        var startMonth = parseInt(startDay.slice(5, 7), 10);
+        var startDayNum = parseInt(startDay.slice(8, 10), 10);
+        var endYear = parseInt(endDay.slice(0, 4), 10);
+        var endMonth = parseInt(endDay.slice(5, 7), 10);
+        var endDayNum = parseInt(endDay.slice(8, 10), 10);
+        var tail = '';
+        if (endYear !== startYear) {
+            tail += endYear + '年';
+        }
+        if (endMonth !== startMonth) {
+            tail += endMonth + '月';
+        }
+        return startYear + '年' + startMonth + '月' + startDayNum + '日–' + tail + endDayNum + '日';
+    }
+
+    function currentViewOf(section) {
+        var grid = gridOf(section);
+        return grid ? (grid.getAttribute('data-hm-view') || 'day') : 'day';
+    }
+
+    function currentModeOf(section, kind) {
+        var pill = section ? section.querySelector('.hm-toggle[data-hm-toggle-kind="' + kind + '"]') : null;
+        var mode = pill ? pill.getAttribute('data-hm-mode') : '';
+        if (kind === 'reader') {
+            return mode === 'visits' || mode === 'views' ? mode : 'combined';
+        }
+        return mode || 'all';
+    }
+
+    // 日视图的 53 列星期一起始日在服务端算好，这里直接从格子 data-hm-day 收集，避免时区漂移
+    function dayColumnsOf(grid) {
+        if (grid.__qiwiDayColumns) {
+            return grid.__qiwiDayColumns;
+        }
+        var columns = [];
+        var colNodes = grid.querySelectorAll('.heatmap-weeks .heatmap-col');
+        for (var i = 0; i < colNodes.length; i++) {
+            var cells = colNodes[i].querySelectorAll('.hm-cell[data-hm-day]');
+            var days = [];
+            for (var j = 0; j < cells.length; j++) {
+                days.push(cells[j].getAttribute('data-hm-day'));
+            }
+            columns.push(days);
+        }
+        grid.__qiwiDayColumns = columns;
+        return columns;
+    }
+
+    // 首次离开日视图前缓存服务端渲染的标记，切回日视图时原样还原
+    function stashDayMarkup(grid) {
+        dayColumnsOf(grid);
+        if (grid.__qiwiDayStash) {
+            return;
+        }
+        var weeksEl = grid.querySelector('.heatmap-weeks');
+        var railEl = grid.querySelector('.heatmap-weekdays');
+        grid.__qiwiDayStash = {
+            weeks: weeksEl.innerHTML,
+            rail: railEl ? railEl.innerHTML : '',
+            aria: grid.getAttribute('aria-label')
+        };
+    }
+
+    function aggregateDays(data, days) {
+        var agg = { p: 0, m: 0, o: 0, v: 0, w: 0 };
+        for (var i = 0; i < days.length; i++) {
+            var info = data[days[i]];
+            if (!info) {
+                continue;
+            }
+            agg.p += info.p || 0;
+            agg.m += info.m || 0;
+            agg.o += info.o || 0;
+            agg.v += info.v || 0;
+            agg.w += info.w || 0;
+        }
+        return agg;
+    }
+
+    function bucketValue(agg, kind, mode) {
+        if (kind === 'reader') {
+            if (mode === 'visits') {
+                return agg.v;
+            }
+            if (mode === 'views') {
+                return agg.w;
+            }
+            return agg.v + agg.w;
+        }
+        if (mode === 'posts') {
+            return agg.p;
+        }
+        if (mode === 'moments') {
+            return agg.m;
+        }
+        if (mode === 'obsidian') {
+            return agg.o;
+        }
+        if (mode === 'blog') {
+            return agg.p + agg.m;
+        }
+        return agg.p + agg.m + agg.o;
+    }
+
+    function bucketTone(agg, mode) {
+        if (mode === 'posts') {
+            return 'post';
+        }
+        if (mode === 'moments') {
+            return 'moment';
+        }
+        if (mode === 'obsidian') {
+            return 'obsidian';
+        }
+        if (mode === 'blog') {
+            return agg.p > 0 ? 'post' : 'moment';
+        }
+        if (agg.p >= agg.m && agg.p >= agg.o) {
+            return 'post';
+        }
+        return agg.m >= agg.o ? 'moment' : 'obsidian';
+    }
+
+    // 最大余数法把已填格分给各来源，自底向上按传入顺序排列（写作：文章→说说→随笔；来访：访客→浏览）
+    function distributeSegments(cells, parts) {
+        var total = 0;
+        for (var i = 0; i < parts.length; i++) {
+            total += parts[i].count;
+        }
+        if (cells <= 0 || total <= 0) {
+            return [];
+        }
+        var floors = [];
+        var remainders = [];
+        var used = 0;
+        for (var j = 0; j < parts.length; j++) {
+            var raw = cells * parts[j].count / total;
+            floors.push(Math.floor(raw));
+            remainders.push(raw - Math.floor(raw));
+            used += floors[j];
+        }
+        var order = [];
+        for (var t = 0; t < parts.length; t++) {
+            order.push(t);
+        }
+        order.sort(function (a, b) {
+            return (remainders[b] - remainders[a]) || (a - b);
+        });
+        for (var left = cells - used, u = 0; u < left; u++) {
+            floors[order[u]]++;
+        }
+        var segments = [];
+        for (var s = 0; s < parts.length; s++) {
+            if (floors[s] > 0) {
+                segments.push({ tone: parts[s].tone, cells: floors[s] });
+            }
+        }
+        return segments;
+    }
+
+    function bucketTip(kind, agg, label, cum) {
+        if (kind === 'reader') {
+            return label + ' · ' + (cum ? '累计到访 ' : '到访 ') + agg.v + ' · ' + (cum ? '累计浏览 ' : '浏览 ') + agg.w;
+        }
+        var prefix = cum ? '累计' : '';
+        var parts = [];
+        if (agg.p > 0) {
+            parts.push(prefix + '文章 ' + agg.p);
+        }
+        if (agg.m > 0) {
+            parts.push(prefix + '说说 ' + agg.m);
+        }
+        if (agg.o > 0) {
+            parts.push(prefix + '随笔 ' + agg.o);
+        }
+        return parts.length > 0 ? label + ' · ' + parts.join(' · ') : label + ' · 无记录';
+    }
+
+    // 柱状视图左侧轨道：0–100 刻度（顶格 = 当前口径/视图下的满格值），50 落在 7 格正中那格
+    var RAIL_SCALE_HTML = '<span class="hm-rail-num">100</span><span></span><span></span><span class="hm-rail-num">50</span><span></span><span></span><span class="hm-rail-num">0</span>';
+
+    function alignHeatmap(section) {
+        var scroll = section.querySelector('.heatmap-scroll');
+        if (scroll && scroll.scrollWidth > scroll.clientWidth + 4) {
+            scroll.scrollLeft = scroll.scrollWidth;
+        }
+    }
+
+    function renderBars(section, view) {
+        var grid = gridOf(section);
+        if (!grid || (view !== 'week' && view !== 'cum')) {
+            return;
+        }
+        var kind = grid.getAttribute('data-hm-kind');
+        var data = daysMapOf(grid) || {};
+        var mode = currentModeOf(section, kind);
+        var columns = dayColumnsOf(grid);
+        stashDayMarkup(grid);
+        var stash = grid.__qiwiDayStash;
+
+        // 周桶：值与成分按周聚合；累计视图再折叠为截至该周最后一天的累计值
+        var buckets = [];
+        var cum = { p: 0, m: 0, o: 0, v: 0, w: 0 };
+        for (var w = 0; w < columns.length; w++) {
+            var days = columns[w];
+            var agg = aggregateDays(data, days);
+            var bucket = { agg: agg, label: '' };
+            if (view === 'cum') {
+                cum.p += agg.p;
+                cum.m += agg.m;
+                cum.o += agg.o;
+                cum.v += agg.v;
+                cum.w += agg.w;
+                bucket.agg = { p: cum.p, m: cum.m, o: cum.o, v: cum.v, w: cum.w };
+                if (days.length > 0) {
+                    bucket.label = '截至' + dayText(days[days.length - 1]);
+                }
+            } else if (days.length > 0) {
+                bucket.label = rangeText(days[0], days[days.length - 1]);
+            }
+            buckets.push(bucket);
+        }
+
+        var totals = [];
+        var maxTotal = 0;
+        for (var b = 0; b < buckets.length; b++) {
+            totals.push(bucketValue(buckets[b].agg, kind, mode));
+            if (totals[b] > maxTotal) {
+                maxTotal = totals[b];
+            }
+        }
+        if (view === 'cum' && buckets.length > 0) {
+            maxTotal = totals[buckets.length - 1]; // 累计视图满格 = 最终累计值
+        }
+
+        var colsHtml = '';
+        for (var k = 0; k < buckets.length; k++) {
+            var item = buckets[k];
+            var total = totals[k];
+            var level = total > 0 && maxTotal > 0 ? Math.max(1, Math.min(7, Math.ceil(total * 7 / maxTotal))) : 0;
+            var segments = [];
+            if (level > 0) {
+                if (kind === 'reader') {
+                    if (mode === 'visits') {
+                        segments = [{ tone: 'visitors', cells: level }];
+                    } else if (mode === 'views') {
+                        segments = [{ tone: 'views', cells: level }];
+                    } else {
+                        segments = distributeSegments(level, [
+                            { tone: 'visitors', count: item.agg.v },
+                            { tone: 'views', count: item.agg.w }
+                        ]);
+                    }
+                } else if (mode === 'all') {
+                    segments = distributeSegments(level, [
+                        { tone: 'post', count: item.agg.p },
+                        { tone: 'moment', count: item.agg.m },
+                        { tone: 'obsidian', count: item.agg.o }
+                    ]);
+                } else {
+                    segments = [{ tone: bucketTone(item.agg, mode), cells: level }];
+                }
+            }
+            var cellTones = [];
+            for (var s = 0; s < segments.length; s++) {
+                for (var r = 0; r < segments[s].cells; r++) {
+                    cellTones.push(segments[s].tone);
+                }
+            }
+            var tipAttr = ' data-hm-tip="' + escAttr(bucketTip(kind, item.agg, item.label, view === 'cum')) + '"';
+            var colHtml = '';
+            for (var row = 6; row >= 0; row--) {
+                var tone = cellTones[row];
+                if (tone) {
+                    colHtml += '<span class="hm-cell hm-fill hm-tone-' + tone + ' hm-b' + level + '"' + tipAttr + '></span>';
+                } else {
+                    colHtml += '<span class="hm-cell"' + tipAttr + '></span>';
+                }
+            }
+            colsHtml += '<div class="heatmap-col">' + colHtml + '</div>';
+        }
+
+        grid.querySelector('.heatmap-weeks').innerHTML = colsHtml;
+        var railEl = grid.querySelector('.heatmap-weekdays');
+        if (railEl) {
+            railEl.innerHTML = RAIL_SCALE_HTML;
+        }
+        grid.setAttribute('data-hm-view', view);
+        if (stash && stash.aria) {
+            grid.setAttribute('aria-label', stash.aria + '，' + (view === 'week' ? '周' : '累计') + '视图');
+        }
+        alignHeatmap(section);
+    }
+
+    function replayMode(section) {
+        var grid = gridOf(section);
+        if (!grid) {
+            return;
+        }
+        var kind = grid.getAttribute('data-hm-kind');
+        if (kind === 'reader') {
+            applyReaderDay(section, currentModeOf(section, kind));
+        } else {
+            applyFilter(section, currentModeOf(section, kind));
+        }
+    }
+
+    function applyView(section, view) {
+        var grid = gridOf(section);
+        if (!grid) {
+            return;
+        }
+        if (view === 'week' || view === 'cum') {
+            renderBars(section, view);
+            return;
+        }
+        var stash = grid.__qiwiDayStash;
+        if (stash) {
+            var railEl = grid.querySelector('.heatmap-weekdays');
+            if (railEl) {
+                railEl.innerHTML = stash.rail;
+            }
+            grid.querySelector('.heatmap-weeks').innerHTML = stash.weeks;
+            if (stash.aria) {
+                grid.setAttribute('aria-label', stash.aria);
+            }
+            grid.__qiwiDayStash = null;
+        }
+        grid.setAttribute('data-hm-view', 'day');
+        replayMode(section);
+        alignHeatmap(section);
     }
 
     var TOGGLE_MODES = {
         writing: <?php echo json_encode($writingToggleModes, JSON_UNESCAPED_UNICODE); ?>,
         reader: [
+            { key: 'combined', label: '全部' },
             { key: 'visits', label: '访客' },
             { key: 'views', label: '浏览' }
+        ],
+        view: [
+            { key: 'day', label: '日' },
+            { key: 'week', label: '周' },
+            { key: 'cum', label: '累' }
         ]
     };
 
@@ -675,7 +1032,7 @@ $pageContent = qiwiGetContent($this);
         window.__qiwiHeatmapBound = true;
 
         document.addEventListener('mouseover', function (event) {
-            var cell = event.target.closest ? event.target.closest('.hm-cell[data-hm-day]') : null;
+            var cell = event.target.closest ? event.target.closest('.hm-cell[data-hm-day], .hm-cell[data-hm-tip]') : null;
             if (!cell) {
                 return;
             }
@@ -686,12 +1043,12 @@ $pageContent = qiwiGetContent($this);
             }
         });
         document.addEventListener('mouseout', function (event) {
-            if (event.target.closest && event.target.closest('.hm-cell[data-hm-day]')) {
+            if (event.target.closest && event.target.closest('.hm-cell[data-hm-day], .hm-cell[data-hm-tip]')) {
                 hideTooltip();
             }
         });
         document.addEventListener('touchstart', function (event) {
-            var cell = event.target.closest ? event.target.closest('.hm-cell[data-hm-day]') : null;
+            var cell = event.target.closest ? event.target.closest('.hm-cell[data-hm-day], .hm-cell[data-hm-tip]') : null;
             if (!cell) {
                 return;
             }
@@ -734,11 +1091,19 @@ $pageContent = qiwiGetContent($this);
             if (textEl) {
                 textEl.textContent = next.label;
             }
-            toggle.setAttribute('aria-label', '切换统计口径，当前：' + next.label);
-            if (kind === 'reader') {
-                applyReaderMode(section, next.key);
+            toggle.setAttribute('aria-label', (kind === 'view' ? '切换热力图视图' : '切换统计口径') + '，当前：' + next.label);
+            if (kind === 'view') {
+                applyView(section, next.key);
             } else {
-                applyFilter(section, next.key);
+                if (kind === 'reader') {
+                    applyReaderDay(section, next.key);
+                } else {
+                    applyFilter(section, next.key);
+                }
+                var view = currentViewOf(section);
+                if (view !== 'day') {
+                    renderBars(section, view);
+                }
             }
         });
     }
@@ -789,8 +1154,11 @@ $pageContent = qiwiGetContent($this);
                     };
                 });
                 grid.setAttribute('data-hm-days', JSON.stringify(mapped));
-                var toggle = section.querySelector('.hm-toggle');
-                applyReaderMode(section, toggle ? toggle.getAttribute('data-hm-mode') || 'visits' : 'visits');
+                applyReaderDay(section, currentModeOf(section, 'reader'));
+                var view = currentViewOf(section);
+                if (view !== 'day') {
+                    renderBars(section, view);
+                }
                 var nums = section.querySelectorAll('.heatmap-summary .hm-num');
                 if (nums.length >= 2) {
                     nums[0].textContent = Number(json.data.visitors || 0).toLocaleString();
