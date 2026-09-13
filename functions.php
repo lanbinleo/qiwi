@@ -1064,6 +1064,22 @@ function themeConfig($form)
     );
     $form->addInput($enableBusuanzi);
 
+    $umamiApiBase = new Typecho_Widget_Helper_Form_Element_Text(
+        'umamiApiBase',
+        null, null,
+        _t('Umami 统计地址'),
+        _t('填写自建 Umami 的根地址（例如 https://trace.example.com，仅支持 HTTPS），与下方分享 ID 一起填写后，归档页会展示「读者来访」热力图；需要 QiwiTheme 插件处于启用状态。')
+    );
+    $form->addInput($umamiApiBase);
+
+    $umamiShareId = new Typecho_Widget_Helper_Form_Element_Text(
+        'umamiShareId',
+        null, null,
+        _t('Umami 分享 ID'),
+        _t('在 Umami 网站设置的 Share URL 中开启分享后，取链接里 /share/ 后面那串 ID 填在这里。分享链接本身只读且不含任何密钥。建议 Umami 网站时区与博客一致，热力图日期才会对齐。')
+    );
+    $form->addInput($umamiShareId);
+
     // 开往功能
     $enableTravellings = new Typecho_Widget_Helper_Form_Element_Radio(
         'enableTravellings',

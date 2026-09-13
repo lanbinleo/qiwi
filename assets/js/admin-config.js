@@ -2375,6 +2375,8 @@
         'enableTravellings',
         'sidebarProfileAvatar',
         'enableBusuanzi',
+        'umamiApiBase',
+        'umamiShareId',
         'sidebarMomentCount',
         'homeVisibilityDefault',
         'rssVisibilityDefault',
@@ -2420,6 +2422,8 @@
         customCSS: '留空不追加自定义 CSS',
         customJS: '留空不追加自定义 JS',
         trackingCode: '留空不加载第三方统计代码',
+        umamiApiBase: '例如 https://trace.example.com（仅 HTTPS）',
+        umamiShareId: 'Umami 分享链接 /share/ 后面的一串 ID',
         aboutBio: '写一点关于你的简短介绍',
         aboutAvatar: '留空时使用默认头像',
         friendsData: '通过友链结构化 UI 管理，原始数据可留空',
@@ -3438,7 +3442,7 @@
         navRow.parentNode.insertBefore(panel, navRow);
 
         moveFields(['logoUrl', 'sidebarProfileAvatar', 'v2EnglishTitle', 'v2SidebarSlogan', 'homeNavTitle', 'enableTravellings'], $('[data-qiwi-nav-fields]', panel));
-        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'enableBusuanzi', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
+        moveFields(['sidebarMomentCount', 'homeVisibilityDefault', 'rssVisibilityDefault', 'v2FooterMotto', 'footerInfo', 'defaultCopyrightLicense', 'defaultCopyrightInfo', 'postSupportEnabled', 'postSupportQrUrl', 'postSupportTopText', 'postSupportBottomText', 'enableBusuanzi', 'umamiApiBase', 'umamiShareId', 'customCSS', 'customJS', 'trackingCode'], $('[data-qiwi-site-fields]', panel));
         moveFields(['aboutBio', 'aboutAvatar'], $('[data-qiwi-about-fields]', panel));
         moveFields(['friendFeedEnabled', 'friendFeedBaseUrl', 'friendFeedAdminToken', 'friendFeedLimit'], $('[data-qiwi-friend-feed-fields]', panel));
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
