@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest()) {
+        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest() || $this->isUmamiRefreshRequest()) {
             return;
         }
 
@@ -32,6 +32,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $this->on($this->request->is('do=posts'))->posts();
         $this->on($this->request->is('do=moment-like'))->momentLike();
         $this->on($this->request->is('do=post-like'))->postLike();
+        $this->on($this->request->is('do=umami-refresh'))->umamiRefresh();
         $this->on($this->request->is('do=rebuild-ip-locations'))->rebuildIpLocations();
         $this->json(array('success' => false, 'message' => 'Unknown action'), 404);
     }
@@ -283,6 +284,35 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         ));
     }
 
+    /**
+     * 来访记录异步刷新（stale-while-revalidate 的后台腿）：
+     * 页面渲染只读缓存并埋标记，浏览器对本端点发起 fire-and-forget 请求，
+     * 这里执行真正的 Umami 拉取（可能耗时数秒），结果写回缓存。
+     * 数据本身来自公开 Share URL，只读且无密钥，公开访问安全；
+     * 端点内部有 TTL 闸门，缓存新鲜时立即返回，不会被刷爆。
+     */
+    public function umamiRefresh()
+    {
+        $apiBase = QiwiTheme_Plugin::getThemeOption('umamiApiBase');
+        $shareId = QiwiTheme_Plugin::getThemeOption('umamiShareId');
+        $payload = ($apiBase !== '' && $shareId !== '')
+            ? QiwiTheme_Plugin::getUmamiReaderStats($apiBase, $shareId)
+            : null;
+
+        if ($payload === null) {
+            $this->json(array('success' => false), 503);
+        }
+
+        $this->json(array(
+            'success' => true,
+            'data' => array(
+                'daily' => isset($payload['daily']) ? $payload['daily'] : array(),
+                'visitors' => isset($payload['visitors']) ? (int) $payload['visitors'] : 0,
+                'pageviews' => isset($payload['pageviews']) ? (int) $payload['pageviews'] : 0,
+            ),
+        ));
+    }
+
     public function rebuildIpLocations()
     {
         if (!$this->request->isPost()) {
@@ -526,6 +556,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     private function isPostLikeRequest()
     {
         return $this->request && $this->request->is('do=post-like');
+    }
+
+    private function isUmamiRefreshRequest()
+    {
+        return $this->request && $this->request->is('do=umami-refresh');
     }
 
     private function isExternalLinkRequest()

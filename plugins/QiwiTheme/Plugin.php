@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.1.5
+ * @version 2.2.0
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -19,6 +19,8 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
     const IP_LOCATION_TABLE = 'qiwi_ip_locations';
     const SETTINGS_PANEL = 'QiwiTheme/page/settings.php';
     const OWN_COMMENTS_COOKIE = 'qiwi_own_comments';
+    const UMAMI_CACHE_OPTION = 'qiwi_theme_umami_cache';
+    const UMAMI_CACHE_TTL = 21600;
 
     public static function activate()
     {
@@ -1923,6 +1925,376 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         return strlen($text) > $length * 2 ? substr($text, 0, $length * 2) . '...' : $text;
+    }
+
+    /**
+     * 归档页「来访记录」热力图数据（Umami Share URL 只读联动）。
+     *
+     * 主题设置提供 umamiApiBase + umamiShareId；本方法会发起网络请求（含缓存 TTL 判断），
+     * 只应在刷新端点里调用。页面渲染请用 peekUmamiReaderStats() 只读缓存，避免阻塞渲染。
+     *
+     * @return array|null {daily: ['Y-m-d' => ['visits' => n, 'views' => n]], visitors: int, pageviews: int}
+     */
+    public static function getUmamiReaderStats($apiBase, $shareId)
+    {
+        $apiBase = rtrim(trim((string) $apiBase), '/');
+        $shareId = trim((string) $shareId);
+        if ($apiBase === '' || $shareId === '' || !preg_match('~^https://[^\s/?#]+$~i', $apiBase)) {
+            return null;
+        }
+
+        $cache = self::readUmamiCache();
+        $ttl = self::UMAMI_CACHE_TTL;
+        if (isset($cache['fetchedAt']) && (int) $cache['fetchedAt'] + $ttl > time()
+            && isset($cache['payload']['daily']) && is_array($cache['payload']['daily']) && !empty($cache['payload']['daily'])) {
+            return $cache['payload'];
+        }
+
+        $payload = self::fetchUmamiReaderStats($apiBase, $shareId);
+        if ($payload !== null) {
+            self::writeUmamiCache(array('fetchedAt' => time(), 'payload' => $payload));
+            return $payload;
+        }
+
+        // 拉取失败时容忍使用过期缓存，避免 Umami 短暂不可用导致板块消失。
+        if (isset($cache['payload']['daily']) && is_array($cache['payload']['daily']) && !empty($cache['payload']['daily'])) {
+            return $cache['payload'];
+        }
+
+        return null;
+    }
+
+    /**
+     * 页面渲染专用的只读入口：绝不发起网络请求，只报告缓存与其新鲜度，
+     * 供模板决定展示旧数据并埋下异步刷新标记（stale-while-revalidate）。
+     *
+     * @return array|null {payload: array, fresh: bool}；无可用缓存时 null
+     */
+    public static function peekUmamiReaderStats()
+    {
+        $cache = self::readUmamiCache();
+        if (!isset($cache['payload']['daily']) || !is_array($cache['payload']['daily']) || empty($cache['payload']['daily'])) {
+            return null;
+        }
+
+        return array(
+            'payload' => $cache['payload'],
+            'fresh' => isset($cache['fetchedAt']) && ((int) $cache['fetchedAt'] + self::UMAMI_CACHE_TTL) > time(),
+        );
+    }
+
+    /**
+     * 直接从 options 表读取主题配置（Action 等非模板上下文使用）。
+     * 兼容新版 Typecho 的 JSON 配置行与旧版的 PHP serialize 格式。
+     * 仅支持字符串型配置，缺省返回 $default。
+     */
+    public static function getThemeOption($name, $default = '')
+    {
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', 'theme:qiwi')
+                ->limit(1));
+        } catch (Exception $e) {
+            return $default;
+        } catch (Throwable $e) {
+            return $default;
+        }
+
+        if (empty($row['value'])) {
+            return $default;
+        }
+
+        $raw = (string) $row['value'];
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            $data = @unserialize($raw);
+        }
+        if (!is_array($data) || !isset($data[$name]) || $data[$name] === null || (string) $data[$name] === '') {
+            return $default;
+        }
+
+        return (string) $data[$name];
+    }
+
+    private static function fetchUmamiReaderStats($apiBase, $shareId)
+    {
+        try {
+            // 总时间预算（含换票），避免 Umami 抽风时把页面渲染拖住太久
+            $deadline = microtime(true) + 12;
+            $share = self::umamiHttpGet($apiBase . '/api/share/' . rawurlencode($shareId), '');
+            if (!is_array($share)) {
+                return null;
+            }
+
+            $token = isset($share['token']) ? (string) $share['token'] : '';
+            $websiteId = isset($share['websiteId']) ? (string) $share['websiteId'] : '';
+            if ($token === '' || $websiteId === '') {
+                return null;
+            }
+
+            $endAt = time() * 1000;
+            $startAt = (time() - 364 * 86400) * 1000 - 86400000; // 往前多铺一天，保证起点当天被完整覆盖
+
+            // Umami 对超过约 120 天的区间会把 unit=day 降级为月桶，因此按 ≤110 天分段拉取；
+            // 相邻段重叠一天并按日取最大值合并——无论边界日按整天还是按区间计数，都不会丢漏或低估。
+            $daily = array();
+            $stepMs = 110 * 86400 * 1000;
+            $segmentUrls = array();
+            for ($segStart = $startAt; $segStart <= $endAt; $segStart += $stepMs - 86400000) {
+                $segEnd = min($segStart + $stepMs, $endAt);
+                $segmentUrls[] = $apiBase . '/api/websites/' . rawurlencode($websiteId)
+                    . '/pageviews?startAt=' . $segStart . '&endAt=' . $segEnd . '&unit=day';
+                if ($segEnd >= $endAt) {
+                    break;
+                }
+            }
+            $segmentUrls[] = $apiBase . '/api/websites/' . rawurlencode($websiteId)
+                . '/stats?startAt=' . $startAt . '&endAt=' . $endAt;
+
+            $responses = self::umamiHttpGetMany($segmentUrls, $token, $deadline);
+            $stats = null;
+            foreach (array_slice($responses, 0, count($responses) - 1) as $body) {
+                if (!is_array($body)) {
+                    return null;
+                }
+
+                $views = isset($body['pageviews']) && is_array($body['pageviews']) ? $body['pageviews'] : array();
+                $visits = isset($body['sessions']) && is_array($body['sessions']) ? $body['sessions'] : array();
+                foreach ($views as $point) {
+                    $day = isset($point['x']) ? substr((string) $point['x'], 0, 10) : '';
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+                        if (!isset($daily[$day])) {
+                            $daily[$day] = array('visits' => 0, 'views' => 0);
+                        }
+                        $daily[$day]['views'] = max($daily[$day]['views'], max(0, (int) $point['y']));
+                    }
+                }
+                foreach ($visits as $point) {
+                    $day = isset($point['x']) ? substr((string) $point['x'], 0, 10) : '';
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+                        if (!isset($daily[$day])) {
+                            $daily[$day] = array('visits' => 0, 'views' => 0);
+                        }
+                        $daily[$day]['visits'] = max($daily[$day]['visits'], max(0, (int) $point['y']));
+                    }
+                }
+            }
+
+            $stats = end($responses);
+            return array(
+                'daily' => $daily,
+                'visitors' => is_array($stats) && isset($stats['visitors']) ? max(0, (int) $stats['visitors']) : 0,
+                'pageviews' => is_array($stats) && isset($stats['pageviews']) ? max(0, (int) $stats['pageviews']) : 0,
+                'fetchedAt' => time(),
+            );
+        } catch (Exception $e) {
+            return null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    private static function umamiHttpGet($url, $shareToken)
+    {
+        $headers = "Accept: application/json\r\n";
+        if ($shareToken !== '') {
+            $headers .= "x-umami-share-token: " . $shareToken . "\r\n";
+            $headers .= "x-umami-share-context: 1\r\n";
+        }
+
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'GET',
+                'timeout' => 3,
+                'header' => $headers,
+                'ignore_errors' => true,
+            ),
+        ));
+
+        $raw = @file_get_contents($url, false, $context);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+
+        $status = 0;
+        if (isset($http_response_header) && is_array($http_response_header)) {
+            foreach ($http_response_header as $headerLine) {
+                if (preg_match('#^HTTP/\S+\s+(\d+)#', $headerLine, $matches)) {
+                    $status = (int) $matches[1];
+                    break;
+                }
+            }
+        }
+
+        if ($status < 200 || $status >= 300) {
+            return null;
+        }
+
+        $data = json_decode($raw, true);
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * 并行抓取多个 Umami 接口（curl multi）；环境缺少 curl 可用的 CA 证书包
+     * （如未配置 curl.cainfo 的 Windows）、没有 curl、或并行批次里有请求失败时，
+     * 对失败的 URL 退化为流式串行补抓。返回与入参顺序一致的数组。
+     */
+    private static function umamiHttpGetMany(array $urls, $shareToken, $deadline = 0)
+    {
+        $results = array();
+        $pending = array();
+        foreach ($urls as $index => $url) {
+            $results[$index] = null;
+            $pending[$index] = $url;
+        }
+
+        if (function_exists('curl_init') && function_exists('curl_multi_init') && self::umamiDetectCaBundle()) {
+            $headers = array('Accept: application/json');
+            if ($shareToken !== '') {
+                $headers[] = 'x-umami-share-token: ' . $shareToken;
+                $headers[] = 'x-umami-share-context: 1';
+            }
+
+            $multiHandle = curl_multi_init();
+            $handles = array();
+            foreach ($urls as $index => $url) {
+                $handle = curl_init($url);
+                $options = array(
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_CONNECTTIMEOUT => 4,
+                    CURLOPT_TIMEOUT => 8,
+                    CURLOPT_HTTPHEADER => $headers,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
+                    CURLOPT_FOLLOWLOCATION => false,
+                    CURLOPT_USERAGENT => 'Qiwi Theme (Typecho)',
+                );
+                if (self::$umamiCaInfo !== '') {
+                    $options[CURLOPT_CAINFO] = self::$umamiCaInfo;
+                }
+                curl_setopt_array($handle, $options);
+                curl_multi_add_handle($multiHandle, $handle);
+                $handles[$index] = $handle;
+            }
+
+            do {
+                $status = curl_multi_exec($multiHandle, $active);
+                if ($status !== CURLM_OK) {
+                    break;
+                }
+                if ($active) {
+                    $ready = curl_multi_select($multiHandle, 0.2);
+                    if ($ready === -1) {
+                        usleep(100000);
+                    }
+                }
+            } while ($active);
+
+            foreach ($handles as $index => $handle) {
+                $code = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+                $body = curl_multi_getcontent($handle);
+                $decoded = is_string($body) ? json_decode($body, true) : null;
+                if ($code >= 200 && $code < 300 && is_array($decoded)) {
+                    $results[$index] = $decoded;
+                }
+                curl_multi_remove_handle($multiHandle, $handle);
+                curl_close($handle);
+            }
+            curl_multi_close($multiHandle);
+        }
+
+        foreach ($results as $index => $result) {
+            if ($result === null) {
+                if ($deadline > 0 && microtime(true) >= $deadline) {
+                    break; // 预算耗尽：放弃补抓，交由上层走过期缓存或隐藏板块
+                }
+                $results[$index] = self::umamiHttpGet($pending[$index], $shareToken);
+            }
+        }
+
+        return $results;
+    }
+
+    private static $umamiCaInfo;
+
+    /**
+     * 探测 curl 可用的 CA 证书包路径；找不到返回 false（此时流式请求仍可依赖
+     * PHP openssl 的系统证书库，串行路径不受影响）。结果按请求进程缓存。
+     */
+    private static function umamiDetectCaBundle()
+    {
+        if (self::$umamiCaInfo !== null) {
+            return self::$umamiCaInfo !== '';
+        }
+
+        $candidates = array(
+            ini_get('curl.cainfo'),
+            ini_get('openssl.cafile'),
+            '/etc/ssl/certs/ca-certificates.crt',
+            '/etc/pki/tls/certs/ca-bundle.crt',
+            '/usr/local/etc/openssl/cert.pem',
+        );
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_readable($candidate)) {
+                self::$umamiCaInfo = $candidate;
+                return true;
+            }
+        }
+
+        self::$umamiCaInfo = '';
+        return false;
+    }
+
+    private static function readUmamiCache()
+    {
+        try {
+            $db = Typecho_Db::get();
+            $row = $db->fetchRow($db->select('value')
+                ->from('table.options')
+                ->where('name = ?', self::UMAMI_CACHE_OPTION)
+                ->limit(1));
+        } catch (Exception $e) {
+            return array();
+        } catch (Throwable $e) {
+            return array();
+        }
+
+        if (empty($row['value'])) {
+            return array();
+        }
+
+        $data = @unserialize((string) $row['value']);
+        return is_array($data) ? $data : array();
+    }
+
+    private static function writeUmamiCache(array $data)
+    {
+        try {
+            $db = Typecho_Db::get();
+            $existing = $db->fetchRow($db->select('name')
+                ->from('table.options')
+                ->where('name = ?', self::UMAMI_CACHE_OPTION)
+                ->limit(1));
+            if (!empty($existing)) {
+                $db->query($db->update('table.options')
+                    ->rows(array('value' => serialize($data)))
+                    ->where('name = ?', self::UMAMI_CACHE_OPTION));
+            } else {
+                $db->query($db->insert('table.options')
+                    ->rows(array(
+                        'name' => self::UMAMI_CACHE_OPTION,
+                        'user' => 0,
+                        'value' => serialize($data),
+                    )));
+            }
+        } catch (Exception $e) {
+            return;
+        } catch (Throwable $e) {
+            return;
+        }
     }
 
     public static function getThreadData($mid)
