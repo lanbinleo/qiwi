@@ -206,11 +206,11 @@ if (!function_exists('threadedComments')) {
                     <div class="comment-form-fields">
                         <div class="form-field">
                             <label for="author"><?php _e('称呼'); ?> *</label>
-                            <input type="text" name="author" id="author" value="<?php echo htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="name" required />
+                            <input type="text" name="author" id="author" placeholder="<?php _e('称呼'); ?> *" value="<?php echo htmlspecialchars($rememberAuthor, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="name" required />
                         </div>
                         <div class="form-field">
                             <label for="mail"><?php _e('Email'); ?> *</label>
-                            <input type="email" name="mail" id="mail" value="<?php echo htmlspecialchars($rememberMail, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="email" required />
+                            <input type="email" name="mail" id="mail" placeholder="<?php _e('Email'); ?> *" value="<?php echo htmlspecialchars($rememberMail, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="email" required />
                         </div>
                         <div class="form-field">
                             <label for="url"><?php _e('网站'); ?></label>
