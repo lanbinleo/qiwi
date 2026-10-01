@@ -138,6 +138,7 @@ class MailConsole extends Widget
     {
         return [
             'new_comment' => '新评论',
+            'new_thought' => '新想法待审',
             'reply_published' => '公开回复',
             'reply_approved' => '审核通过',
         ][$event] ?? $event;

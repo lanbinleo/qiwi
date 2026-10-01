@@ -82,6 +82,7 @@ $recipientShort = [
 
 $eventShort = [
     'new_comment' => '评',
+    'new_thought' => '想',
     'reply_published' => '回',
     'reply_approved' => '审',
 ];
