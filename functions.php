@@ -4119,6 +4119,8 @@ if (!function_exists('qiwiGetCommentStickerPacks')) {
                 'source' => qiwiGetMappedAssetUrl('assets/emoji/wechat/manifest.json'),
                 'assetBase' => qiwiGetMappedAssetUrl('assets/emoji/wechat/'),
                 'extension' => '.png',
+                // 仅保留渲染（兼容历史内容），不再出现在表情选择面板中
+                'selectable' => false,
             ),
             'heo' => array(
                 'id' => 'heo',
@@ -4128,6 +4130,16 @@ if (!function_exists('qiwiGetCommentStickerPacks')) {
                 'extension' => '.png',
             ),
         );
+    }
+}
+
+if (!function_exists('qiwiGetSelectableStickerPacks')) {
+    // 表情选择面板可用的包：排除 selectable=false 的仅渲染包（如历史微信表情）
+    function qiwiGetSelectableStickerPacks()
+    {
+        return array_values(array_filter(qiwiGetCommentStickerPacks(), function ($pack) {
+            return !isset($pack['selectable']) || $pack['selectable'] !== false;
+        }));
     }
 }
 
