@@ -1613,6 +1613,7 @@
     var thoughtPopover = null;
     var thoughtBubbleTimer = null;
     var thoughtDraftTimer = null;
+    var thoughtCloseTimer = null;
 
     var THOUGHT_EXCLUDED_TAGS = { PRE: true, SCRIPT: true, STYLE: true, NOSCRIPT: true };
     var THOUGHT_BLOCK_TAGS = {
@@ -1713,6 +1714,18 @@
         var refreshed = thoughtBuildAxis(state.body);
         state.axis = refreshed.axis;
         state.entries = refreshed.entries;
+    }
+
+    // 新想法落地时在正文标记上轻闪一次，提示它挂在了哪里
+    function thoughtFlashMark(key) {
+        var state = thoughtState;
+        if (!state || prefersReducedMotion()) return;
+        state.body.querySelectorAll('.thought-mark[data-thought-range="' + key + '"]').forEach(function (mark) {
+            mark.classList.remove('is-flash');
+            void mark.offsetWidth;
+            mark.classList.add('is-flash');
+            mark.addEventListener('animationend', function () { mark.classList.remove('is-flash'); }, { once: true });
+        });
     }
 
     function thoughtRangeKey(start, end) {
@@ -1932,6 +1945,7 @@
                 id: event.pointerId
             };
             try { handle.setPointerCapture(event.pointerId); } catch (error) {}
+            popover.classList.add('is-dragging');
             event.preventDefault();
         });
         handle.addEventListener('pointermove', function (event) {
@@ -1943,16 +1957,24 @@
         function release(event) {
             if (!dragging || (event && event.pointerId !== dragging.id)) return;
             dragging = null;
+            popover.classList.remove('is-dragging');
         }
         handle.addEventListener('pointerup', release);
         handle.addEventListener('pointercancel', release);
     }
 
     function closeThoughtPopover() {
-        if (!thoughtPopover) return;
+        if (!thoughtPopover || thoughtPopover.hidden) return;
         saveThoughtDraft();
-        thoughtPopover.hidden = true;
-        thoughtPopover.classList.remove('is-composing');
+        var popover = thoughtPopover;
+        popover.classList.remove('is-open');
+        if (thoughtCloseTimer !== null) window.clearTimeout(thoughtCloseTimer);
+        // 先淡出再隐藏；计时器兜底，不依赖 transitionend
+        thoughtCloseTimer = window.setTimeout(function () {
+            thoughtCloseTimer = null;
+            popover.hidden = true;
+            popover.classList.remove('is-composing');
+        }, prefersReducedMotion() ? 0 : 140);
     }
 
     function thoughtDraftKey(state, start, end) {
@@ -1988,7 +2010,7 @@
         try { localStorage.setItem('qiwi-thought-drafts', JSON.stringify(drafts)); } catch (error) {}
     }
 
-    function renderThoughtList(state, range) {
+    function renderThoughtList(state, range, freshId) {
         var popover = thoughtGetPopover();
         var list = popover.querySelector('[data-thought-list]');
         list.textContent = '';
@@ -2004,20 +2026,29 @@
         list.appendChild(count);
         visible.forEach(function (item) {
             var node = document.createElement('div');
-            node.className = 'thought-item' + (item.status === 'waiting' ? ' is-waiting' : '');
+            node.className = 'thought-item' + (item.status === 'waiting' ? ' is-waiting' : '') + (freshId && item.id === freshId ? ' is-new' : '');
             var head = document.createElement('div');
             head.className = 'thought-item-head';
+            var fallback = document.createElement('span');
+            fallback.className = 'thought-item-avatar is-fallback';
+            fallback.setAttribute('aria-hidden', 'true');
+            fallback.textContent = (item.author || '匿').charAt(0).toUpperCase();
             if (item.avatar) {
                 var img = document.createElement('img');
                 img.className = 'thought-item-avatar';
-                img.src = item.avatar;
                 img.alt = '';
-                img.loading = 'lazy';
+                img.width = 28;
+                img.height = 28;
+                img.referrerPolicy = 'no-referrer';
+                // 头像源加载失败时退回首字母圆点，避免破图
+                img.addEventListener('error', function () {
+                    if (img.parentNode) img.parentNode.replaceChild(fallback, img);
+                }, { once: true });
+                img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
+                img.src = item.avatar;
+                if (img.complete && img.naturalWidth) img.classList.add('is-loaded');
                 head.appendChild(img);
             } else {
-                var fallback = document.createElement('span');
-                fallback.className = 'thought-item-avatar is-fallback';
-                fallback.textContent = (item.author || '匿').charAt(0).toUpperCase();
                 head.appendChild(fallback);
             }
             var meta = document.createElement('span');
@@ -2056,6 +2087,11 @@
         popover.style.left = '0px';
         popover.style.top = '0px';
         popover.style.bottom = 'auto';
+        if (thoughtCloseTimer !== null) {
+            window.clearTimeout(thoughtCloseTimer);
+            thoughtCloseTimer = null;
+            popover.classList.remove('is-open');
+        }
         popover.hidden = false;
 
         var rect = popover.getBoundingClientRect();
@@ -2069,6 +2105,12 @@
         }
         popover.style.left = Math.round(pageX) + 'px';
         popover.style.top = Math.round(pageY) + 'px';
+        // 进入方向跟随锚点：在下方时自上落下，在上方时自下浮起
+        popover.setAttribute('data-placement', pageY === below ? 'below' : 'above');
+        if (!popover.classList.contains('is-open')) {
+            void popover.offsetWidth;
+            popover.classList.add('is-open');
+        }
     }
 
     function thoughtOpenPopover(start, end, compose) {
@@ -2134,6 +2176,36 @@
             if (author && !author.value && stored.author) author.value = stored.author;
             if (mail && !mail.value && stored.mail) mail.value = stored.mail;
         } catch (error) {}
+        // 与评论区一致：身份完整且有效时折叠为一行摘要，否则直接展开字段
+        var complete = Boolean(author && mail && author.value.trim() && mail.value.trim() && author.checkValidity() && mail.checkValidity());
+        setThoughtIdentityOpen(!complete);
+    }
+
+    function setThoughtIdentityOpen(open) {
+        var state = thoughtState;
+        if (!state) return;
+        var summary = state.form.querySelector('[data-thought-identity-summary]');
+        var fields = state.form.querySelector('[data-thought-identity-fields]');
+        var edit = state.form.querySelector('[data-thought-identity-edit]');
+        var name = state.form.querySelector('[data-thought-identity-name]');
+        var author = state.form.querySelector('[data-thought-author]');
+        if (!summary || !fields) return;
+        if (name && author) name.textContent = author.value.trim();
+        var canCollapse = Boolean(author && author.value.trim());
+        summary.hidden = !canCollapse;
+        var expanded = !canCollapse || open;
+        fields.classList.toggle('is-open', expanded);
+        // 折叠时字段仍在 DOM 里做高度动画，需移出 Tab 序列与读屏；
+        // 焦点还在字段内时先归还给「修改」按钮（元素变 inert 后浏览器会把焦点丢回 body）
+        if (!expanded && edit && document.activeElement && fields.contains(document.activeElement)) {
+            edit.focus();
+        }
+        if (expanded) fields.removeAttribute('inert'); else fields.setAttribute('inert', '');
+        fields.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+        if (edit) {
+            edit.setAttribute('aria-expanded', open ? 'true' : 'false');
+            edit.textContent = open ? '收起' : '修改';
+        }
     }
 
     function rememberThoughtIdentity() {
@@ -2147,6 +2219,19 @@
             if (mail) stored.mail = mail.value.trim();
             localStorage.setItem('qiwi-comment-profile', JSON.stringify(stored));
         } catch (error) {}
+    }
+
+    // 状态提示统一出口：文字 + 错误态 + 入场动画（切 class 重放，textContent 赋值不会触发 CSS animation）
+    function showThoughtStatus(form, message, isError) {
+        var status = form.querySelector('[data-thought-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.classList.toggle('is-error', Boolean(isError));
+        if (message) {
+            status.classList.remove('is-reveal');
+            void status.offsetWidth;
+            status.classList.add('is-reveal');
+        }
     }
 
     function updateThoughtCounter() {
@@ -2172,14 +2257,13 @@
         if (!state || !state.popoverRange) return;
         var form = state.form;
         var config = state.config;
-        var status = form.querySelector('[data-thought-status]');
         var button = form.querySelector('[data-thought-submit]');
         var textarea = form.querySelector('[data-thought-text]');
-        if (!status || !button || !textarea) return;
+        if (!button || !textarea) return;
 
         var text = textarea.value.trim();
-        if (text === '') { status.textContent = '想法内容不能为空。'; status.classList.add('is-error'); textarea.focus(); return; }
-        if (text.length > config.maxLength) { status.textContent = '想法最多 ' + config.maxLength + ' 个字。'; status.classList.add('is-error'); return; }
+        if (text === '') { showThoughtStatus(form, '想法内容不能为空。', true); textarea.focus(); return; }
+        if (text.length > config.maxLength) { showThoughtStatus(form, '想法最多 ' + config.maxLength + ' 个字。', true); return; }
 
         var author = '';
         var mail = '';
@@ -2188,12 +2272,21 @@
             var mailInput = form.querySelector('[data-thought-mail]');
             author = authorInput ? authorInput.value.trim() : '';
             mail = mailInput ? mailInput.value.trim() : '';
-            if (author === '') { status.textContent = '称呼不能为空。'; status.classList.add('is-error'); (authorInput || textarea).focus(); return; }
+            var identityError = '';
+            var identityField = null;
+            if (author === '') { identityError = '称呼不能为空。'; identityField = authorInput; }
+            else if (mail === '') { identityError = '邮箱不能为空。'; identityField = mailInput; }
+            else if (mailInput && !mailInput.checkValidity()) { identityError = '邮箱格式不正确。'; identityField = mailInput; }
+            if (identityError) {
+                setThoughtIdentityOpen(true);
+                showThoughtStatus(form, identityError, true);
+                (identityField || textarea).focus();
+                return;
+            }
         }
 
         if (config.captcha && thoughtCaptchaToken(form) === '') {
-            status.textContent = '请先完成人机验证。';
-            status.classList.add('is-error');
+            showThoughtStatus(form, '请先完成人机验证。', true);
             return;
         }
 
@@ -2213,8 +2306,7 @@
 
         button.disabled = true;
         button.setAttribute('aria-busy', 'true');
-        status.textContent = '正在提交…';
-        status.classList.remove('is-error');
+        showThoughtStatus(form, '正在提交…', false);
 
         fetch(config.endpoint, { method: 'POST', credentials: 'same-origin', body: payload })
             .then(function (response) {
@@ -2223,8 +2315,7 @@
             })
             .then(function (data) {
                 if (!data || !data.success) {
-                    status.textContent = (data && data.message) || '提交失败，请稍后再试。';
-                    status.classList.add('is-error');
+                    showThoughtStatus(form, (data && data.message) || '提交失败，请稍后再试。', true);
                     return;
                 }
                 var thought = data.thought || {};
@@ -2237,11 +2328,12 @@
                 thoughtDrawMarks();
                 clearThoughtDraft(thought.start, thought.end);
                 rememberThoughtIdentity();
+                setThoughtIdentityOpen(false);
                 textarea.value = '';
                 updateThoughtCounter();
-                status.textContent = data.message || '想法已提交。';
-                status.classList.remove('is-error');
-                renderThoughtList(state, state.ranges[key]);
+                showThoughtStatus(form, data.message || '想法已提交。', false);
+                renderThoughtList(state, state.ranges[key], thought.id);
+                thoughtFlashMark(key);
                 thoughtPopover.classList.remove('is-composing');
                 thoughtPopover.querySelector('[data-thought-compose-toggle]').hidden = false;
                 var widget = form.querySelector('cap-widget');
@@ -2250,8 +2342,7 @@
                 }
             })
             .catch(function () {
-                status.textContent = '提交失败，请稍后再试。';
-                status.classList.add('is-error');
+                showThoughtStatus(form, '提交失败，请稍后再试。', true);
             })
             .finally(function () {
                 button.disabled = false;
@@ -2266,6 +2357,18 @@
             event.preventDefault();
             submitThought();
         });
+        // 身份字段改由 submitThought 统一校验并给出状态提示，避免浏览器原生气泡指向折叠中的字段
+        form.noValidate = true;
+        var identityEdit = form.querySelector('[data-thought-identity-edit]');
+        if (identityEdit) {
+            identityEdit.addEventListener('click', function () {
+                var fields = form.querySelector('[data-thought-identity-fields]');
+                var open = Boolean(fields && !fields.classList.contains('is-open'));
+                setThoughtIdentityOpen(open);
+                var author = form.querySelector('[data-thought-author]');
+                if (open && author) author.focus();
+            });
+        }
         var textarea = form.querySelector('[data-thought-text]');
         if (textarea) {
             textarea.addEventListener('input', function () {
@@ -2309,6 +2412,7 @@
     function teardownThoughts() {
         if (thoughtBubbleTimer !== null) { window.clearTimeout(thoughtBubbleTimer); thoughtBubbleTimer = null; }
         if (thoughtDraftTimer !== null) { window.clearTimeout(thoughtDraftTimer); thoughtDraftTimer = null; }
+        if (thoughtCloseTimer !== null) { window.clearTimeout(thoughtCloseTimer); thoughtCloseTimer = null; }
         if (thoughtBubble) { thoughtBubble.remove(); thoughtBubble = null; }
         if (thoughtPopover) { thoughtPopover.remove(); thoughtPopover = null; }
         thoughtState = null;

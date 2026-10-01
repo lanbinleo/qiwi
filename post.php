@@ -58,8 +58,8 @@ if ($qiwiThoughtsEnabled) {
     $qiwiThoughtsPayload['endpoint'] = $qiwiThoughtsEndpoint;
     $qiwiThoughtsPayload['isAdmin'] = $qiwiThoughtsIsAdmin;
     $qiwiThoughtsPayload['captcha'] = $qiwiThoughtsCaptcha;
-    if (function_exists('qiwiGetCommentStickerPacks')) {
-        $qiwiThoughtStickerPacks = array_values(qiwiGetCommentStickerPacks());
+    if (function_exists('qiwiGetSelectableStickerPacks')) {
+        $qiwiThoughtStickerPacks = qiwiGetSelectableStickerPacks();
     }
 }
 
@@ -165,19 +165,30 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                 <script type="application/json" data-thoughts-data><?php echo json_encode($qiwiThoughtsPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
                 <form class="comment-form thought-form" data-thought-form action="<?php echo htmlspecialchars($qiwiThoughtsEndpoint, ENT_QUOTES, 'UTF-8'); ?>" method="post">
                     <?php if (!$qiwiThoughtsIsAdmin): ?>
-                    <div class="thought-form-fields">
-                        <div class="form-field">
-                            <label for="thought-author">称呼 *</label>
-                            <input type="text" name="author" id="thought-author" data-thought-author placeholder="称呼 *" maxlength="64" autocomplete="name" required>
+                    <!-- 身份：与评论区共用本地身份；已保存时 JS 折叠为一行摘要，无 JS 时字段始终可见 -->
+                    <div class="thought-identity" data-thought-identity>
+                        <div class="thought-identity-summary" data-thought-identity-summary hidden>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"/></svg>
+                            <span>以 <strong data-thought-identity-name></strong> 的身份发布</span>
+                            <button type="button" class="thought-identity-edit" data-thought-identity-edit aria-expanded="false" aria-controls="thought-identity-fields">修改</button>
                         </div>
-                        <div class="form-field">
-                            <label for="thought-mail">Email</label>
-                            <input type="email" name="mail" id="thought-mail" data-thought-mail placeholder="Email（选填，用于头像）" autocomplete="email">
+                        <!-- 外层负责高度伸缩（grid 0fr ↔ 1fr），内层裁切内容 -->
+                        <div class="thought-identity-collapse" id="thought-identity-fields" data-thought-identity-fields>
+                            <div class="thought-form-fields">
+                                <div class="form-field">
+                                    <label for="thought-author" class="sr-only">称呼</label>
+                                    <input type="text" name="author" id="thought-author" data-thought-author placeholder="称呼 *" maxlength="64" autocomplete="name" required>
+                                </div>
+                                <div class="form-field">
+                                    <label for="thought-mail" class="sr-only">Email</label>
+                                    <input type="email" name="mail" id="thought-mail" data-thought-mail placeholder="Email *" maxlength="200" autocomplete="email" required>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <?php endif; ?>
                     <div class="form-field thought-text-field">
-                        <label for="thought-text">想法 *</label>
+                        <label for="thought-text" class="sr-only">想法</label>
                         <textarea rows="3" name="text" id="thought-text" data-thought-text placeholder="写下这段文字带给你的想法…" required></textarea>
                         <?php if (!empty($qiwiThoughtStickerPacks)): ?>
                         <div class="comment-sticker-panel" data-comment-sticker-panel aria-hidden="true">
@@ -188,12 +199,12 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                         </div>
                         <?php endif; ?>
                     </div>
+                    <?php if ($qiwiThoughtsCaptcha): ?>
+                    <div class="captcha-script thought-captcha" data-thought-captcha>
+                        <?php qiwiRenderCaptcha(); ?>
+                    </div>
+                    <?php endif; ?>
                     <div class="thought-form-footer">
-                        <?php if ($qiwiThoughtsCaptcha): ?>
-                        <div class="captcha-script thought-captcha" data-thought-captcha>
-                            <?php qiwiRenderCaptcha(); ?>
-                        </div>
-                        <?php endif; ?>
                         <?php if (!empty($qiwiThoughtStickerPacks)): ?>
                         <button type="button" class="comment-sticker-toggle" data-comment-sticker-toggle aria-expanded="false" title="选择表情包">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.2s1.2 1.8 3.5 1.8 3.5-1.8 3.5-1.8M9 9.5h.01M15 9.5h.01"/></svg>
@@ -202,9 +213,9 @@ if ($qiwiNextPostLink !== '' && preg_match('/href=(["\'])(.*?)\1/i', $qiwiNextPo
                         <script type="application/json" data-comment-sticker-packs><?php echo json_encode($qiwiThoughtStickerPacks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
                         <?php endif; ?>
                         <span class="thought-char-count" data-thought-counter aria-live="polite"></span>
-                        <button type="submit" class="submit-button thought-send-button" data-thought-submit aria-label="发布想法" title="发布想法">
+                        <button type="submit" class="submit-button thought-send-button" data-thought-submit>
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 16-8-6.5 16-2.3-6.2L4 12Z"/><path d="m11.2 13.8 4.4-4.4"/></svg>
-                            <span class="sr-only">发布想法</span>
+                            <span>发布</span>
                         </button>
                     </div>
                     <p class="thought-form-status" data-thought-status role="status" aria-live="polite"></p>

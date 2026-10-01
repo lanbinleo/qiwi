@@ -530,7 +530,10 @@ body.qiwi-lightbox-open { overflow: hidden; }
     cursor: pointer;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
+    transition: background-color .18s ease, text-decoration-color .18s ease;
 }
+.qiwi-v2 .article-body .thought-mark.is-flash { animation: qiwiThoughtFlash 1.2s ease-out; }
+@keyframes qiwiThoughtFlash { from { background-color: color-mix(in srgb, var(--v2-accent) 30%, transparent); } }
 .qiwi-v2 .article-body .thought-mark:hover {
     background: color-mix(in srgb, var(--v2-mark) 70%, transparent);
 }
@@ -560,7 +563,7 @@ body.qiwi-lightbox-open { overflow: hidden; }
     visibility: hidden;
     pointer-events: none;
     transform: translate(-50%, -2px);
-    transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s;
+    transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s, color .18s ease, border-color .18s ease;
 }
 .qiwi-v2 .thought-bubble.is-visible {
     opacity: 1;
@@ -577,24 +580,44 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .thought-popover {
     position: absolute;
     z-index: 2130;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     max-height: min(560px, calc(100vh - 40px));
     padding: 13px 15px;
     border: 1px solid var(--v2-border);
     border-radius: var(--v2-radius);
     background: var(--v2-surface);
     box-shadow: 0 16px 38px rgba(0, 0, 0, .32);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity .14s ease, transform .14s ease;
 }
+.qiwi-v2 .thought-popover[data-placement="above"] { transform: translateY(4px); }
+.qiwi-v2 .thought-popover.is-open { opacity: 1; transform: none; transition: opacity .22s ease, transform .22s cubic-bezier(.22, .61, .36, 1); }
+.qiwi-v2 .thought-popover.is-dragging { transition: none; }
 .qiwi-v2 .thought-popover[hidden] { display: none; }
-.qiwi-v2 .thought-popover-header { display: flex; align-items: center; gap: 8px; cursor: grab; }
+/* 浮窗内新出现的区块（帮助、表单、写想法按钮、新想法）统一轻微淡入下落；
+   状态提示的文字每次更新由 JS 切 is-reveal 重放动画（textContent 赋值不触发 animation） */
+@keyframes qiwiThoughtReveal { from { opacity: 0; transform: translateY(-3px); } }
+.qiwi-v2 .thought-help,
+.qiwi-v2 .thought-compose-toggle,
+.qiwi-v2 .thought-popover.is-composing .thought-form,
+.qiwi-v2 .thought-item.is-new { animation: qiwiThoughtReveal .22s cubic-bezier(.22, .61, .36, 1); }
+.qiwi-v2 .thought-popover > * { flex: 0 0 auto; min-width: 0; }
+.qiwi-v2 .thought-popover-header { display: flex; align-items: center; gap: 8px; cursor: grab; touch-action: none; }
 .qiwi-v2 .thought-popover-header:active { cursor: grabbing; }
 .qiwi-v2 .thought-popover-title { color: var(--v2-heading); font-size: .78rem; letter-spacing: 2px; }
-.qiwi-v2 .thought-help-toggle { margin-left: auto; padding: 2px 8px; border: 0; background: transparent; color: var(--v2-muted); font-size: .7rem; }
+.qiwi-v2 .thought-help-toggle { margin-left: auto; padding: 2px 8px; border: 0; background: transparent; color: var(--v2-muted); font-size: .7rem; transition: color .18s ease; }
 .qiwi-v2 .thought-help-toggle:hover,
 .qiwi-v2 .thought-help-toggle:focus-visible { color: var(--v2-accent); }
-.qiwi-v2 .thought-popover-close { width: 26px; height: 26px; padding: 0; border: 0; background: transparent; color: var(--v2-muted); font-size: 1.05rem; line-height: 1; }
-.qiwi-v2 .thought-popover-close:hover { color: var(--v2-heading); }
+.qiwi-v2 .thought-popover-close { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--v2-muted); font-size: 1.05rem; line-height: 1; transition: color .18s ease, background-color .18s ease; }
+.qiwi-v2 .thought-popover-close:hover,
+.qiwi-v2 .thought-popover-close:focus-visible { background: color-mix(in srgb, var(--v2-accent) 12%, transparent); color: var(--v2-heading); }
 .qiwi-v2 .thought-help { margin: 0; padding: 8px 11px; border: 1px dashed var(--v2-border-soft); color: var(--v2-muted); font-size: .72rem; line-height: 1.85; }
 .qiwi-v2 .thought-help[hidden] { display: none; }
 .qiwi-v2 .thought-help p { margin: 0 0 .5em; }
@@ -606,67 +629,101 @@ body.qiwi-lightbox-open { overflow: hidden; }
     color: var(--v2-muted);
     font-size: .76rem;
     line-height: 1.8;
+    white-space: pre-line;
     max-height: 6.5em;
     overflow-y: auto;
     scrollbar-width: thin;
 }
-.qiwi-v2 .thought-list { display: grid; gap: 10px; max-height: 300px; overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
+.qiwi-v2 .thought-list { display: grid; gap: 12px; }
 .qiwi-v2 .thought-list[hidden] { display: none; }
 .qiwi-v2 .thought-list-count { margin: 0; color: var(--v2-muted); font-size: .7rem; letter-spacing: 1px; }
 .qiwi-v2 .thought-item { display: grid; gap: 5px; }
-.qiwi-v2 .thought-item-head { display: flex; align-items: center; gap: 8px; }
-.qiwi-v2 .thought-item-avatar { width: 26px; height: 26px; border: 1px solid var(--v2-border-soft); border-radius: 50%; object-fit: cover; }
-.qiwi-v2 .thought-item-avatar.is-fallback { display: grid; place-items: center; border-color: color-mix(in srgb, var(--v2-accent) 45%, transparent); background: color-mix(in srgb, var(--v2-accent) 14%, transparent); color: var(--v2-accent); font-size: .7rem; }
+.qiwi-v2 .thought-item-head { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.qiwi-v2 .thought-item-avatar { flex: 0 0 28px; width: 28px; height: 28px; border: 1px solid var(--v2-border-soft); border-radius: 50%; background: var(--v2-bg); object-fit: cover; }
+.qiwi-v2 img.thought-item-avatar { opacity: 0; transition: opacity .22s ease; }
+.qiwi-v2 img.thought-item-avatar.is-loaded { opacity: 1; }
+.qiwi-v2 .thought-item-avatar.is-fallback { display: grid; place-items: center; border-color: color-mix(in srgb, var(--v2-accent) 45%, transparent); background: color-mix(in srgb, var(--v2-accent) 14%, transparent); color: var(--v2-accent); font-size: .72rem; line-height: 1; }
 .qiwi-v2 .thought-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; color: var(--v2-muted); font-size: .7rem; }
-.qiwi-v2 .thought-item-meta strong { color: var(--v2-heading); font-size: .76rem; font-weight: 600; }
+.qiwi-v2 .thought-item-meta strong { min-width: 0; overflow: hidden; color: var(--v2-heading); font-size: .76rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .qiwi-v2 .thought-item-badge { padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--v2-accent) 60%, transparent); border-radius: 999px; color: var(--v2-accent); font-size: .62rem; font-style: normal; letter-spacing: 1px; }
-.qiwi-v2 .thought-item-status { margin: 0; color: var(--v2-muted); font-size: .7rem; }
-.qiwi-v2 .thought-item-content { color: var(--v2-text); font-size: .82rem; line-height: 1.85; }
+.qiwi-v2 .thought-item-status { margin: 0; padding-left: 37px; color: var(--v2-muted); font-size: .7rem; }
+.qiwi-v2 .thought-item-content { padding-left: 37px; color: var(--v2-text); font-size: .82rem; line-height: 1.85; overflow-wrap: anywhere; }
 .qiwi-v2 .thought-item-content p { margin: 0 0 .45em; }
 .qiwi-v2 .thought-item-content p:last-child { margin-bottom: 0; }
 .qiwi-v2 .thought-item-content .comment-sticker { height: 4.6em; }
 .qiwi-v2 .thought-item.is-waiting .thought-item-content { opacity: .82; }
 .qiwi-v2 .thought-compose-toggle[hidden] { display: none; }
-.qiwi-v2 .thought-compose-button { justify-self: start; padding: 4px 14px; border: 1px solid var(--v2-accent); border-radius: 999px; background: transparent; color: var(--v2-accent); font-size: .74rem; cursor: pointer; }
+.qiwi-v2 .thought-compose-button { justify-self: start; padding: 4px 14px; border: 1px solid var(--v2-accent); border-radius: 999px; background: transparent; color: var(--v2-accent); font-size: .74rem; cursor: pointer; transition: background-color .18s ease; }
 .qiwi-v2 .thought-compose-button:hover,
 .qiwi-v2 .thought-compose-button:focus-visible { background: color-mix(in srgb, var(--v2-accent) 12%, transparent); }
 
-.qiwi-v2 .thought-popover .thought-form { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.qiwi-v2 .thought-popover .thought-form { position: relative; display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--v2-border-soft); }
 .qiwi-v2 .thought-popover:not(.is-composing) .thought-form { display: none; }
-.qiwi-v2 .thought-form-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.qiwi-v2 .thought-form .form-field { display: grid; gap: 4px; }
-.qiwi-v2 .thought-form .form-field label { color: var(--v2-muted); font-size: .7rem; letter-spacing: 1px; }
+/* 身份：已保存时折叠为一行摘要（与评论区共用本地身份） */
+.qiwi-v2 .thought-identity { display: grid; }
+.qiwi-v2 .thought-identity-summary { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--v2-muted); font-size: .72rem; }
+.qiwi-v2 .thought-identity-summary[hidden] { display: none; }
+.qiwi-v2 .thought-identity-summary svg { flex: 0 0 14px; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.qiwi-v2 .thought-identity-summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qiwi-v2 .thought-identity-summary strong { color: var(--v2-heading); font-weight: 600; }
+.qiwi-v2 .thought-identity-edit { flex: 0 0 auto; margin-left: auto; padding: 2px 6px; border: 0; background: transparent; color: var(--v2-accent); font-size: .72rem; cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .18s ease; }
+.qiwi-v2 .thought-identity-edit:hover,
+.qiwi-v2 .thought-identity-edit:focus-visible { text-decoration-color: currentColor; }
+/* 身份字段高度伸缩：grid 行 0fr <-> 1fr，内层裁切 */
+.qiwi-v2 .thought-identity-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .24s cubic-bezier(.22, .61, .36, 1), opacity .16s ease, margin-top .24s cubic-bezier(.22, .61, .36, 1); }
+.qiwi-v2 .thought-identity-collapse.is-open { grid-template-rows: 1fr; opacity: 1; }
+.qiwi-v2 .thought-identity-summary:not([hidden]) + .thought-identity-collapse.is-open { margin-top: 6px; }
+.qiwi-v2 .thought-identity-collapse > .thought-form-fields { min-height: 0; overflow: hidden; }
+.qiwi-v2 .thought-form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.qiwi-v2 .thought-form .form-field { display: grid; gap: 4px; min-width: 0; }
 .qiwi-v2 .thought-form input {
     width: 100%;
+    min-width: 0;
     padding: 7px 10px;
-    border: 1px solid var(--v2-border-soft);
+    border: 1px dashed var(--v2-border-soft);
     border-radius: var(--v2-radius);
     background: color-mix(in srgb, var(--v2-bg) 60%, var(--v2-surface));
     color: var(--v2-text);
     font-size: .78rem;
+    transition: border-color .18s ease;
 }
-.qiwi-v2 .thought-form input:focus-visible { outline: none; border-color: var(--v2-accent); }
+.qiwi-v2 .thought-form input:focus-visible { outline: none; border-style: solid; border-color: var(--v2-accent); }
 .qiwi-v2 .thought-form textarea {
+    width: 100%;
     min-height: 84px;
     padding: 10px 12px;
     border: 1px solid var(--v2-border-soft);
     border-radius: var(--v2-radius);
     background: color-mix(in srgb, var(--v2-bg) 60%, var(--v2-surface));
     font-size: .82rem;
+    resize: vertical;
+    transition: border-color .18s ease;
 }
 .qiwi-v2 .thought-form textarea:focus-visible { outline: none; border-color: var(--v2-accent); }
-.qiwi-v2 .thought-form-footer { display: flex; align-items: center; gap: 8px; }
-.qiwi-v2 .thought-form-footer .captcha-script { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
-.qiwi-v2 .thought-char-count { margin-left: auto; color: var(--v2-muted); font-size: .68rem; letter-spacing: .5px; }
+/* 验证码独占一行；操作行只放表情 / 字数 / 发布 */
+.qiwi-v2 .thought-form .thought-captcha { min-width: 0; max-width: 100%; overflow-x: auto; }
+.qiwi-v2 .thought-form-footer { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.qiwi-v2 .thought-form-footer .comment-sticker-toggle { flex: 0 0 34px; width: 34px; height: 34px; margin-left: 0; }
+.qiwi-v2 .thought-form-footer .comment-sticker-toggle svg { width: 19px; height: 19px; }
+.qiwi-v2 .thought-char-count { margin-left: auto; color: var(--v2-muted); font-size: .68rem; letter-spacing: .5px; white-space: nowrap; transition: color .18s ease; }
 .qiwi-v2 .thought-char-count.is-over { color: #c46a5d; }
-.qiwi-v2 .thought-send-button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--v2-border-soft); background: transparent; color: var(--v2-muted); cursor: pointer; }
-.qiwi-v2 .thought-send-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.qiwi-v2 .thought-send-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--v2-accent); border-radius: 999px; background: transparent; color: var(--v2-accent); font-size: .76rem; letter-spacing: 1px; line-height: 1; cursor: pointer; transition: background-color .18s ease, opacity .18s ease; }
+.qiwi-v2 .thought-send-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .qiwi-v2 .thought-send-button:hover:not(:disabled),
-.qiwi-v2 .thought-send-button:focus-visible { border-color: var(--v2-accent); color: var(--v2-accent); }
-.qiwi-v2 .thought-send-button:disabled { opacity: .55; cursor: not-allowed; }
-.qiwi-v2 .thought-form-status { margin: 0; min-height: 1em; color: var(--v2-muted); font-size: .72rem; line-height: 1.6; }
+.qiwi-v2 .thought-send-button:focus-visible { background: color-mix(in srgb, var(--v2-accent) 14%, transparent); }
+.qiwi-v2 .thought-send-button:disabled { opacity: .5; cursor: not-allowed; }
+.qiwi-v2 .thought-send-button[aria-busy="true"] { animation: qiwiThoughtBusy .9s ease-in-out infinite alternate; }
+@keyframes qiwiThoughtBusy { from { opacity: .45; } to { opacity: .85; } }
+.qiwi-v2 .thought-form-status { margin: 0; color: var(--v2-muted); font-size: .72rem; line-height: 1.6; transition: color .18s ease; }
+.qiwi-v2 .thought-form-status:empty { display: none; }
 .qiwi-v2 .thought-form-status.is-error { color: #c46a5d; }
-.qiwi-v2 .thought-popover .comment-sticker-panel { max-height: 44vh; }
+.qiwi-v2 .thought-form-status.is-reveal { animation: qiwiThoughtReveal .22s cubic-bezier(.22, .61, .36, 1); }
+/* 浮窗内表情面板：覆盖在整个想法表单上方（自表单顶部向下，不向上越出浮窗被裁切），点 × 或选中表情后关闭 */
+.qiwi-v2 .thought-popover .thought-text-field { position: static; }
+.qiwi-v2 .thought-popover .comment-sticker-panel { top: 0; right: 0; bottom: 0; left: 0; height: auto; max-height: none; transform: none; }
+.qiwi-v2 .thought-popover .thought-form:not(.is-sticker-open) .comment-sticker-panel { display: none; }
+.qiwi-v2 .thought-popover .thought-form.is-sticker-open .comment-sticker-panel { animation: qiwiThoughtReveal .22s cubic-bezier(.22, .61, .36, 1); }
+.qiwi-v2 .thought-popover .thought-form.is-sticker-open .comment-sticker-toggle { background: color-mix(in srgb, var(--v2-accent) 18%, transparent); color: var(--v2-accent); }
 
 /* 正文行内标记：==高亮== 为糖果色低光带（色带压在文字下半部）；
    [mark] 短代码的 .qiwi-mark 仍是莫兰迪背景洗染；||涂黑|| 原文已在服务端剥离，仅存占位色块 */
@@ -2605,10 +2662,6 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     .qiwi-v2 .article-reading-popover { right: auto; left: 0; min-width: min(280px, calc(100vw - 36px)); }
     .qiwi-v2 .thought-form-fields { grid-template-columns: 1fr; }
     .qiwi-v2 .thought-popover { padding: 11px 12px; max-height: calc(100vh - 32px); }
-    .qiwi-v2 .thought-list { max-height: 38vh; }
-    .qiwi-v2 .thought-form-footer { flex-wrap: wrap; }
-    .qiwi-v2 .thought-form-footer .captcha-script { flex-basis: 100%; }
-    .qiwi-v2 .thought-char-count { margin-left: 0; }
     .qiwi-v2 .v2-floating-actions { right: 30px; bottom: 30px; }
     .qiwi-v2 .v2-floating-action { width: 40px; height: 40px; }
 }
@@ -2623,5 +2676,9 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
     .v2-floating-action,
     .plog-lightbox,
     .plog-lightbox *,
-    .v2-lightbox * { animation: none !important; transition: none !important; }
+    .v2-lightbox *,
+    .qiwi-v2 .thought-popover,
+    .qiwi-v2 .thought-popover *,
+    .qiwi-v2 .thought-bubble,
+    .qiwi-v2 .article-body .thought-mark { animation: none !important; transition: none !important; }
 }

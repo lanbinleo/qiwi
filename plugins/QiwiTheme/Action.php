@@ -303,6 +303,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $isAdmin = false;
         $userId = 0;
         $author = trim((string) $this->request->get('author', ''));
+        $mail = trim((string) $this->request->get('mail', ''));
         try {
             $user = Typecho_Widget::widget('Widget_User');
             if ($user->hasLogin() && $user->pass('administrator', true)) {
@@ -310,6 +311,14 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
                 $userId = (int) $user->uid;
                 if ($author === '') {
                     $author = (string) $user->screenName;
+                }
+                if ($mail === '') {
+                    // 账号资料邮箱非法（手工改库等）时不兜底，按空邮箱走管理员豁免，
+                    // 否则管理员表单没有邮箱字段可修正，提交会一直 400
+                    $fallbackMail = trim((string) $user->mail);
+                    if ($fallbackMail !== '' && class_exists('QiwiTheme_Thoughts') && QiwiTheme_Thoughts::isValidMail($fallbackMail)) {
+                        $mail = $fallbackMail;
+                    }
                 }
             }
         } catch (Exception $e) {
@@ -341,7 +350,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             'anchorBefore' => (string) $this->request->get('anchorBefore', ''),
             'anchorAfter' => (string) $this->request->get('anchorAfter', ''),
             'author' => $author,
-            'mail' => (string) $this->request->get('mail', ''),
+            'mail' => $mail,
             'text' => (string) $this->request->get('text', ''),
             'ip' => isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '',
             'userAgent' => isset($_SERVER['HTTP_USER_AGENT']) ? (string) $_SERVER['HTTP_USER_AGENT'] : '',

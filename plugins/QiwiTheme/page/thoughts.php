@@ -91,7 +91,17 @@ $thoughtsPanel = 'QiwiTheme/page/thoughts.php';
                     }
                     .qtw-content { font-size: 14px; line-height: 1.8; color: #333; }
                     .qtw-content p { margin: 0 0 6px; }
-                    .qtw-content img { max-height: 72px; vertical-align: middle; }
+                    .qtw-content img { max-width: 100%; height: auto; }
+                    /* 表情：固定高度占位（lazy 加载前不塌陷、加载后不跳），与文字底部对齐 */
+                    .qtw-content img.comment-sticker {
+                        display: inline-block;
+                        width: auto;
+                        height: 3.2em;
+                        max-height: none;
+                        margin: 0 .1em;
+                        vertical-align: bottom;
+                        object-fit: contain;
+                    }
                     .qtw-meta {
                         display: flex;
                         flex-wrap: wrap;

@@ -182,6 +182,17 @@ class QiwiTheme_Thoughts
     }
 
     /**
+     * 与评论区一致的邮箱格式/长度校验；提交校验与管理员账号邮箱兜底共用，
+     * 避免两处正则各自漂移。
+     */
+    public static function isValidMail($mail)
+    {
+        $mail = (string) $mail;
+        return (bool) preg_match('/^[_a-z0-9-\.+]+@[_a-z0-9-]+\.[_a-z0-9-]+$/i', $mail)
+            && mb_strlen($mail, 'UTF-8') <= 200;
+    }
+
+    /**
      * 提交一条想法。返回 array('ok' => bool, 'message' => string, 'thought' => array|null)。
      * 所有展示前均有人工审核兜底，这里的服务端校验只做长度 / 频率 / 重叠的数字与文本边界。
      */
@@ -207,6 +218,13 @@ class QiwiTheme_Thoughts
         $isAdmin = !empty($input['isAdmin']);
         $userId = (int) (isset($input['userId']) ? $input['userId'] : 0);
 
+        // multipart/form-data 会把字段里的 \n 规范成 \r\n；轴上的块分隔是单个 \n，
+        // 不还原的话跨段落选区的长度对不上，校验必然失败
+        $quote = str_replace("\r\n", "\n", $quote);
+        $text = str_replace("\r\n", "\n", $text);
+        $input['anchorBefore'] = str_replace("\r\n", "\n", (string) (isset($input['anchorBefore']) ? $input['anchorBefore'] : ''));
+        $input['anchorAfter'] = str_replace("\r\n", "\n", (string) (isset($input['anchorAfter']) ? $input['anchorAfter'] : ''));
+
         if ($cid <= 0 || $start < 0 || $end <= $start) {
             return array('ok' => false, 'message' => '请先选择一段文字再写想法。', 'thought' => null);
         }
@@ -227,7 +245,11 @@ class QiwiTheme_Thoughts
         if ($author === '' || mb_strlen($author, 'UTF-8') > self::AUTHOR_MAX) {
             return array('ok' => false, 'message' => $author === '' ? '称呼不能为空。' : '称呼太长了。', 'thought' => null);
         }
-        if ($mail !== '' && (!preg_match('/^[_a-z0-9-\.+]+@[_a-z0-9-]+\.[_a-z0-9-]+$/i', $mail) || mb_strlen($mail) > 200)) {
+        // 访客与评论区一致：邮箱必填（用于头像与身份）；管理员由登录账号补全，可为空
+        if ($mail === '' && !$isAdmin) {
+            return array('ok' => false, 'message' => '邮箱不能为空。', 'thought' => null);
+        }
+        if ($mail !== '' && !self::isValidMail($mail)) {
             return array('ok' => false, 'message' => '邮箱格式不正确。', 'thought' => null);
         }
 
@@ -443,11 +465,33 @@ class QiwiTheme_Thoughts
     }
 
     /**
+     * 提交端点走插件 action，此时主题 functions.php 尚未加载；
+     * 不补载的话表情短代码会以纯文本回显，直到刷新页面才由模板渲染。
+     */
+    private static function loadThemeFunctions()
+    {
+        if (function_exists('qiwiRenderPlainCommentContent') || !defined('__TYPECHO_ROOT_DIR__')) {
+            return;
+        }
+        try {
+            $options = Typecho_Widget::widget('Widget_Options');
+            $themeDir = defined('__TYPECHO_THEME_DIR__') ? __TYPECHO_THEME_DIR__ : '/usr/themes';
+            $file = __TYPECHO_ROOT_DIR__ . $themeDir . DIRECTORY_SEPARATOR . basename((string) $options->theme) . DIRECTORY_SEPARATOR . 'functions.php';
+            if (is_file($file)) {
+                require_once $file;
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+    }
+
+    /**
      * 想法内容渲染：游客 = 纯文本 + 表情包 + 分段（与评论区一致，不开放 Markdown）；
      * 登录作者（user_id>0）= 受信渲染。主题函数不可用时退化为纯转义。
      */
     public static function renderContent(array $row)
     {
+        self::loadThemeFunctions();
         $text = (string) (isset($row['text']) ? $row['text'] : '');
         if ((int) (isset($row['user_id']) ? $row['user_id'] : 0) > 0 && function_exists('qiwiRenderTrustedCommentContent')) {
             return qiwiRenderTrustedCommentContent($text);
@@ -478,12 +522,45 @@ class QiwiTheme_Thoughts
         );
     }
 
+    private static $_userMailCache = array();
+
+    private static function userMail($uid)
+    {
+        $uid = (int) $uid;
+        if ($uid <= 0) {
+            return '';
+        }
+        if (!array_key_exists($uid, self::$_userMailCache)) {
+            $mail = '';
+            try {
+                $db = Typecho_Db::get();
+                $user = $db->fetchRow($db->select('mail')->from('table.users')->where('uid = ?', $uid)->limit(1));
+                $mail = is_array($user) && isset($user['mail']) ? (string) $user['mail'] : '';
+            } catch (Exception $e) {
+            } catch (Throwable $e) {
+            }
+            self::$_userMailCache[$uid] = $mail;
+        }
+        return self::$_userMailCache[$uid];
+    }
+
     public static function toFront(array $row)
     {
         $mail = (string) (isset($row['mail']) ? $row['mail'] : '');
-        $avatar = '';
-        if ($mail !== '' && function_exists('qiwiGetCommentAvatarUrl')) {
-            $avatar = qiwiGetCommentAvatarUrl($mail, 48);
+        $userId = (int) (isset($row['user_id']) ? $row['user_id'] : 0);
+        if ($mail === '' && $userId > 0) {
+            // 早期站长想法未存邮箱：按登录账号补头像
+            $mail = self::userMail($userId);
+        }
+        // 邮箱为空时同评论区：gravatar 默认头像（d=mp）。
+        // 提交端点走插件 action，主题 functions.php 未必加载，需要本地兜底同一规则
+        if (function_exists('qiwiGetCommentAvatarUrl')) {
+            $avatar = qiwiGetCommentAvatarUrl($mail, 56);
+        } else {
+            $normalized = strtolower(trim($mail));
+            $avatar = preg_match('/^([1-9][0-9]{4,11})@qq\.com$/i', $normalized, $matches)
+                ? 'https://q1.qlogo.cn/g?b=qq&nk=' . rawurlencode($matches[1]) . '&s=100'
+                : 'https://gravatar.loli.net/avatar/' . md5($normalized) . '?s=56&d=mp';
         }
 
         return array(
@@ -496,7 +573,7 @@ class QiwiTheme_Thoughts
             'anchorAfter' => (string) (isset($row['anchor_after']) ? $row['anchor_after'] : ''),
             'status' => (string) $row['status'],
             'author' => (string) (isset($row['author']) ? $row['author'] : ''),
-            'authorLabel' => (int) (isset($row['user_id']) ? $row['user_id'] : 0) > 0 ? '作者' : '',
+            'authorLabel' => $userId > 0 ? '作者' : '',
             'avatar' => $avatar,
             'html' => self::renderContent($row),
             'date' => !empty($row['created']) ? date('Y-m-d H:i', (int) $row['created']) : '',
