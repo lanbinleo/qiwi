@@ -8,7 +8,7 @@ require_once dirname(__FILE__) . '/lib/class.geetestlib.php';
  *
  * @package Qiwi GTest
  * @author Leo 里奥
- * @version 2.2.2
+ * @version 2.3.0
  * @link https://bboreo.com/
  * @link http://zsduo.com
  * @link https://ffis.me
