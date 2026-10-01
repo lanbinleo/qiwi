@@ -183,7 +183,7 @@ if (!function_exists('threadedComments')) {
         $loggedAvatarUrl = $isLoggedIn && function_exists('qiwiGetCommentAvatarUrl')
             ? qiwiGetCommentAvatarUrl(isset($this->user->mail) ? $this->user->mail : '', 40)
             : '';
-        $stickerPacks = function_exists('qiwiGetCommentStickerPacks') ? array_values(qiwiGetCommentStickerPacks()) : array();
+        $stickerPacks = function_exists('qiwiGetSelectableStickerPacks') ? qiwiGetSelectableStickerPacks() : array();
     ?>
     <div id="<?php $this->respondId(); ?>" class="comment-respond">
         <div class="comment-respond-header">

@@ -2417,6 +2417,13 @@
         'mailMaxAttempts',
         'mailLogKeepDays',
         'mailQueueKey',
+        'thoughtsEnabled',
+        'thoughtsMaxLength',
+        'thoughtsMinSelection',
+        'thoughtsMaxSelection',
+        'thoughtsSubmitInterval',
+        'thoughtsPendingLimit',
+        'thoughtsMailNotify',
         'sidebarMomentCount',
         'homeVisibilityDefault',
         'rssVisibilityDefault',
@@ -3406,7 +3413,8 @@
 
         var tabIssues = {
             sitemap: legacyIssue,
-            mail: legacyIssue
+            mail: legacyIssue,
+            thoughts: legacyIssue
         };
         if (!status.sitemapRouteActive) {
             tabIssues.sitemap += ' 站点地图 / robots.txt 路由尚未注册：请到后台「插件」页停用再启用一次 QiwiTheme。';
@@ -3478,6 +3486,7 @@
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="security" data-qiwi-title="后台与安全" data-qiwi-desc="版本提示、验证码与后台开关。"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>后台与安全</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="sitemap" data-qiwi-title="站点地图 / 订源" data-qiwi-desc="sitemap、robots.txt、时光机 RSS 与订阅增强，由 QiwiTheme 插件提供。"><i class="fa-solid fa-sitemap" aria-hidden="true"></i><span>站点地图 / 订源</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="mail" data-qiwi-title="邮件通知" data-qiwi-desc="评论邮件通知的发信方式、模板与队列，由 QiwiTheme 插件提供。"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span>邮件通知</span></button>' +
+                            '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="thoughts" data-qiwi-title="想法批注" data-qiwi-desc="正文段落想法的功能开关、限额与审核通知，由 QiwiTheme 插件提供。"><i class="fa-solid fa-highlighter" aria-hidden="true"></i><span>想法批注</span></button>' +
                             '<button type="button" class="qiwi-admin-tab" data-qiwi-tab="raw" data-qiwi-title="原始数据" data-qiwi-desc="结构化编辑器背后的兼容数据。"><i class="fa-solid fa-code" aria-hidden="true"></i><span>原始数据</span></button>' +
                         '</div>' +
                     '</nav>' +
@@ -3582,6 +3591,7 @@
                     '<section class="qiwi-admin-pane" data-qiwi-pane="security"><div data-qiwi-update-panel></div><div class="qiwi-admin-fields" data-qiwi-security-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="sitemap"><div data-qiwi-companion-warning="sitemap"></div><div class="qiwi-admin-fields" data-qiwi-sitemap-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="mail"><div data-qiwi-companion-warning="mail"></div><div class="qiwi-admin-fields" data-qiwi-mail-fields></div></section>' +
+                    '<section class="qiwi-admin-pane" data-qiwi-pane="thoughts"><div data-qiwi-companion-warning="thoughts"></div><div class="qiwi-admin-fields" data-qiwi-thoughts-fields></div></section>' +
                     '<section class="qiwi-admin-pane" data-qiwi-pane="raw"></section>' +
                 '</main>' +
             '</div>';
@@ -3595,6 +3605,7 @@
         moveFields(['showUpdateLog', 'showVersionDrawer', 'enabledCaptcha'], $('[data-qiwi-security-fields]', panel));
         moveFields(['enableSitemap', 'enablePosts', 'enablePages', 'enableCategories', 'enableTags', 'enableXsl', 'enableRobots', 'enableMomentsFeed', 'momentsPageCid', 'momentsFeedLimit', 'enableFeedDiscovery', 'enableFeedShortcodeCompat', 'enableFeedAvatar', 'avatarUrl', 'excludedCids'], $('[data-qiwi-sitemap-fields]', panel));
         moveFields(['mailMode', 'mailHost', 'mailPort', 'mailUser', 'mailPass', 'mailValidate', 'mailResendApiKey', 'mailResendFrom', 'mailResendApiUrl', 'mailResendCaFile', 'mailFromName', 'mailRecipient', 'mailContactme', 'mailTitleForOwner', 'mailTitleForGuest', 'mailNotifyStatus', 'mailSwitches', 'mailBatchSize', 'mailRateLimitPerSecond', 'mailMaxAttempts', 'mailLogKeepDays', 'mailQueueKey'], $('[data-qiwi-mail-fields]', panel));
+        moveFields(['thoughtsEnabled', 'thoughtsMaxLength', 'thoughtsMinSelection', 'thoughtsMaxSelection', 'thoughtsSubmitInterval', 'thoughtsPendingLimit', 'thoughtsMailNotify'], $('[data-qiwi-thoughts-fields]', panel));
 
         var rawPane = $('[data-qiwi-pane="raw"]', panel);
         [

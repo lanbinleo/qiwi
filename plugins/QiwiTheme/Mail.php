@@ -526,6 +526,36 @@ class Mail
         return self::insertTask('guest', $event, $data, $original, $recipient);
     }
 
+    /**
+     * 段落想法待审通知：想法不在 comments 表，这里把想法组装成 comment 形状
+     * （coid 填想法 id，permalink 指向文章页），复用 owner 通知的队列与模板。
+     * 邮件入队失败不影响想法提交主流程。
+     */
+    public static function queueThoughtNotice(array $data): int
+    {
+        try {
+            self::ensureQueueTable();
+
+            $cfg = self::cfg();
+            if (!self::cfgEnabled($cfg, 'mailSwitches', 'to_owner', ['to_owner', 'to_guest', 'auto_process'])) {
+                return 0;
+            }
+
+            $recipient = self::ownerRecipient($data, $cfg);
+            if ($recipient['mail'] === '') return 0;
+
+            $created = self::insertTask('owner', 'new_thought', $data, null, $recipient);
+            if ($created > 0) {
+                self::wakeQueueWorker();
+            }
+            return $created;
+        } catch (\Exception $e) {
+            return 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     private static function insertTask($recipientType, $event, array $comment, $original, array $recipient)
     {
         $recipientMail = trim((string)$recipient['mail']);

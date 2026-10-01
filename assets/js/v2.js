@@ -1602,6 +1602,878 @@
         });
     }
 
+    // ============================================================
+    // 段落想法：读者框选正文写"想法"，审核通过后所有人可见。
+    // 字符轴：正文全部可批注文本节点（排除 pre/script/style 与代码块工具条）
+    // 按文档序拼接，块级元素之间补一个换行；想法只存轴上的 [start, end)。
+    // 想法文字包在 <mark class="thought-mark"> 里显示虚线，重画前先拆干净。
+    // ============================================================
+    var thoughtState = null;
+    var thoughtBubble = null;
+    var thoughtPopover = null;
+    var thoughtBubbleTimer = null;
+    var thoughtDraftTimer = null;
+    var thoughtCloseTimer = null;
+
+    var THOUGHT_EXCLUDED_TAGS = { PRE: true, SCRIPT: true, STYLE: true, NOSCRIPT: true };
+    var THOUGHT_BLOCK_TAGS = {
+        P: 1, DIV: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1,
+        UL: 1, OL: 1, LI: 1, DL: 1, DT: 1, DD: 1,
+        TABLE: 1, THEAD: 1, TBODY: 1, TFOOT: 1, TR: 1, TD: 1, TH: 1,
+        BLOCKQUOTE: 1, FIGURE: 1, FIGCAPTION: 1, SECTION: 1, ARTICLE: 1,
+        ASIDE: 1, MAIN: 1, HEADER: 1, FOOTER: 1, NAV: 1, HR: 1,
+        DETAILS: 1, SUMMARY: 1, ADDRESS: 1, FORM: 1, FIELDSET: 1
+    };
+    var THOUGHT_ANCHOR = 32;
+
+    function thoughtIsOff() {
+        try { return localStorage.getItem('qiwi-thoughts-disabled') === '1'; } catch (error) { return false; }
+    }
+
+    function thoughtExcludedElement(el) {
+        if (!el || el.nodeType !== 1) return false;
+        if (THOUGHT_EXCLUDED_TAGS[el.tagName]) return true;
+        return el.classList.contains('code-block-header')
+            || el.classList.contains('code-language')
+            || el.classList.contains('copy-button');
+    }
+
+    function thoughtBuildAxis(body) {
+        var axis = '';
+        var entries = [];
+
+        function walk(node) {
+            if (node.nodeType === 3) {
+                var value = node.nodeValue;
+                if (value === '') return false;
+                entries.push({ node: node, start: axis.length, end: axis.length + value.length });
+                axis += value;
+                return true;
+            }
+            if (node.nodeType !== 1 || thoughtExcludedElement(node)) return false;
+            var contributed = false;
+            for (var child = node.firstChild; child; child = child.nextSibling) {
+                if (walk(child)) contributed = true;
+            }
+            if (contributed && THOUGHT_BLOCK_TAGS[node.tagName] && node !== body) {
+                axis += '\n';
+            }
+            return contributed;
+        }
+
+        walk(body);
+        return { axis: axis, entries: entries };
+    }
+
+    function thoughtClearMarks(body) {
+        Array.prototype.slice.call(body.querySelectorAll('.thought-mark')).forEach(function (mark) {
+            var parent = mark.parentNode;
+            if (!parent) return;
+            while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+            parent.removeChild(mark);
+            parent.normalize();
+        });
+    }
+
+    // 先清干净再画：拆掉旧 <mark>、合并文本节点、按最新轴重包
+    function thoughtDrawMarks() {
+        var state = thoughtState;
+        if (!state) return;
+        thoughtClearMarks(state.body);
+        var data = thoughtBuildAxis(state.body);
+        state.axis = data.axis;
+        state.entries = data.entries;
+
+        if (thoughtIsOff()) return;
+
+        Object.keys(state.ranges).forEach(function (key) {
+            var range = state.ranges[key];
+            var hasApproved = range.items.some(function (item) { return item.status === 'approved'; });
+            Array.prototype.slice.call(state.entries).forEach(function (entry) {
+                var start = Math.max(range.start, entry.start);
+                var end = Math.min(range.end, entry.end);
+                if (end <= start || !entry.node.parentNode) return;
+                var domRange = document.createRange();
+                try {
+                    domRange.setStart(entry.node, start - entry.start);
+                    domRange.setEnd(entry.node, end - entry.start);
+                    var mark = document.createElement('mark');
+                    mark.className = 'thought-mark' + (hasApproved ? '' : ' is-pending');
+                    mark.setAttribute('data-thought-range', key);
+                    mark.setAttribute('role', 'button');
+                    mark.tabIndex = 0;
+                    mark.setAttribute('aria-label', '查看这段文字的想法');
+                    domRange.surroundContents(mark);
+                } catch (error) {}
+            });
+        });
+
+        // 包裹 <mark> 会把文本节点切碎，这里按最新 DOM 重新采集节点偏移表，
+        // 否则下一次划选（mouseup）用旧引用换算轴偏移会失败。
+        // mark 是行内元素、不参与块分隔，轴字符串在重画前后保持不变。
+        var refreshed = thoughtBuildAxis(state.body);
+        state.axis = refreshed.axis;
+        state.entries = refreshed.entries;
+    }
+
+    // 新想法落地时在正文标记上轻闪一次，提示它挂在了哪里
+    function thoughtFlashMark(key) {
+        var state = thoughtState;
+        if (!state || prefersReducedMotion()) return;
+        state.body.querySelectorAll('.thought-mark[data-thought-range="' + key + '"]').forEach(function (mark) {
+            mark.classList.remove('is-flash');
+            void mark.offsetWidth;
+            mark.classList.add('is-flash');
+            mark.addEventListener('animationend', function () { mark.classList.remove('is-flash'); }, { once: true });
+        });
+    }
+
+    function thoughtRangeKey(start, end) {
+        return start + ':' + end;
+    }
+
+    function thoughtUpsertRange(state, item) {
+        var key = thoughtRangeKey(item.start, item.end);
+        if (!state.ranges[key]) {
+            state.ranges[key] = { start: item.start, end: item.end, items: [] };
+        }
+        state.ranges[key].items.push(item);
+        return state.ranges[key];
+    }
+
+    // 原文被改动时的抢救：偏移对不上就用原文 / 前后锚点在新轴上重新定位
+    function thoughtReanchor(state, item) {
+        var axis = state.axis;
+        if (axis.slice(item.start, item.end) === item.quote) return true;
+
+        var located = -1;
+        var before = item.anchorBefore || '';
+        var after = item.anchorAfter || '';
+        if (before !== '') {
+            var withBefore = axis.indexOf(before + item.quote);
+            if (withBefore >= 0) located = withBefore + before.length;
+        }
+        if (located < 0 && after !== '') {
+            var withAfter = axis.indexOf(item.quote + after);
+            if (withAfter >= 0) located = withAfter;
+        }
+        if (located < 0) {
+            located = axis.indexOf(item.quote);
+        }
+        if (located < 0) return false;
+
+        item.start = located;
+        item.end = located + item.quote.length;
+        return true;
+    }
+
+    function thoughtSelectionOffsets(state, domRange) {
+        var startAxis = null;
+        var endAxis = null;
+        state.entries.forEach(function (entry) {
+            var node = entry.node;
+            if (!node.parentNode) return;
+            if (!domRange.intersectsNode(node)) return;
+            var length = node.nodeValue.length;
+            var start = entry.start;
+            var end = entry.end;
+            if (domRange.startContainer === node) start = entry.start + Math.max(0, Math.min(domRange.startOffset, length));
+            if (domRange.endContainer === node) end = entry.start + Math.max(0, Math.min(domRange.endOffset, length));
+            if (startAxis === null || start < startAxis) startAxis = start;
+            if (endAxis === null || end > endAxis) endAxis = end;
+        });
+        if (startAxis === null || endAxis === null || endAxis <= startAxis) return null;
+
+        // 去掉选区边缘的空白（含轴上的块分隔换行）
+        var axis = state.axis;
+        while (startAxis < endAxis && /[\s\u00a0]/.test(axis.charAt(startAxis))) startAxis += 1;
+        while (endAxis > startAxis && /[\s\u00a0]/.test(axis.charAt(endAxis - 1))) endAxis -= 1;
+        if (endAxis <= startAxis) return null;
+        return { start: startAxis, end: endAxis };
+    }
+
+    function thoughtSelectionIsCoarse() {
+        return Boolean(window.matchMedia && (window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 860px)').matches));
+    }
+
+    function thoughtGetBubble() {
+        if (thoughtBubble && thoughtBubble.parentNode) return thoughtBubble;
+        thoughtBubble = document.createElement('button');
+        thoughtBubble.type = 'button';
+        thoughtBubble.className = 'thought-bubble';
+        thoughtBubble.textContent = '写想法';
+        document.body.appendChild(thoughtBubble);
+        thoughtBubble.addEventListener('click', function () {
+            var pending = thoughtBubble._qiwiSelection;
+            thoughtBubble._qiwiSelection = null;
+            hideThoughtBubble();
+            if (pending) thoughtOpenPopover(pending.start, pending.end, true);
+        });
+        return thoughtBubble;
+    }
+
+    function hideThoughtBubble() {
+        if (thoughtBubbleTimer !== null) { window.clearTimeout(thoughtBubbleTimer); thoughtBubbleTimer = null; }
+        if (thoughtBubble) {
+            thoughtBubble.classList.remove('is-visible', 'is-error');
+            thoughtBubble.disabled = false;
+            thoughtBubble._qiwiSelection = null;
+        }
+    }
+
+    function showThoughtBubble(rect, selection, message) {
+        var bubble = thoughtGetBubble();
+        if (thoughtBubbleTimer !== null) { window.clearTimeout(thoughtBubbleTimer); thoughtBubbleTimer = null; }
+        if (message) {
+            bubble.classList.add('is-error');
+            bubble.textContent = message;
+            bubble.disabled = true;
+            thoughtBubbleTimer = window.setTimeout(hideThoughtBubble, 1800);
+        } else {
+            bubble.classList.remove('is-error');
+            bubble.textContent = '写想法';
+            bubble.disabled = false;
+            bubble._qiwiSelection = selection;
+        }
+        var top = rect.bottom + window.scrollY + 8;
+        var left = rect.left + window.scrollX + rect.width / 2;
+        bubble.style.top = top + 'px';
+        bubble.style.left = left + 'px';
+        bubble.classList.add('is-visible');
+    }
+
+    function thoughtSelectionSettle() {
+        var state = thoughtState;
+        if (!state) return;
+        hideThoughtBubble();
+        if (thoughtIsOff()) return;
+
+        var selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+        var domRange = selection.getRangeAt(0);
+        if (!state.body.contains(domRange.commonAncestorContainer)) return;
+
+        var offsets = thoughtSelectionOffsets(state, domRange);
+        if (!offsets) return;
+
+        var config = state.config;
+        var length = offsets.end - offsets.start;
+        if (length < config.minSelection) return;
+        if (length > config.maxSelection) {
+            showThoughtBubble(domRange.getBoundingClientRect(), null, '最多选择 ' + config.maxSelection + ' 个字');
+            return;
+        }
+        if (thoughtSelectionIsCoarse() && (state.axis.slice(offsets.start, offsets.end).split('\n').length > 3)) {
+            showThoughtBubble(domRange.getBoundingClientRect(), null, '一次最多选择 3 个段落');
+            return;
+        }
+
+        // 与已有选区的关系：完全落在同一选区 → 直接打开那个浮窗；部分重叠 → 提示
+        var overlapKey = null;
+        var containedKey = null;
+        Object.keys(state.ranges).forEach(function (key) {
+            var range = state.ranges[key];
+            if (offsets.start < range.end && offsets.end > range.start) {
+                if (offsets.start >= range.start && offsets.end <= range.end) containedKey = key;
+                overlapKey = key;
+            }
+        });
+        var rects = domRange.getClientRects();
+        var rect = rects.length ? rects[rects.length - 1] : domRange.getBoundingClientRect();
+        if (containedKey !== null) {
+            thoughtOpenPopover(state.ranges[containedKey].start, state.ranges[containedKey].end, true);
+            return;
+        }
+        if (overlapKey !== null) {
+            showThoughtBubble(rect, null, '这段文字已有想法');
+            return;
+        }
+
+        showThoughtBubble(rect, offsets, null);
+    }
+
+    function thoughtGetPopover() {
+        if (thoughtPopover && thoughtPopover.parentNode) return thoughtPopover;
+        thoughtPopover = document.createElement('div');
+        thoughtPopover.className = 'thought-popover';
+        thoughtPopover.setAttribute('data-thought-popover', '');
+        thoughtPopover.setAttribute('role', 'dialog');
+        thoughtPopover.setAttribute('aria-label', '段落想法');
+        thoughtPopover.hidden = true;
+        thoughtPopover.innerHTML =
+            '<div class="thought-popover-header" data-thought-drag-handle>'
+            + '<span class="thought-popover-title">想法</span>'
+            + '<button type="button" class="thought-help-toggle" data-thought-help aria-expanded="false">什么是想法？</button>'
+            + '<button type="button" class="thought-popover-close" data-thought-close aria-label="关闭想法浮窗">×</button>'
+            + '</div>'
+            + '<div class="thought-help" data-thought-help-block hidden>'
+            + '<p>像在书上划线写批注：选中正文里的一段文字，点「写想法」，你的想法会挂在这段文字下面。</p>'
+            + '<p>想法是轻评论，不支持回复与点赞；提交后需通过站长审核才会对其他读者可见。不喜欢这个功能的话，可以在文章顶部的阅读设置里关闭「想法」。</p>'
+            + '</div>'
+            + '<blockquote class="thought-quote" data-thought-quote></blockquote>'
+            + '<div class="thought-list" data-thought-list></div>'
+            + '<div class="thought-compose-toggle" data-thought-compose-toggle hidden>'
+            + '<button type="button" class="thought-compose-button">写想法</button>'
+            + '</div>'
+            + '<div class="thought-form-slot" data-thought-form-slot></div>';
+        document.body.appendChild(thoughtPopover);
+
+        thoughtPopover.querySelector('[data-thought-close]').addEventListener('click', closeThoughtPopover);
+        var helpToggle = thoughtPopover.querySelector('[data-thought-help]');
+        helpToggle.addEventListener('click', function () {
+            var block = thoughtPopover.querySelector('[data-thought-help-block]');
+            var open = !block.hidden;
+            block.hidden = open;
+            helpToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+        });
+        thoughtPopover.querySelector('[data-thought-compose-toggle] button').addEventListener('click', function () {
+            thoughtPopover.classList.add('is-composing');
+        });
+        bindThoughtDrag(thoughtPopover);
+        return thoughtPopover;
+    }
+
+    function bindThoughtDrag(popover) {
+        var handle = popover.querySelector('[data-thought-drag-handle]');
+        var dragging = null;
+        handle.addEventListener('pointerdown', function (event) {
+            if (event.button !== 0 || event.target.closest('button')) return;
+            var rect = popover.getBoundingClientRect();
+            dragging = {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
+                id: event.pointerId
+            };
+            try { handle.setPointerCapture(event.pointerId); } catch (error) {}
+            popover.classList.add('is-dragging');
+            event.preventDefault();
+        });
+        handle.addEventListener('pointermove', function (event) {
+            if (!dragging || event.pointerId !== dragging.id) return;
+            popover.style.left = Math.max(8, Math.min(window.innerWidth - 80, event.clientX - dragging.x + window.scrollX)) + 'px';
+            popover.style.top = Math.max(window.scrollY + 8, event.clientY - dragging.y + window.scrollY) + 'px';
+            popover.style.bottom = 'auto';
+        });
+        function release(event) {
+            if (!dragging || (event && event.pointerId !== dragging.id)) return;
+            dragging = null;
+            popover.classList.remove('is-dragging');
+        }
+        handle.addEventListener('pointerup', release);
+        handle.addEventListener('pointercancel', release);
+    }
+
+    function closeThoughtPopover() {
+        if (!thoughtPopover || thoughtPopover.hidden) return;
+        saveThoughtDraft();
+        var popover = thoughtPopover;
+        popover.classList.remove('is-open');
+        if (thoughtCloseTimer !== null) window.clearTimeout(thoughtCloseTimer);
+        // 先淡出再隐藏；计时器兜底，不依赖 transitionend
+        thoughtCloseTimer = window.setTimeout(function () {
+            thoughtCloseTimer = null;
+            popover.hidden = true;
+            popover.classList.remove('is-composing');
+        }, prefersReducedMotion() ? 0 : 140);
+    }
+
+    function thoughtDraftKey(state, start, end) {
+        return state.config.cid + ':' + start + ':' + end;
+    }
+
+    function readThoughtDrafts() {
+        try { return JSON.parse(localStorage.getItem('qiwi-thought-drafts') || '{}'); } catch (error) { return {}; }
+    }
+
+    function saveThoughtDraft() {
+        var state = thoughtState;
+        if (!state || !state.popoverRange) return;
+        var textarea = state.form.querySelector('[data-thought-text]');
+        if (!textarea) return;
+        var value = textarea.value;
+        var drafts = readThoughtDrafts();
+        var key = thoughtDraftKey(state, state.popoverRange.start, state.popoverRange.end);
+        if (value.trim() === '') delete drafts[key];
+        else drafts[key] = value;
+        var keys = Object.keys(drafts);
+        if (keys.length > 30) {
+            keys.slice(0, keys.length - 30).forEach(function (oldKey) { delete drafts[oldKey]; });
+        }
+        try { localStorage.setItem('qiwi-thought-drafts', JSON.stringify(drafts)); } catch (error) {}
+    }
+
+    function clearThoughtDraft(start, end) {
+        var state = thoughtState;
+        if (!state) return;
+        var drafts = readThoughtDrafts();
+        delete drafts[thoughtDraftKey(state, start, end)];
+        try { localStorage.setItem('qiwi-thought-drafts', JSON.stringify(drafts)); } catch (error) {}
+    }
+
+    function renderThoughtList(state, range, freshId) {
+        var popover = thoughtGetPopover();
+        var list = popover.querySelector('[data-thought-list]');
+        list.textContent = '';
+        var visible = range.items.filter(function (item) { return item.status === 'approved' || item.status === 'waiting'; });
+        if (!visible.length) {
+            list.hidden = true;
+            return;
+        }
+        list.hidden = false;
+        var count = document.createElement('p');
+        count.className = 'thought-list-count';
+        count.textContent = visible.length + ' 条想法';
+        list.appendChild(count);
+        visible.forEach(function (item) {
+            var node = document.createElement('div');
+            node.className = 'thought-item' + (item.status === 'waiting' ? ' is-waiting' : '') + (freshId && item.id === freshId ? ' is-new' : '');
+            var head = document.createElement('div');
+            head.className = 'thought-item-head';
+            var fallback = document.createElement('span');
+            fallback.className = 'thought-item-avatar is-fallback';
+            fallback.setAttribute('aria-hidden', 'true');
+            fallback.textContent = (item.author || '匿').charAt(0).toUpperCase();
+            if (item.avatar) {
+                var img = document.createElement('img');
+                img.className = 'thought-item-avatar';
+                img.alt = '';
+                img.width = 28;
+                img.height = 28;
+                img.referrerPolicy = 'no-referrer';
+                // 头像源加载失败时退回首字母圆点，避免破图
+                img.addEventListener('error', function () {
+                    if (img.parentNode) img.parentNode.replaceChild(fallback, img);
+                }, { once: true });
+                img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
+                img.src = item.avatar;
+                if (img.complete && img.naturalWidth) img.classList.add('is-loaded');
+                head.appendChild(img);
+            } else {
+                head.appendChild(fallback);
+            }
+            var meta = document.createElement('span');
+            meta.className = 'thought-item-meta';
+            var author = document.createElement('strong');
+            author.textContent = item.author || '匿名';
+            meta.appendChild(author);
+            if (item.authorLabel) {
+                var badge = document.createElement('em');
+                badge.className = 'thought-item-badge';
+                badge.textContent = item.authorLabel;
+                meta.appendChild(badge);
+            }
+            var time = document.createElement('time');
+            time.textContent = item.date || '';
+            meta.appendChild(time);
+            head.appendChild(meta);
+            node.appendChild(head);
+            if (item.status === 'waiting') {
+                var status = document.createElement('p');
+                status.className = 'thought-item-status';
+                status.textContent = '待审核，通过后对所有人可见';
+                node.appendChild(status);
+            }
+            var content = document.createElement('div');
+            content.className = 'thought-item-content';
+            content.innerHTML = item.html || '';
+            node.appendChild(content);
+            list.appendChild(node);
+        });
+    }
+
+    function thoughtPositionPopover(popover, anchorRect) {
+        var width = Math.min(380, window.innerWidth - 24);
+        popover.style.width = width + 'px';
+        popover.style.left = '0px';
+        popover.style.top = '0px';
+        popover.style.bottom = 'auto';
+        if (thoughtCloseTimer !== null) {
+            window.clearTimeout(thoughtCloseTimer);
+            thoughtCloseTimer = null;
+            popover.classList.remove('is-open');
+        }
+        popover.hidden = false;
+
+        var rect = popover.getBoundingClientRect();
+        var pageX = anchorRect.left + window.scrollX + anchorRect.width / 2 - width / 2;
+        pageX = Math.max(window.scrollX + 12, Math.min(window.scrollX + window.innerWidth - width - 12, pageX));
+        var below = anchorRect.bottom + window.scrollY + 10;
+        var above = anchorRect.top + window.scrollY - rect.height - 10;
+        var pageY = below;
+        if (below + rect.height > window.scrollY + window.innerHeight - 8 && above > window.scrollY + 8) {
+            pageY = above;
+        }
+        popover.style.left = Math.round(pageX) + 'px';
+        popover.style.top = Math.round(pageY) + 'px';
+        // 进入方向跟随锚点：在下方时自上落下，在上方时自下浮起
+        popover.setAttribute('data-placement', pageY === below ? 'below' : 'above');
+        if (!popover.classList.contains('is-open')) {
+            void popover.offsetWidth;
+            popover.classList.add('is-open');
+        }
+    }
+
+    function thoughtOpenPopover(start, end, compose) {
+        var state = thoughtState;
+        if (!state) return;
+        var popover = thoughtGetPopover();
+        var key = thoughtRangeKey(start, end);
+        var range = state.ranges[key] || { start: start, end: end, items: [] };
+        state.popoverRange = { start: start, end: end };
+
+        var quote = popover.querySelector('[data-thought-quote]');
+        quote.textContent = state.axis.slice(start, end);
+
+        renderThoughtList(state, range);
+
+        var form = state.form;
+        var slot = popover.querySelector('[data-thought-form-slot]');
+        if (form.parentNode !== slot) slot.appendChild(form);
+        var isAdmin = Boolean(state.config.isAdmin);
+        form.classList.toggle('is-admin', isAdmin);
+        popover.classList.toggle('is-composing', Boolean(compose));
+        // 框选打开 = 直接表单；点虚线打开 = 列表 + 「写想法」按钮展开表单
+        popover.querySelector('[data-thought-compose-toggle]').hidden = Boolean(compose);
+
+        var helpToggle = popover.querySelector('[data-thought-help]');
+        var helpBlock = popover.querySelector('[data-thought-help-block]');
+        helpBlock.hidden = true;
+        helpToggle.setAttribute('aria-expanded', 'false');
+
+        var status = form.querySelector('[data-thought-status]');
+        if (status) status.textContent = '';
+
+        var textarea = form.querySelector('[data-thought-text]');
+        if (textarea) {
+            var drafts = readThoughtDrafts();
+            textarea.value = drafts[thoughtDraftKey(state, start, end)] || '';
+            updateThoughtCounter();
+        }
+        prefillThoughtIdentity();
+
+        var anchorRect;
+        var mark = state.body.querySelector('.thought-mark[data-thought-range="' + key + '"]');
+        if (mark) {
+            anchorRect = mark.getBoundingClientRect();
+        } else {
+            var selection = window.getSelection();
+            var rects = selection && selection.rangeCount ? selection.getRangeAt(0).getClientRects() : [];
+            anchorRect = rects.length ? rects[rects.length - 1] : { left: window.innerWidth / 2, top: 120, right: window.innerWidth / 2, bottom: 120, width: 0 };
+        }
+        thoughtPositionPopover(popover, anchorRect);
+        hideThoughtBubble();
+        if (compose && textarea && !thoughtSelectionIsCoarse()) textarea.focus({ preventScroll: true });
+    }
+
+    function prefillThoughtIdentity() {
+        var state = thoughtState;
+        if (!state || state.config.isAdmin) return;
+        var author = state.form.querySelector('[data-thought-author]');
+        var mail = state.form.querySelector('[data-thought-mail]');
+        if (!author && !mail) return;
+        try {
+            var stored = JSON.parse(localStorage.getItem('qiwi-comment-profile') || '{}');
+            if (author && !author.value && stored.author) author.value = stored.author;
+            if (mail && !mail.value && stored.mail) mail.value = stored.mail;
+        } catch (error) {}
+        // 与评论区一致：身份完整且有效时折叠为一行摘要，否则直接展开字段
+        var complete = Boolean(author && mail && author.value.trim() && mail.value.trim() && author.checkValidity() && mail.checkValidity());
+        setThoughtIdentityOpen(!complete);
+    }
+
+    function setThoughtIdentityOpen(open) {
+        var state = thoughtState;
+        if (!state) return;
+        var summary = state.form.querySelector('[data-thought-identity-summary]');
+        var fields = state.form.querySelector('[data-thought-identity-fields]');
+        var edit = state.form.querySelector('[data-thought-identity-edit]');
+        var name = state.form.querySelector('[data-thought-identity-name]');
+        var author = state.form.querySelector('[data-thought-author]');
+        if (!summary || !fields) return;
+        if (name && author) name.textContent = author.value.trim();
+        var canCollapse = Boolean(author && author.value.trim());
+        summary.hidden = !canCollapse;
+        var expanded = !canCollapse || open;
+        fields.classList.toggle('is-open', expanded);
+        // 折叠时字段仍在 DOM 里做高度动画，需移出 Tab 序列与读屏；
+        // 焦点还在字段内时先归还给「修改」按钮（元素变 inert 后浏览器会把焦点丢回 body）
+        if (!expanded && edit && document.activeElement && fields.contains(document.activeElement)) {
+            edit.focus();
+        }
+        if (expanded) fields.removeAttribute('inert'); else fields.setAttribute('inert', '');
+        fields.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+        if (edit) {
+            edit.setAttribute('aria-expanded', open ? 'true' : 'false');
+            edit.textContent = open ? '收起' : '修改';
+        }
+    }
+
+    function rememberThoughtIdentity() {
+        var state = thoughtState;
+        if (!state || state.config.isAdmin) return;
+        var author = state.form.querySelector('[data-thought-author]');
+        var mail = state.form.querySelector('[data-thought-mail]');
+        try {
+            var stored = JSON.parse(localStorage.getItem('qiwi-comment-profile') || '{}');
+            if (author) stored.author = author.value.trim();
+            if (mail) stored.mail = mail.value.trim();
+            localStorage.setItem('qiwi-comment-profile', JSON.stringify(stored));
+        } catch (error) {}
+    }
+
+    // 状态提示统一出口：文字 + 错误态 + 入场动画（切 class 重放，textContent 赋值不会触发 CSS animation）
+    function showThoughtStatus(form, message, isError) {
+        var status = form.querySelector('[data-thought-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.classList.toggle('is-error', Boolean(isError));
+        if (message) {
+            status.classList.remove('is-reveal');
+            void status.offsetWidth;
+            status.classList.add('is-reveal');
+        }
+    }
+
+    function updateThoughtCounter() {
+        var state = thoughtState;
+        if (!state) return;
+        var counter = state.form.querySelector('[data-thought-counter]');
+        var textarea = state.form.querySelector('[data-thought-text]');
+        if (!counter || !textarea) return;
+        var length = textarea.value.length;
+        counter.textContent = length > 0 ? length + ' / ' + state.config.maxLength : '';
+        counter.classList.toggle('is-over', length > state.config.maxLength);
+    }
+
+    function thoughtCaptchaToken(form) {
+        var widget = form.querySelector('cap-widget');
+        if (!widget) return '';
+        var hidden = widget.querySelector('input[name="cap-token"]');
+        return String(widget.token || widget.tokenValue || (hidden && hidden.value) || '').trim();
+    }
+
+    function submitThought() {
+        var state = thoughtState;
+        if (!state || !state.popoverRange) return;
+        var form = state.form;
+        var config = state.config;
+        var button = form.querySelector('[data-thought-submit]');
+        var textarea = form.querySelector('[data-thought-text]');
+        if (!button || !textarea) return;
+
+        var text = textarea.value.trim();
+        if (text === '') { showThoughtStatus(form, '想法内容不能为空。', true); textarea.focus(); return; }
+        if (text.length > config.maxLength) { showThoughtStatus(form, '想法最多 ' + config.maxLength + ' 个字。', true); return; }
+
+        var author = '';
+        var mail = '';
+        if (!config.isAdmin) {
+            var authorInput = form.querySelector('[data-thought-author]');
+            var mailInput = form.querySelector('[data-thought-mail]');
+            author = authorInput ? authorInput.value.trim() : '';
+            mail = mailInput ? mailInput.value.trim() : '';
+            var identityError = '';
+            var identityField = null;
+            if (author === '') { identityError = '称呼不能为空。'; identityField = authorInput; }
+            else if (mail === '') { identityError = '邮箱不能为空。'; identityField = mailInput; }
+            else if (mailInput && !mailInput.checkValidity()) { identityError = '邮箱格式不正确。'; identityField = mailInput; }
+            if (identityError) {
+                setThoughtIdentityOpen(true);
+                showThoughtStatus(form, identityError, true);
+                (identityField || textarea).focus();
+                return;
+            }
+        }
+
+        if (config.captcha && thoughtCaptchaToken(form) === '') {
+            showThoughtStatus(form, '请先完成人机验证。', true);
+            return;
+        }
+
+        var start = state.popoverRange.start;
+        var end = state.popoverRange.end;
+        var payload = new FormData();
+        payload.append('cid', String(config.cid));
+        payload.append('start', String(start));
+        payload.append('end', String(end));
+        payload.append('quote', state.axis.slice(start, end));
+        payload.append('anchorBefore', state.axis.slice(Math.max(0, start - THOUGHT_ANCHOR), start));
+        payload.append('anchorAfter', state.axis.slice(end, end + THOUGHT_ANCHOR));
+        payload.append('author', author);
+        payload.append('mail', mail);
+        payload.append('text', text);
+        payload.append('cap-token', thoughtCaptchaToken(form));
+
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        showThoughtStatus(form, '正在提交…', false);
+
+        fetch(config.endpoint, { method: 'POST', credentials: 'same-origin', body: payload })
+            .then(function (response) {
+                if (!response.ok && response.status !== 400) throw new Error('http ' + response.status);
+                return response.json().catch(function () { throw new Error('bad json'); });
+            })
+            .then(function (data) {
+                if (!data || !data.success) {
+                    showThoughtStatus(form, (data && data.message) || '提交失败，请稍后再试。', true);
+                    return;
+                }
+                var thought = data.thought || {};
+                thought.anchorBefore = '';
+                thought.anchorAfter = '';
+                var key = thoughtRangeKey(thought.start, thought.end);
+                if (!state.ranges[key]) state.ranges[key] = { start: thought.start, end: thought.end, items: [] };
+                state.ranges[key].items.push(thought);
+                state.popoverRange = { start: thought.start, end: thought.end };
+                thoughtDrawMarks();
+                clearThoughtDraft(thought.start, thought.end);
+                rememberThoughtIdentity();
+                setThoughtIdentityOpen(false);
+                textarea.value = '';
+                updateThoughtCounter();
+                showThoughtStatus(form, data.message || '想法已提交。', false);
+                renderThoughtList(state, state.ranges[key], thought.id);
+                thoughtFlashMark(key);
+                thoughtPopover.classList.remove('is-composing');
+                thoughtPopover.querySelector('[data-thought-compose-toggle]').hidden = false;
+                var widget = form.querySelector('cap-widget');
+                if (widget && typeof widget.reset === 'function') {
+                    try { widget.reset(); } catch (error) {}
+                }
+            })
+            .catch(function () {
+                showThoughtStatus(form, '提交失败，请稍后再试。', true);
+            })
+            .finally(function () {
+                button.disabled = false;
+                button.removeAttribute('aria-busy');
+            });
+    }
+
+    function bindThoughtForm(form) {
+        if (form.dataset.v2ThoughtReady === '1') return;
+        form.dataset.v2ThoughtReady = '1';
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            submitThought();
+        });
+        // 身份字段改由 submitThought 统一校验并给出状态提示，避免浏览器原生气泡指向折叠中的字段
+        form.noValidate = true;
+        var identityEdit = form.querySelector('[data-thought-identity-edit]');
+        if (identityEdit) {
+            identityEdit.addEventListener('click', function () {
+                var fields = form.querySelector('[data-thought-identity-fields]');
+                var open = Boolean(fields && !fields.classList.contains('is-open'));
+                setThoughtIdentityOpen(open);
+                var author = form.querySelector('[data-thought-author]');
+                if (open && author) author.focus();
+            });
+        }
+        var textarea = form.querySelector('[data-thought-text]');
+        if (textarea) {
+            textarea.addEventListener('input', function () {
+                updateThoughtCounter();
+                if (thoughtDraftTimer !== null) window.clearTimeout(thoughtDraftTimer);
+                thoughtDraftTimer = window.setTimeout(saveThoughtDraft, 400);
+            });
+        }
+    }
+
+    function syncThoughtToggleUI(root) {
+        var scope = root || document;
+        var off = thoughtIsOff();
+        scope.querySelectorAll('[data-thoughts-toggle]').forEach(function (button) {
+            var active = (button.dataset.thoughtsToggle === 'off') === off;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+
+    function registerThoughtGlobalListeners() {
+        if (document.documentElement.dataset.qiwiV2Thoughts === '1') return;
+        document.documentElement.dataset.qiwiV2Thoughts = '1';
+
+        document.addEventListener('mouseup', function (event) {
+            if (!thoughtState) return;
+            if (event.target.closest && event.target.closest('.thought-popover, .thought-bubble')) return;
+            window.setTimeout(thoughtSelectionSettle, 10);
+        });
+        document.addEventListener('touchend', function () {
+            if (!thoughtState) return;
+            window.setTimeout(thoughtSelectionSettle, 300);
+        }, { passive: true });
+        document.addEventListener('selectionchange', function () {
+            if (!thoughtState) return;
+            var selection = window.getSelection();
+            if (!selection || selection.isCollapsed || !selection.rangeCount) hideThoughtBubble();
+        });
+    }
+
+    function teardownThoughts() {
+        if (thoughtBubbleTimer !== null) { window.clearTimeout(thoughtBubbleTimer); thoughtBubbleTimer = null; }
+        if (thoughtDraftTimer !== null) { window.clearTimeout(thoughtDraftTimer); thoughtDraftTimer = null; }
+        if (thoughtCloseTimer !== null) { window.clearTimeout(thoughtCloseTimer); thoughtCloseTimer = null; }
+        if (thoughtBubble) { thoughtBubble.remove(); thoughtBubble = null; }
+        if (thoughtPopover) { thoughtPopover.remove(); thoughtPopover = null; }
+        thoughtState = null;
+    }
+
+    function initPostIdeas(root) {
+        teardownThoughts();
+        var template = root.querySelector('[data-thought-template]');
+        if (!template) return;
+        var dataNode = template.querySelector('[data-thoughts-data]');
+        var form = template.querySelector('[data-thought-form]');
+        if (!dataNode || !form) return;
+
+        var config;
+        try { config = JSON.parse(dataNode.textContent || '{}'); } catch (error) { return; }
+        if (!config || !config.cid || !config.endpoint) return;
+        var body = root.querySelector('.article-body');
+        if (!body) return;
+
+        config.minSelection = Math.max(1, parseInt(config.minSelection, 10) || 2);
+        config.maxSelection = Math.max(config.minSelection, parseInt(config.maxSelection, 10) || 200);
+        config.maxLength = Math.max(1, parseInt(config.maxLength, 10) || 200);
+
+        var state = {
+            config: config,
+            body: body,
+            form: form,
+            ranges: {},
+            axis: '',
+            entries: [],
+            popoverRange: null
+        };
+
+        var axisData = thoughtBuildAxis(body);
+        state.axis = axisData.axis;
+        state.entries = axisData.entries;
+
+        (config.items || []).forEach(function (item) {
+            if (!item || typeof item.start !== 'number' || typeof item.end !== 'number' || !item.quote) return;
+            if (thoughtReanchor(state, item)) thoughtUpsertRange(state, item);
+        });
+
+        thoughtState = state;
+        registerThoughtGlobalListeners();
+        bindThoughtForm(form);
+        syncThoughtToggleUI(root);
+        root.querySelectorAll('[data-thoughts-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var off = button.dataset.thoughtsToggle === 'off';
+                try {
+                    if (off) localStorage.setItem('qiwi-thoughts-disabled', '1');
+                    else localStorage.removeItem('qiwi-thoughts-disabled');
+                } catch (error) {}
+                syncThoughtToggleUI(document);
+                thoughtDrawMarks();
+                closeThoughtPopover();
+            });
+        });
+        thoughtDrawMarks();
+    }
+
     function initPjaxPage(root, afterPjax) {
         initReadingPreferences(root);
         initCommentProfiles(root);
@@ -1613,6 +2485,7 @@
         initMomentTextFolds(root);
         initAttachmentDownloads(root);
         initRedactReveal(root);
+        initPostIdeas(root);
         requestBackToTopUpdate();
         if (afterPjax) root.dataset.v2PjaxPage = '1';
         if (typeof window.initQiwiFolds === 'function') window.initQiwiFolds();
@@ -1662,6 +2535,7 @@
         }
         if (window.qiwiPlogController) { window.qiwiPlogController.abort(); window.qiwiPlogController = null; }
         if (window.qiwiTimemachineController) { window.qiwiTimemachineController.abort(); window.qiwiTimemachineController = null; }
+        teardownThoughts();
         // 模板内联脚本加在 <html>/<body> 上的滚动锁类会随 DOM 替换失去清理入口，导航时统一移除。
         ['plog-lightbox-open', 'comment-profile-open', 'qiwi-lightbox-open'].forEach(function (lockClass) {
             document.documentElement.classList.remove(lockClass);
@@ -1963,6 +2837,18 @@
             return;
         }
 
+        var thoughtMark = event.target.closest('.thought-mark[data-thought-range]');
+        if (thoughtMark) {
+            event.preventDefault();
+            var thoughtStateRef = thoughtState;
+            if (!thoughtStateRef) return;
+            var thoughtKey = thoughtMark.getAttribute('data-thought-range');
+            var thoughtRange = thoughtStateRef.ranges[thoughtKey];
+            if (!thoughtRange) return;
+            thoughtOpenPopover(thoughtRange.start, thoughtRange.end, false);
+            return;
+        }
+
         var commentAnchor = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
             ? event.target.closest('.comment-reply-target[href^="#"]')
             : null;
@@ -1990,10 +2876,20 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             var lightbox = document.querySelector('.v2-lightbox.is-visible');
-            if (lightbox) { event.preventDefault(); closeLightbox(lightbox); }
+            if (lightbox) { event.preventDefault(); closeLightbox(lightbox); return; }
+            if (thoughtPopover && !thoughtPopover.hidden) { event.preventDefault(); closeThoughtPopover(); }
             return;
         }
         if (event.key !== 'Enter' && event.key !== ' ') return;
+        var markTarget = event.target.closest ? event.target.closest('.thought-mark[data-thought-range]') : null;
+        if (markTarget && event.target === markTarget) {
+            event.preventDefault();
+            var stateRef = thoughtState;
+            if (!stateRef) return;
+            var rangeRef = stateRef.ranges[markTarget.getAttribute('data-thought-range')];
+            if (rangeRef) thoughtOpenPopover(rangeRef.start, rangeRef.end, false);
+            return;
+        }
         var card = event.target.closest('[data-post-url]');
         if (!card || event.target !== card) return;
         event.preventDefault();

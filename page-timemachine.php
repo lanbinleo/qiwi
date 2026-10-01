@@ -27,7 +27,7 @@ $rememberMail = function_exists('qiwi_capture_remember') ? qiwi_capture_remember
 // remember 昵称/邮箱可被任意伪造，不能用来匹配他人的待审评论。
 $ownCommentIds = function_exists('qiwiGetOwnCommentIds') ? qiwiGetOwnCommentIds() : [];
 $canShowOwnWaitingReplies = !$this->user->hasLogin() && !empty($ownCommentIds);
-$momentStickerPacks = function_exists('qiwiGetCommentStickerPacks') ? array_values(qiwiGetCommentStickerPacks()) : array();
+$momentStickerPacks = function_exists('qiwiGetSelectableStickerPacks') ? qiwiGetSelectableStickerPacks() : array();
 
 // 先取总数，把越界页码钳制到最后一页（否则会渲染空列表并显示"第 999 / N 页"）。
 $momentTotalSelect = $db->select('COUNT(coid) AS total')
