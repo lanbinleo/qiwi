@@ -966,6 +966,57 @@ if (!function_exists('qiwiGetOwnCommentIds')) {
     }
 }
 
+if (!function_exists('qiwiGetOwnThoughtIds')) {
+    /**
+     * 当前浏览器提交过的想法 id（来自 QiwiTheme 插件签发的签名 cookie）。
+     * 用于向访客展示"自己的待审核想法"，未启用插件时返回空数组即不展示。
+     */
+    function qiwiGetOwnThoughtIds()
+    {
+        if (!class_exists('QiwiTheme_Thoughts') || !method_exists('QiwiTheme_Thoughts', 'ownThoughtIds')) {
+            return [];
+        }
+
+        try {
+            $ids = QiwiTheme_Thoughts::ownThoughtIds();
+            return is_array($ids) ? array_values(array_map('intval', $ids)) : [];
+        } catch (Exception $e) {
+            return [];
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+}
+
+if (!function_exists('qiwiShouldEnableThoughts')) {
+    /**
+     * 当前文章是否开启段落想法：QiwiTheme 模块可用 ×（单篇覆盖 || 主题全局开关）。
+     */
+    function qiwiShouldEnableThoughts($widget)
+    {
+        if (!class_exists('QiwiTheme_Thoughts')) {
+            return false;
+        }
+
+        try {
+            $override = strtolower(trim((string) qiwiGetFieldValue($widget, 'thoughtsDisplay', 'default')));
+        } catch (Exception $e) {
+            $override = 'default';
+        } catch (Throwable $e) {
+            $override = 'default';
+        }
+
+        if ($override === 'hide') {
+            return false;
+        }
+        if ($override === 'show') {
+            return true;
+        }
+
+        return qiwiGetOptionValue($widget, 'thoughtsEnabled', '1') === '1';
+    }
+}
+
 if (!function_exists('qiwiGetThemeActionEndpoint')) {
     function qiwiGetThemeActionEndpoint($action, $options = null)
     {
@@ -1716,6 +1767,76 @@ function themeConfig($form)
         _t('格式："书名, 字数&&书名, 字数&&..."，例如："《球状闪电》, 210000&&《三体》, 330000&&《流浪地球》, 23000"')
     );
     $form->addInput($bookReference);
+
+    // === 段落想法 ===
+    $thoughtsEnabled = new Typecho_Widget_Helper_Form_Element_Radio(
+        'thoughtsEnabled',
+        array(
+            '1' => _t('启用'),
+            '0' => _t('关闭')
+        ),
+        '1',
+        _t('想法 - 功能开关'),
+        _t('开启后读者可在文章正文框选一段文字写下「想法」（类似微信读书的段落评论），提交后人工审核通过即可见；需要 QiwiTheme 插件处于启用状态。单篇文章可在编辑页单独覆盖。')
+    );
+    $form->addInput($thoughtsEnabled);
+
+    $thoughtsMaxLength = new Typecho_Widget_Helper_Form_Element_Text(
+        'thoughtsMaxLength',
+        null,
+        '200',
+        _t('想法 - 单条字数上限'),
+        _t('一条想法最多允许的字数（1 - 1000），默认 200。')
+    );
+    $form->addInput($thoughtsMaxLength);
+
+    $thoughtsMinSelection = new Typecho_Widget_Helper_Form_Element_Text(
+        'thoughtsMinSelection',
+        null,
+        '2',
+        _t('想法 - 最小选区长度'),
+        _t('一次至少要框选的字符数（1 - 500），默认 2。')
+    );
+    $form->addInput($thoughtsMinSelection);
+
+    $thoughtsMaxSelection = new Typecho_Widget_Helper_Form_Element_Text(
+        'thoughtsMaxSelection',
+        null,
+        '200',
+        _t('想法 - 最大选区长度'),
+        _t('一次最多允许框选的字符数（不超过 500），默认 200；选区之间不可重叠。')
+    );
+    $form->addInput($thoughtsMaxSelection);
+
+    $thoughtsSubmitInterval = new Typecho_Widget_Helper_Form_Element_Text(
+        'thoughtsSubmitInterval',
+        null,
+        '60',
+        _t('想法 - 提交间隔（秒）'),
+        _t('同一来源两次提交想法的最小间隔（5 - 86400 秒），默认 60；管理员不受限制。')
+    );
+    $form->addInput($thoughtsSubmitInterval);
+
+    $thoughtsPendingLimit = new Typecho_Widget_Helper_Form_Element_Text(
+        'thoughtsPendingLimit',
+        null,
+        '20',
+        _t('想法 - 单篇待审上限'),
+        _t('同一篇文章待审核想法的数量上限（1 - 200），默认 20，达到后暂停接收新想法。')
+    );
+    $form->addInput($thoughtsPendingLimit);
+
+    $thoughtsMailNotify = new Typecho_Widget_Helper_Form_Element_Radio(
+        'thoughtsMailNotify',
+        array(
+            '1' => _t('通知'),
+            '0' => _t('不通知')
+        ),
+        '1',
+        _t('想法 - 待审邮件通知'),
+        _t('有新想法待审时通过「邮件通知」页签配置的邮件队列提醒博主；未配置邮件时自动跳过。')
+    );
+    $form->addInput($thoughtsMailNotify);
 }
 
 function themeFields($layout) {
@@ -1806,6 +1927,18 @@ function themeFields($layout) {
         _t('单篇文章可以覆盖主题设置中的 RSS 展示默认值。')
     );
 
+    $thoughtsDisplay = new Typecho_Widget_Helper_Form_Element_Radio(
+        'thoughtsDisplay',
+        array(
+            'default' => _t('跟随主题设置'),
+            'show' => _t('开启想法'),
+            'hide' => _t('关闭想法')
+        ),
+        'default',
+        _t('文章 - 段落想法'),
+        _t('单篇文章可以覆盖主题设置中「想法 - 功能开关」的默认值。')
+    );
+
     $layout->addItem($isLatex);
     $layout->addItem($tocDisplay);
 
@@ -1817,6 +1950,7 @@ function themeFields($layout) {
         $layout->addItem($isSticky);
         $layout->addItem($homeVisibility);
         $layout->addItem($rssVisibility);
+        $layout->addItem($thoughtsDisplay);
     }
 
     if ($isPageEditor || $isUnknownEditor) {
