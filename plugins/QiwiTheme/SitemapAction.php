@@ -407,6 +407,7 @@ class QiwiTheme_SitemapAction extends Typecho_Widget implements Widget_Interface
 
         $text = preg_replace('/<!--\s*(?:more|readmore)(?:\s+[^>]*)?-->([\s\S]*)$/iu', '', $text);
         $text = preg_replace('/\[(?:hide|hidden|secret|private|password|protected)(?:\s+[^\]]*)?\][\s\S]*?\[\/(?:hide|hidden|secret|private|password|protected)\]/iu', '隐藏内容请前往原文查看。', $text);
+        $text = $this->stripRedactMarkers($text);
         $html = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $html = $this->renderMomentBlockquotes($html);
         $html = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/u', array($this, 'markdownImage'), $html);
@@ -425,6 +426,14 @@ class QiwiTheme_SitemapAction extends Typecho_Widget implements Widget_Interface
             $name = trim(html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             return $name === '' ? '' : '[' . $name . ']';
         }, (string) $text);
+    }
+
+    // ||涂黑|| 原文不允许进入说说 RSS（标题与正文均替换为占位符）；
+    // 正则须与 Action.php redactReveal() 的原始文本取回正则保持同源，PCRE 失败时整体占位防止漏出。
+    private function stripRedactMarkers($text)
+    {
+        $replaced = preg_replace('/(?<![A-Za-z0-9_\/])\|\|(?=[^\s|])((?:[^|\n]|\|(?!\|))*?)(?<!\s)\|\|(?!\|)/iu', '▓▓▓', (string) $text);
+        return is_string($replaced) ? $replaced : '▓▓▓';
     }
 
     private function renderMomentBlockquotes($html)
@@ -518,6 +527,7 @@ class QiwiTheme_SitemapAction extends Typecho_Widget implements Widget_Interface
     {
         $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = $this->renderMomentStickerLabels($text);
+        $text = $this->stripRedactMarkers($text);
         $text = preg_replace('/!\[([^\]]*)\]\(([^)]+)\)/u', '$1', $text);
         $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/u', '$1', $text);
         $text = preg_replace('/(```|~~~)[\s\S]*?\1/u', ' ', $text);
