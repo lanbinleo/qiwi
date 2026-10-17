@@ -130,6 +130,7 @@ body.qiwi-v2 textarea { font-family: inherit; }
     display: inline-block;
     padding: 3px 6px 3px 12px;
     border-bottom: 1px solid transparent;
+    border-radius: calc(var(--v2-radius) * 2);
     color: var(--v2-text);
     font-size: 1.02rem;
     letter-spacing: 6px;
@@ -1572,21 +1573,22 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .heatmap-section-title { display: flex; align-items: baseline; gap: 14px; flex: 1; min-width: 0; margin: 0; color: var(--v2-heading); font-size: 1.05rem; letter-spacing: 2px; }
 .qiwi-v2 .heatmap-section-title::after { content: ""; flex: 1; border-top: 1px dashed var(--v2-border-soft); transform: translateY(-4px); }
 .qiwi-v2 .heatmap-section-note { color: var(--v2-muted); font-size: .76rem; font-weight: 400; letter-spacing: 1px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* 桌面端头部行宽度与热力图整体（含左侧星期轨道）对齐，右端落在图表右缘上 */
-@media (min-width: 861px) {
-    .qiwi-v2 .heatmap-section-head { width: calc(var(--hm-label) + 6px + 53 * var(--hm-cell) + 52 * var(--hm-gap)); }
-}
 .qiwi-v2 .qiwi-heatmap { --hm-cell: 9px; --hm-gap: 2px; --hm-label: 14px; }
 .qiwi-v2 .heatmap-scroll { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-.qiwi-v2 .heatmap-frame { min-width: max-content; }
+/* 格子随阅读卡片宽度等分拉伸；--hm-cell 是格子下限，空间不足时保持横向滚动 */
+.qiwi-v2 .heatmap-frame { width: 100%; min-width: calc(var(--hm-label) + 6px + 53 * var(--hm-cell) + 52 * var(--hm-gap)); }
 .qiwi-v2 .heatmap-months { display: grid; gap: var(--hm-gap); margin-bottom: 4px; padding-left: calc(var(--hm-label) + 6px); color: var(--v2-muted); font-size: .64rem; letter-spacing: 1px; }
 .qiwi-v2 .heatmap-months span { white-space: nowrap; }
 .qiwi-v2 .heatmap-body { display: flex; gap: 6px; }
 .qiwi-v2 .heatmap-weekdays { position: sticky; left: 0; z-index: 2; display: flex; flex-direction: column; gap: var(--hm-gap); width: var(--hm-label); color: var(--v2-muted); font-size: .64rem; }
-.qiwi-v2 .heatmap-weekdays span { height: var(--hm-cell); display: flex; align-items: center; background: var(--v2-bg); }
-.qiwi-v2 .heatmap-weeks { display: flex; gap: var(--hm-gap); }
+.qiwi-v2 .heatmap-weekdays span { flex: 1; display: flex; align-items: center; background: var(--v2-card); }
+.qiwi-v2 .heatmap-weeks { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(var(--hm-cell), 1fr); gap: var(--hm-gap); flex: 1; }
 .qiwi-v2 .heatmap-col { display: flex; flex-direction: column; gap: var(--hm-gap); }
 .qiwi-v2 .hm-cell { display: block; width: var(--hm-cell); height: var(--hm-cell); border-radius: 2px; background: color-mix(in srgb, var(--v2-heading) 8%, transparent); }
+.qiwi-v2 .heatmap-weeks .hm-cell { width: auto; height: auto; aspect-ratio: 1; }
+@supports not (aspect-ratio: 1) {
+    .qiwi-v2 .heatmap-weeks .hm-cell { width: var(--hm-cell); height: var(--hm-cell); }
+}
 .qiwi-v2 .hm-cell.hm-future { background: transparent; }
 .qiwi-v2 .hm-cell.hm-l0 { background: color-mix(in srgb, var(--v2-heading) 8%, transparent); }
 .qiwi-v2 .hm-tone-post.hm-l1 { background: color-mix(in srgb, var(--v2-accent-strong) 32%, transparent); }
