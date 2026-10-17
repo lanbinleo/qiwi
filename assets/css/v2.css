@@ -1569,14 +1569,15 @@ body.qiwi-lightbox-open { overflow: hidden; }
 
 /* 归档页日历热力图（写作热区 / 读者来访） */
 .qiwi-v2 .archives-heatmap-section { --hm-cell: 9px; --hm-gap: 2px; --hm-label: 14px; margin: 0 0 44px; }
-.qiwi-v2 .heatmap-section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.qiwi-v2 .heatmap-section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding-right: 26px; }
 .qiwi-v2 .heatmap-section-title { display: flex; align-items: baseline; gap: 14px; flex: 1; min-width: 0; margin: 0; color: var(--v2-heading); font-size: 1.05rem; letter-spacing: 2px; }
 .qiwi-v2 .heatmap-section-title::after { content: ""; flex: 1; border-top: 1px dashed var(--v2-border-soft); transform: translateY(-4px); }
 .qiwi-v2 .heatmap-section-note { color: var(--v2-muted); font-size: .76rem; font-weight: 400; letter-spacing: 1px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .qiwi-v2 .qiwi-heatmap { --hm-cell: 9px; --hm-gap: 2px; --hm-label: 14px; }
 .qiwi-v2 .heatmap-scroll { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-/* 格子随阅读卡片宽度等分拉伸；--hm-cell 是格子下限，空间不足时保持横向滚动 */
-.qiwi-v2 .heatmap-frame { width: 100%; min-width: calc(var(--hm-label) + 6px + 53 * var(--hm-cell) + 52 * var(--hm-gap)); }
+/* 格子随阅读卡片宽度等分拉伸；--hm-cell 是格子下限，空间不足时保持横向滚动。
+   右缘内缩 26px 给最右侧的月度标签留出悬出余量，避免标签把 scrollWidth 顶出一截触发时有时无的横向滚动条 */
+.qiwi-v2 .heatmap-frame { width: calc(100% - 26px); min-width: calc(var(--hm-label) + 6px + 53 * var(--hm-cell) + 52 * var(--hm-gap)); }
 .qiwi-v2 .heatmap-months { display: grid; gap: var(--hm-gap); margin-bottom: 4px; padding-left: calc(var(--hm-label) + 6px); color: var(--v2-muted); font-size: .64rem; letter-spacing: 1px; }
 .qiwi-v2 .heatmap-months span { white-space: nowrap; }
 .qiwi-v2 .heatmap-body { display: flex; gap: 6px; }
