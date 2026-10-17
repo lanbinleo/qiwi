@@ -44,7 +44,7 @@ if (!function_exists('qiwiArchivesRenderHeatmap')) {
 
         echo '<div class="qiwi-heatmap" data-hm-kind="' . htmlspecialchars($kind, ENT_QUOTES, 'UTF-8') . '" data-hm-days="' . $daysJson . '" data-hm-view="day" role="img" aria-label="' . htmlspecialchars($ariaLabel, ENT_QUOTES, 'UTF-8') . '">';
         echo '<div class="heatmap-scroll"><div class="heatmap-frame">';
-        echo '<div class="heatmap-months" style="grid-template-columns:repeat(' . $columnCount . ',var(--hm-cell))">' . $monthLabels . '</div>';
+        echo '<div class="heatmap-months" style="grid-template-columns:repeat(' . $columnCount . ',minmax(var(--hm-cell),1fr))">' . $monthLabels . '</div>';
         echo '<div class="heatmap-body">';
         echo '<div class="heatmap-weekdays"><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span><span>日</span></div>';
         echo '<div class="heatmap-weeks">';

@@ -343,12 +343,6 @@ $qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePo
 
 <div class="v2-shell">
     <aside class="v2-side">
-        <nav class="v2-nav" aria-label="主导航">
-            <?php $qiwiRenderNavItems(false); ?>
-        </nav>
-        <div class="v2-side-tools">
-            <button class="theme-toggle v2-theme-button" type="button" onclick="toggleTheme(event)" aria-label="切换主题">◐</button>
-        </div>
         <div class="v2-side-logo">
             <?php if ($qiwiNavbarAvatar !== ''): ?>
             <img class="v2-side-avatar" src="<?php echo htmlspecialchars($qiwiNavbarAvatar, ENT_QUOTES, 'UTF-8'); ?>" alt="" loading="lazy" decoding="async">
@@ -356,6 +350,12 @@ $qiwiRenderNavItems = function ($mobile = false) use ($qiwiNavItems, $qiwiHomePo
             <a class="v2-side-title" href="<?php $this->options->siteUrl(); ?>"><?php $this->options->title(); ?></a>
             <?php if ($qiwiEnglishTitle !== ''): ?><div class="v2-side-english"><?php echo htmlspecialchars($qiwiEnglishTitle, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
             <?php if ($qiwiSidebarSlogan !== ''): ?><p class="v2-side-slogan"><?php echo htmlspecialchars($qiwiSidebarSlogan, ENT_QUOTES, 'UTF-8'); ?></p><?php elseif ($qiwiSiteDescription !== ''): ?><p class="v2-side-slogan"><?php echo htmlspecialchars($qiwiSiteDescription, ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
+        </div>
+        <nav class="v2-nav" aria-label="主导航">
+            <?php $qiwiRenderNavItems(false); ?>
+        </nav>
+        <div class="v2-side-tools">
+            <button class="theme-toggle v2-theme-button" type="button" onclick="toggleTheme(event)" aria-label="切换主题">◐</button>
         </div>
     </aside>
     <main id="qiwi-pjax" class="v2-main" tabindex="-1">
