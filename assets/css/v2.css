@@ -2153,7 +2153,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
     .qiwi-v2 .article-toc {
         position: fixed;
         top: 50%;
-        left: max(312px, calc(50% - 278px));
+        left: max(272px, calc(50% - 278px));
         z-index: 24;
         width: 18px;
         height: min(46vh, 350px);

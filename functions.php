@@ -4089,7 +4089,7 @@ if (!function_exists('qiwiLazyLoadContent')) {
      */
     function qiwiLazyLoadContent($content)
     {
-        if (!is_string($content) || strpos($content, '<img') === false) {
+        if (!is_string($content) || stripos($content, '<img') === false) {
             return $content;
         }
         if (strpos($content, 'data-src="') !== false) {
@@ -4102,6 +4102,11 @@ if (!function_exists('qiwiLazyLoadContent')) {
                 $attrs = $match[1];
 
                 if (stripos($attrs, 'data-src') !== false) {
+                    return $match[0];
+                }
+                // 属性值里带裸“>”（如手写 alt="a > b"）会让 [^>]* 截断标签，引号不配对时原样放行
+                $outsideQuotes = preg_replace('/("[^"]*"|\'[^\']*\')/', '', $attrs);
+                if ($outsideQuotes === null || strpos($outsideQuotes, '"') !== false || strpos($outsideQuotes, "'") !== false) {
                     return $match[0];
                 }
                 if (preg_match('/\bclass\s*=\s*(["\'])([^"\']*)\1/i', $attrs, $classMatch)
@@ -4123,7 +4128,8 @@ if (!function_exists('qiwiLazyLoadContent')) {
                     $attrs .= ' loading="lazy"';
                 }
 
-                return '<img' . $attrs . ' data-src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '">';
+                // double_encode=false：src 里的 &amp; 保持原样，避免二次转义改坏带参数的图片地址
+                return '<img' . $attrs . ' data-src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8', false) . '">';
             },
             $content
         );

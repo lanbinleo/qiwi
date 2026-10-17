@@ -2594,6 +2594,8 @@
         container.classList.add('is-leaving');
         var hidden = new Promise(function (resolve) { window.setTimeout(resolve, prefersReducedMotion() ? 0 : 190); });
         cleanupDynamicPageListeners();
+        // 旧页面即将整体替换，解除懒加载观察器对旧图片的引用，避免长会话跨页累积
+        if (initLazyImages._observer) initLazyImages._observer.disconnect();
         var visibleLightbox = document.querySelector('.v2-lightbox.is-visible');
         if (visibleLightbox) clearLightbox(visibleLightbox);
         if (latestMomentTimer !== null) {
@@ -2793,7 +2795,7 @@
             });
             lightbox.addEventListener('keydown', function (event) {
                 if (event.key !== 'Tab') return;
-                var focusable = Array.prototype.slice.call(lightbox.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+                var focusable = Array.prototype.slice.call(lightbox.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(function (element) { return !element.hidden; });
                 if (!focusable.length) {
                     event.preventDefault();
                     lightbox.focus();
