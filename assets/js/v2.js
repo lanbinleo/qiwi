@@ -2474,6 +2474,80 @@
         thoughtDrawMarks();
     }
 
+    /* 正文图片懒加载。
+     * PHP 侧保留原 src（无 JS 时照常显示）；这里接管后把未进入视口的图换成 1x1 占位符，
+     * 进入视口（下方预载 200px）再预解码还原，避免加载过程中闪占位符。 */
+    var LAZY_PLACEHOLDER_SRC = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1 1\'%3E%3C/svg%3E';
+
+    function loadLazyImage(img, observer) {
+        var realSrc = img.getAttribute('data-src');
+        if (!realSrc) {
+            if (observer) observer.unobserve(img);
+            return;
+        }
+        img.removeAttribute('data-src');
+        if (observer) observer.unobserve(img);
+
+        if (img.src !== LAZY_PLACEHOLDER_SRC) {
+            // 尚未被换成占位符的图本来就在正常加载，直接标记完成即可
+            img.classList.add('is-loaded');
+            return;
+        }
+
+        var temp = new Image();
+        temp.onload = function () {
+            img.classList.add('is-loaded');
+            img.src = realSrc;
+        };
+        temp.onerror = function () {
+            // 失败时还原真实地址，交给浏览器呈现 alt/破图状态
+            img.classList.add('is-loaded');
+            img.src = realSrc;
+        };
+        temp.src = realSrc;
+    }
+
+    function initLazyImages(root) {
+        var scope = root && root.querySelectorAll ? root : document;
+        var images = scope.querySelectorAll('img[data-src]');
+        if (!images.length) return;
+
+        if (!('IntersectionObserver' in window)) {
+            // 无观察器时退回原生 loading="lazy"，不接管图片
+            Array.prototype.forEach.call(images, function (img) {
+                img.removeAttribute('data-src');
+            });
+            return;
+        }
+
+        if (!initLazyImages._observer) {
+            initLazyImages._observer = new IntersectionObserver(function (entries, observer) {
+                entries.forEach(function (entry) {
+                    var img = entry.target;
+                    if (!img.hasAttribute('data-src')) {
+                        observer.unobserve(img);
+                        return;
+                    }
+                    if (entry.isIntersecting) {
+                        loadLazyImage(img, observer);
+                        return;
+                    }
+                    img.classList.add('is-lazy');
+                    img.src = LAZY_PLACEHOLDER_SRC;
+                });
+            }, { rootMargin: '0px 0px 200px 0px', threshold: 0.01 });
+        }
+
+        Array.prototype.forEach.call(images, function (img) {
+            if (img.complete && img.naturalWidth > 0) {
+                // JS 接管前已经加载完成的图不处理，避免闪占位符
+                img.removeAttribute('data-src');
+                return;
+            }
+            initLazyImages._observer.observe(img);
+        });
+    }
+
     function initPjaxPage(root, afterPjax) {
         initReadingPreferences(root);
         initCommentProfiles(root);
@@ -2485,6 +2559,7 @@
         initMomentTextFolds(root);
         initAttachmentDownloads(root);
         initRedactReveal(root);
+        initLazyImages(root);
         initPostIdeas(root);
         requestBackToTopUpdate();
         if (afterPjax) root.dataset.v2PjaxPage = '1';
@@ -2600,43 +2675,75 @@
         });
     }
 
-    function getLightboxTargetRect(preview) {
-        var padding = window.innerWidth <= 700 ? 18 : 40;
-        var viewportWidth = Math.max(1, window.innerWidth - padding * 2);
-        var portraitWidth = Math.min(720, viewportWidth);
-        var availableHeight = Math.max(1, window.innerHeight - padding * 2);
-        var naturalWidth = preview.naturalWidth || viewportWidth;
-        var naturalHeight = preview.naturalHeight || availableHeight;
-        var isPortrait = naturalHeight > naturalWidth;
-        var scale = isPortrait
-            ? Math.min(1, portraitWidth / naturalWidth)
-            : Math.min(1, viewportWidth / naturalWidth, availableHeight / naturalHeight);
-        var width = Math.max(1, naturalWidth * scale);
-        var height = Math.max(1, naturalHeight * scale);
-        return {
-            left: (window.innerWidth - width) / 2,
-            top: height < availableHeight ? (window.innerHeight - height) / 2 : padding,
-            width: width,
-            height: height,
-            isPortrait: isPortrait
-        };
+    /* 灯箱相册取材：当前内容区里所有可点开预览的图片（正文/头图/动态/可信评论），表情贴纸除外 */
+    var LIGHTBOX_IMAGE_SELECTOR = '#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image, #qiwi-pjax .comment-item.is-trusted-comment .comment-text img, #qiwi-pjax .moment-comment.is-trusted-comment .moment-comment-text img';
+
+    function getLightboxGallery(source) {
+        var container = currentContainer() || document;
+        var gallery = Array.prototype.filter.call(container.querySelectorAll(LIGHTBOX_IMAGE_SELECTOR), function (img) {
+            return !img.classList.contains('comment-sticker');
+        });
+        if (gallery.indexOf(source) === -1) gallery.push(source);
+        gallery.forEach(function (img, index) { img._qiwiGalleryIndex = index; });
+        return gallery;
+    }
+
+    function updateLightboxNav(lightbox) {
+        var multiple = (lightbox._qiwiGallery || []).length > 1;
+        var prev = lightbox.querySelector('.v2-lightbox-prev');
+        var next = lightbox.querySelector('.v2-lightbox-next');
+        if (prev) prev.hidden = !multiple;
+        if (next) next.hidden = !multiple;
+    }
+
+    function showLightboxImage(lightbox, target) {
+        var preview = lightbox.querySelector('img');
+        if (!preview || !target) return;
+        var requestId = (lightbox._qiwiRequest || 0) + 1;
+        lightbox._qiwiRequest = requestId;
+        lightbox._qiwiIndex = typeof target._qiwiGalleryIndex === 'number' ? target._qiwiGalleryIndex : 0;
+        var count = (lightbox._qiwiGallery || []).length;
+        lightbox.setAttribute('aria-label', count > 1 ? '图片预览，第 ' + (lightbox._qiwiIndex + 1) + ' 张，共 ' + count + ' 张' : '图片预览');
+        preview.classList.remove('is-open');
+        preview.alt = target.alt || '';
+        // 懒加载接管过的图 src 是占位符，真实地址在 data-src 上
+        preview.src = target.getAttribute('data-src') || target.currentSrc || target.src;
+        var decoded = typeof preview.decode === 'function' ? preview.decode() : Promise.resolve();
+        decoded.catch(function () {}).then(function () {
+            if (lightbox._qiwiRequest !== requestId || !preview.src) return;
+            preview.classList.add('is-open');
+        });
+    }
+
+    function showLightboxPrev(lightbox) {
+        var gallery = lightbox._qiwiGallery || [];
+        if (gallery.length < 2) return;
+        var index = (lightbox._qiwiIndex || 0) - 1;
+        if (index < 0) index = gallery.length - 1;
+        if (gallery[index]) showLightboxImage(lightbox, gallery[index]);
+    }
+
+    function showLightboxNext(lightbox) {
+        var gallery = lightbox._qiwiGallery || [];
+        if (gallery.length < 2) return;
+        var index = (lightbox._qiwiIndex || 0) + 1;
+        if (index >= gallery.length) index = 0;
+        if (gallery[index]) showLightboxImage(lightbox, gallery[index]);
     }
 
     function clearLightbox(lightbox) {
         var preview = lightbox.querySelector('img');
-        var source = lightbox._qiwiSource;
         var previousFocus = lightbox._qiwiPreviousFocus;
         if (lightbox._qiwiCloseTimer) window.clearTimeout(lightbox._qiwiCloseTimer);
-        if (lightbox._qiwiZoomTimer) window.clearTimeout(lightbox._qiwiZoomTimer);
         lightbox._qiwiCloseTimer = null;
-        lightbox._qiwiZoomTimer = null;
-        if (source && source.classList) source.classList.remove('v2-lightbox-source');
-        lightbox._qiwiSource = null;
+        lightbox._qiwiGallery = null;
+        lightbox._qiwiIndex = 0;
         lightbox.classList.remove('is-visible', 'is-open', 'is-closing');
-        preview.classList.remove('is-prepared', 'is-open', 'is-portrait', 'is-zoomed');
+        preview.classList.remove('is-open');
         preview.removeAttribute('src');
         preview.removeAttribute('style');
         document.documentElement.classList.remove('v2-lightbox-open');
+        lightbox.setAttribute('aria-label', '图片预览');
         lightbox._qiwiPreviousFocus = null;
         if (previousFocus && previousFocus !== document.body && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
             try { previousFocus.focus({ preventScroll: true }); } catch (error) { previousFocus.focus(); }
@@ -2646,33 +2753,11 @@
     function closeLightbox(lightbox) {
         if (!lightbox || !lightbox.classList.contains('is-visible') || lightbox.classList.contains('is-closing')) return;
         var preview = lightbox.querySelector('img');
-        var source = lightbox._qiwiSource;
-        var sourceRect = source && source.isConnected ? source.getBoundingClientRect() : null;
         lightbox._qiwiRequest = (lightbox._qiwiRequest || 0) + 1;
         lightbox.classList.add('is-closing');
         lightbox.classList.remove('is-open');
-        if (source && source.classList) source.classList.remove('v2-lightbox-source');
-        if (lightbox._qiwiZoomTimer) window.clearTimeout(lightbox._qiwiZoomTimer);
-        lightbox._qiwiZoomTimer = null;
-
-        if (preview.classList.contains('is-zoomed') || preview.style.transformOrigin !== 'top left') {
-            preview.style.transition = 'none';
-            preview.classList.remove('is-zoomed');
-            preview.style.transformOrigin = 'top left';
-            preview.style.transform = 'translate(0, 0) scale(1)';
-            preview.offsetWidth;
-            preview.style.transition = '';
-        }
-
-        if (!prefersReducedMotion() && sourceRect && sourceRect.width > 0 && sourceRect.height > 0) {
-            var previewRect = preview.getBoundingClientRect();
-            preview.style.transform = 'translate(' + (sourceRect.left - previewRect.left) + 'px,' + (sourceRect.top - previewRect.top) + 'px) scale(' + (sourceRect.width / previewRect.width) + ',' + (sourceRect.height / previewRect.height) + ')';
-        } else {
-            preview.style.opacity = '0';
-        }
         preview.classList.remove('is-open');
-
-        lightbox._qiwiCloseTimer = window.setTimeout(function () { clearLightbox(lightbox); }, prefersReducedMotion() ? 0 : 240);
+        lightbox._qiwiCloseTimer = window.setTimeout(function () { clearLightbox(lightbox); }, prefersReducedMotion() ? 0 : 200);
     }
 
     function openLightbox(source) {
@@ -2684,29 +2769,24 @@
             lightbox.setAttribute('aria-modal', 'true');
             lightbox.setAttribute('aria-label', '图片预览');
             lightbox.tabIndex = -1;
-            lightbox.innerHTML = '<button type="button" class="v2-lightbox-close" aria-label="关闭图片预览">×</button><img alt="">';
+            lightbox.innerHTML = ''
+                + '<button type="button" class="v2-lightbox-nav v2-lightbox-prev" aria-label="上一张">'
+                + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>'
+                + '</button>'
+                + '<button type="button" class="v2-lightbox-nav v2-lightbox-next" aria-label="下一张">'
+                + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>'
+                + '</button>'
+                + '<img alt="">';
             document.body.appendChild(lightbox);
             lightbox.addEventListener('click', function (event) {
-                var image = lightbox.querySelector('img');
-                if (event.target === image) {
-                    if (!lightbox.classList.contains('is-open') || lightbox.classList.contains('is-closing')) return;
-                    if (image.classList.contains('is-zoomed')) {
-                        image.classList.remove('is-zoomed');
-                        image.style.transform = 'translate(0, 0) scale(1)';
-                        lightbox._qiwiZoomTimer = window.setTimeout(function () {
-                            if (!image.classList.contains('is-zoomed')) image.style.transformOrigin = 'top left';
-                            lightbox._qiwiZoomTimer = null;
-                        }, 240);
-                        return;
-                    }
-                    if (lightbox._qiwiZoomTimer) window.clearTimeout(lightbox._qiwiZoomTimer);
-                    lightbox._qiwiZoomTimer = null;
-                    var rect = image.getBoundingClientRect();
-                    var originX = Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100));
-                    var originY = Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100));
-                    image.style.transformOrigin = originX + '% ' + originY + '%';
-                    image.classList.add('is-zoomed');
-                    image.style.transform = 'scale(2)';
+                if (event.target.closest('.v2-lightbox-prev')) {
+                    event.preventDefault();
+                    showLightboxPrev(lightbox);
+                    return;
+                }
+                if (event.target.closest('.v2-lightbox-next')) {
+                    event.preventDefault();
+                    showLightboxNext(lightbox);
                     return;
                 }
                 closeLightbox(lightbox);
@@ -2729,51 +2809,53 @@
                     first.focus();
                 }
             });
+            // 相册支持触摸水平滑动切换，垂直滑动不拦截
+            var touchStartX = 0;
+            var touchStartY = 0;
+            var touchMoved = false;
+            lightbox.addEventListener('touchstart', function (event) {
+                if (event.touches.length !== 1) return;
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+                touchMoved = false;
+            }, { passive: true });
+            lightbox.addEventListener('touchmove', function (event) {
+                if (event.touches.length !== 1) return;
+                var dx = event.touches[0].clientX - touchStartX;
+                var dy = event.touches[0].clientY - touchStartY;
+                if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) touchMoved = true;
+            }, { passive: true });
+            lightbox.addEventListener('touchend', function (event) {
+                if (!touchMoved) return;
+                var touch = event.changedTouches[0];
+                var dx = touch.clientX - touchStartX;
+                var dy = touch.clientY - touchStartY;
+                if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+                if (dx > 0) showLightboxPrev(lightbox);
+                else showLightboxNext(lightbox);
+                touchMoved = false;
+            });
         }
         if (lightbox.classList.contains('is-visible')) return;
 
-        var preview = lightbox.querySelector('img');
-        var requestId = (lightbox._qiwiRequest || 0) + 1;
-        lightbox._qiwiRequest = requestId;
-        lightbox._qiwiSource = source;
         lightbox._qiwiPreviousFocus = document.activeElement;
-        preview.alt = source.alt || '';
-        preview.src = source.currentSrc || source.src;
-        lightbox.scrollTop = 0;
-        lightbox.scrollLeft = 0;
-        lightbox.classList.add('is-visible');
-        document.documentElement.classList.add('v2-lightbox-open');
-        var closeButton = lightbox.querySelector('.v2-lightbox-close');
-        try { (closeButton || lightbox).focus({ preventScroll: true }); } catch (error) { (closeButton || lightbox).focus(); }
+        lightbox._qiwiGallery = getLightboxGallery(source);
 
-        var decoded = typeof preview.decode === 'function' ? preview.decode() : Promise.resolve();
-        decoded.catch(function () {}).then(function () {
-            if (lightbox._qiwiRequest !== requestId || !preview.src) return;
-            var sourceRect = source.getBoundingClientRect();
-            var targetRect = getLightboxTargetRect(preview);
-            preview.style.left = targetRect.left + 'px';
-            preview.style.top = targetRect.top + 'px';
-            preview.style.width = targetRect.width + 'px';
-            preview.style.height = targetRect.height + 'px';
-            preview.classList.toggle('is-portrait', targetRect.isPortrait);
-            preview.classList.remove('is-zoomed');
-            preview.style.transformOrigin = 'top left';
-            if (!prefersReducedMotion() && sourceRect.width > 0 && sourceRect.height > 0) {
-                preview.style.transform = 'translate(' + (sourceRect.left - targetRect.left) + 'px,' + (sourceRect.top - targetRect.top) + 'px) scale(' + (sourceRect.width / targetRect.width) + ',' + (sourceRect.height / targetRect.height) + ')';
-            } else {
-                preview.style.transform = 'none';
-            }
-            preview.classList.add('is-prepared');
-            source.classList.add('v2-lightbox-source');
-            window.requestAnimationFrame(function () {
-                window.requestAnimationFrame(function () {
-                    if (lightbox._qiwiRequest !== requestId) return;
-                    lightbox.classList.add('is-open');
-                    preview.classList.add('is-open');
-                    preview.style.transform = 'translate(0, 0) scale(1)';
-                });
-            });
+        // 锁滚动时按滚动条宽度给 html 补 padding，避免内容左右晃动
+        var scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.documentElement.style.setProperty('--qiwi-scrollbar-width', scrollbarWidth + 'px');
+        document.documentElement.classList.add('v2-lightbox-open');
+
+        lightbox.classList.add('is-visible');
+        updateLightboxNav(lightbox);
+        try { lightbox.focus({ preventScroll: true }); } catch (error) { lightbox.focus(); }
+
+        // 先渲染一帧 opacity:0，再加 is-open 触发淡入（display:none → grid 的同帧切换不会产生过渡）
+        window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () { lightbox.classList.add('is-open'); });
         });
+
+        showLightboxImage(lightbox, source);
     }
 
     document.addEventListener('click', function (event) {
@@ -2829,7 +2911,7 @@
             return;
         }
 
-        var image = event.target.closest('#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image, #qiwi-pjax .comment-item.is-trusted-comment .comment-text img, #qiwi-pjax .moment-comment.is-trusted-comment .moment-comment-text img');
+        var image = event.target.closest(LIGHTBOX_IMAGE_SELECTOR);
         if (image) {
             if (image.classList.contains('comment-sticker')) return;
             event.preventDefault();
@@ -2879,6 +2961,11 @@
             if (lightbox) { event.preventDefault(); closeLightbox(lightbox); return; }
             if (thoughtPopover && !thoughtPopover.hidden) { event.preventDefault(); closeThoughtPopover(); }
             return;
+        }
+        var visibleLightbox = document.querySelector('.v2-lightbox.is-visible');
+        if (visibleLightbox) {
+            if (event.key === 'ArrowLeft') { event.preventDefault(); showLightboxPrev(visibleLightbox); return; }
+            if (event.key === 'ArrowRight') { event.preventDefault(); showLightboxNext(visibleLightbox); return; }
         }
         if (event.key !== 'Enter' && event.key !== ' ') return;
         var markTarget = event.target.closest ? event.target.closest('.thought-mark[data-thought-range]') : null;

@@ -4070,9 +4070,63 @@ if (!function_exists('qiwiGetContent')) {
     {
         ob_start();
         $widget->content();
-        return qiwiRenderShortcodes(ob_get_clean(), [
+        $html = qiwiRenderShortcodes(ob_get_clean(), [
             'content_cid' => !empty($widget) && isset($widget->cid) ? (int) $widget->cid : 0,
         ]);
+        // 短代码处理完之后再打懒加载标记，避免重复改写短代码产物
+        if (function_exists('qiwiLazyLoadContent')) {
+            $html = qiwiLazyLoadContent($html);
+        }
+        return $html;
+    }
+}
+
+if (!function_exists('qiwiLazyLoadContent')) {
+    /**
+     * 正文图片懒加载：给 <img> 追加 data-src 与原生 loading="lazy"。
+     * 保留原 src，无 JS 环境图片照常显示；v2.js 接管后才把未进入视口的图换成占位符。
+     * 跳过表情、头像与标记 no-lazy 的图片。
+     */
+    function qiwiLazyLoadContent($content)
+    {
+        if (!is_string($content) || strpos($content, '<img') === false) {
+            return $content;
+        }
+        if (strpos($content, 'data-src="') !== false) {
+            return $content;
+        }
+
+        return preg_replace_callback(
+            '/<img\b([^>]*)>/i',
+            function ($match) {
+                $attrs = $match[1];
+
+                if (stripos($attrs, 'data-src') !== false) {
+                    return $match[0];
+                }
+                if (preg_match('/\bclass\s*=\s*(["\'])([^"\']*)\1/i', $attrs, $classMatch)
+                    && preg_match('/\b(comment-sticker|avatar|no-lazy|emoji)\b/i', $classMatch[2])) {
+                    return $match[0];
+                }
+                if (stripos($attrs, 'data-no-lazy') !== false) {
+                    return $match[0];
+                }
+                if (!preg_match('/\bsrc\s*=\s*(["\'])(.*?)\1/i', $attrs, $srcMatch)) {
+                    return $match[0];
+                }
+                $src = $srcMatch[2];
+                if ($src === '' || stripos($src, 'data:image') === 0) {
+                    return $match[0];
+                }
+
+                if (stripos($attrs, 'loading=') === false) {
+                    $attrs .= ' loading="lazy"';
+                }
+
+                return '<img' . $attrs . ' data-src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '">';
+            },
+            $content
+        );
     }
 }
 
