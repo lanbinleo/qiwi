@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.4.0
+ * @version 2.4.1
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -36,6 +36,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         self::installPostLikeTable();
         self::installIpLocationTable();
         $thoughtsReady = self::installThoughtsTable();
+        $imageMetaReady = self::installImageMetaTable();
         Helper::removeAction('qiwi-thread-tools');
         // 旧版 /goto 跳转路由已下线（开放重定向面），这里保留 removeRoute 以清理历史注册。
         Helper::removeRoute('qiwi_theme_goto_route');
@@ -87,6 +88,9 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
         if (!$thoughtsReady) {
             $message .= '注意：段落想法数据表创建失败，想法功能暂不可用，请检查数据库后重新启用本插件。';
+        }
+        if (!$imageMetaReady) {
+            $message .= '注意：图片尺寸缓存表创建失败，正文图片将无法预留加载空间，请检查数据库后重新启用本插件。';
         }
         if ($migrated) {
             $message .= '已自动导入原 QiwiSitemap / QiwiCommentMail 的配置并注销旧插件。';
@@ -141,7 +145,7 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         $info = new Typecho_Widget_Helper_Form_Element_Fake('qiwiThemeInfo', '');
         $info->input->setAttribute('type', 'hidden');
         $info->label(_t('说明'));
-        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地、外链点击统计、正文高亮/涂黑标记、段落想法与想法审核台，以及并入的站点地图 / RSS 订源与评论邮件通知模块（设置都在主题设置页）。'));
+        $info->description(_t('Qiwi 主题伴生插件。当前提供 thread-* 文集编辑器、Thread 数据存储、文章选择接口、受保护附件下载、说说点赞、文章点赞、IP 归属地、外链点击统计、正文高亮/涂黑标记、段落想法与想法审核台、图片尺寸缓存，以及并入的站点地图 / RSS 订源与评论邮件通知模块（设置都在主题设置页）。'));
         $form->addInput($info);
     }
 
@@ -664,6 +668,23 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         try {
             if (class_exists('QiwiTheme_Thoughts')) {
                 return QiwiTheme_Thoughts::dbInstall();
+            }
+        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+
+        return false;
+    }
+
+    /**
+     * 图片尺寸缓存表。建表逻辑在 QiwiTheme_ImageMeta 模块内，激活时调用，
+     * 失败不阻断插件激活（功能降级为不可用并在提示里说明）。
+     */
+    private static function installImageMetaTable()
+    {
+        try {
+            if (class_exists('QiwiTheme_ImageMeta')) {
+                return QiwiTheme_ImageMeta::dbInstall();
             }
         } catch (Exception $e) {
         } catch (Throwable $e) {
