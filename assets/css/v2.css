@@ -64,6 +64,9 @@ img { display: block; max-width: 100%; }
 /* 正文图片懒加载：仅 JS 接管后被换成占位符的图先隐藏，预载完成再淡入 */
 html.js .qiwi-v2 img.is-lazy { opacity: 0; }
 html.js .qiwi-v2 img.is-lazy.is-loaded { opacity: 1; transition: opacity .22s ease; }
+/* 注入过缓存宽高（data-dims）的图：height:auto 让 width/height 属性只提供比例，
+ * 被 max-width 压缩时等比缩放，旧浏览器也不会按原始像素拉伸高度 */
+.qiwi-v2 img[data-dims] { height: auto; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 

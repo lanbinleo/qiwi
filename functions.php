@@ -4081,10 +4081,65 @@ if (!function_exists('qiwiGetContent')) {
     }
 }
 
+if (!function_exists('qiwiGetImageDimMap')) {
+    /**
+     * 查询正文图片的缓存尺寸。返回 array($map, $srcs)：
+     * $map 以原始 src 属性值为键 => array('w', 'h')，供懒加载回调注入；
+     * $srcs 为正文里出现的全部图片地址，供缓存模块登记预热。
+     * QiwiTheme 未启用（含已停用，类文件仍在但激活状态为否）时两个值均为空。
+     */
+    function qiwiGetImageDimMap($content)
+    {
+        $empty = array(array(), array());
+        if (!is_string($content) || stripos($content, '<img') === false) {
+            return $empty;
+        }
+        if (!class_exists('QiwiTheme_ImageMeta')
+            || !method_exists('QiwiTheme_ImageMeta', 'getMeta')
+            || !method_exists('QiwiTheme_ImageMeta', 'isActive')
+            || !QiwiTheme_ImageMeta::isActive()) {
+            return $empty;
+        }
+        if (!preg_match_all('/<img\b[^>]*>/i', $content, $tags)) {
+            return $empty;
+        }
+
+        $srcs = array();
+        foreach ($tags[0] as $tag) {
+            if (preg_match('/\bsrc\s*=\s*(["\'])(.*?)\1/i', $tag, $srcMatch) && $srcMatch[2] !== '') {
+                $srcs[] = $srcMatch[2];
+            }
+        }
+        if (empty($srcs)) {
+            return $empty;
+        }
+
+        try {
+            $meta = QiwiTheme_ImageMeta::getMeta($srcs);
+        } catch (Exception $e) {
+            return array(array(), $srcs);
+        } catch (Throwable $e) {
+            return array(array(), $srcs);
+        }
+
+        $map = array();
+        foreach ($srcs as $src) {
+            $norm = QiwiTheme_ImageMeta::normalizeUrl($src);
+            if ($norm === '' || !isset($meta[$norm]) || empty($meta[$norm]['ok'])) {
+                continue;
+            }
+            $map[$src] = array('w' => (int) $meta[$norm]['w'], 'h' => (int) $meta[$norm]['h']);
+        }
+        return array($map, $srcs);
+    }
+}
+
 if (!function_exists('qiwiLazyLoadContent')) {
     /**
      * 正文图片懒加载：给 <img> 追加 data-src 与原生 loading="lazy"。
      * 保留原 src，无 JS 环境图片照常显示；v2.js 接管后才把未进入视口的图换成占位符。
+     * 命中 QiwiTheme 图片尺寸缓存时注入 width/height，加载前按真实比例预留空间；
+     * 未命中的 URL 交给缓存模块在请求结束后预热。
      * 跳过表情、头像与标记 no-lazy 的图片。
      */
     function qiwiLazyLoadContent($content)
@@ -4096,9 +4151,11 @@ if (!function_exists('qiwiLazyLoadContent')) {
             return $content;
         }
 
-        return preg_replace_callback(
+        list($dimMap, $dimSrcs) = qiwiGetImageDimMap($content);
+
+        $html = preg_replace_callback(
             '/<img\b([^>]*)>/i',
-            function ($match) {
+            function ($match) use ($dimMap) {
                 $attrs = $match[1];
 
                 if (stripos($attrs, 'data-src') !== false) {
@@ -4124,6 +4181,13 @@ if (!function_exists('qiwiLazyLoadContent')) {
                     return $match[0];
                 }
 
+                // 作者手写宽高时不覆盖；data-dims 标记供前端跳过尺寸回传
+                if (isset($dimMap[$src])
+                    && stripos($attrs, 'width=') === false
+                    && stripos($attrs, 'height=') === false) {
+                    $attrs .= ' width="' . $dimMap[$src]['w'] . '" height="' . $dimMap[$src]['h'] . '" data-dims="1"';
+                }
+
                 if (stripos($attrs, 'loading=') === false) {
                     $attrs .= ' loading="lazy"';
                 }
@@ -4133,6 +4197,18 @@ if (!function_exists('qiwiLazyLoadContent')) {
             },
             $content
         );
+
+        if (!empty($dimSrcs)
+            && class_exists('QiwiTheme_ImageMeta')
+            && method_exists('QiwiTheme_ImageMeta', 'warmMissing')) {
+            try {
+                QiwiTheme_ImageMeta::warmMissing($dimSrcs);
+            } catch (Exception $e) {
+            } catch (Throwable $e) {
+            }
+        }
+
+        return $html;
     }
 }
 

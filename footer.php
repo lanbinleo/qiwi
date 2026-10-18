@@ -1030,6 +1030,9 @@ function initQiwiFolds() {
     });
 }
 
+// 图片尺寸回传接口：v2.js 在正文图片首次加载成功后上报真实宽高，供下次渲染预留空间
+window.QIWI_IMAGE_DIMS_ENDPOINT = <?php echo json_encode(function_exists('qiwiGetThemeActionEndpoint') ? qiwiGetThemeActionEndpoint('image-meta', $this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
 function initQiwiExternalLinks() {
     var siteUrl = <?php echo json_encode(rtrim((string) $this->options->siteUrl, '/') . '/', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var configuredRecordEndpoint = <?php echo json_encode(function_exists('qiwiGetThemeActionEndpoint') ? qiwiGetThemeActionEndpoint('external-link', $this->options) : '', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;

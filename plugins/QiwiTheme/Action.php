@@ -7,7 +7,7 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
 {
     public function execute()
     {
-        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isThoughtSubmitRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest() || $this->isUmamiRefreshRequest() || $this->isObsidianPushRequest()) {
+        if ($this->isMomentLikeRequest() || $this->isPostLikeRequest() || $this->isThoughtSubmitRequest() || $this->isExternalLinkRequest() || $this->isAttachmentDownloadRequest() || $this->isUmamiRefreshRequest() || $this->isObsidianPushRequest() || $this->isImageMetaRequest()) {
             return;
         }
 
@@ -18,6 +18,9 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     {
         if ($this->request->is('do=external-link')) {
             $this->externalLink();
+        }
+        if ($this->request->is('do=image-meta')) {
+            $this->imageMeta();
         }
         if ($this->request->is('do=attachment-download')) {
             $this->attachmentDownload();
@@ -54,6 +57,26 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
         $source = trim((string) $this->request->get('source', ''));
         $ok = QiwiTheme_Plugin::recordExternalLinkClick($url, $source);
         $this->json(array('success' => $ok));
+    }
+
+    /**
+     * 图片尺寸回传：正文图片加载成功后，前端把 naturalWidth/naturalHeight
+     * 报上来写入 QiwiTheme_ImageMeta 缓存，供下一次渲染时注入 width/height。
+     * 只写尺寸数字、不触发服务端抓取，与外链统计同级的公开接口。
+     */
+    public function imageMeta()
+    {
+        if (!$this->request->isPost()) {
+            $this->json(array('success' => false, 'message' => 'Method not allowed'), 405);
+        }
+
+        Typecho_Widget::widget('Widget_Security')->protect();
+        $url = (string) $this->request->get('url', '');
+        $width = (int) $this->request->get('width', 0);
+        $height = (int) $this->request->get('height', 0);
+        $ok = class_exists('QiwiTheme_ImageMeta')
+            && QiwiTheme_ImageMeta::remember($url, $width, $height);
+        $this->json(array('success' => (bool) $ok));
     }
 
     public function attachmentDownload()
@@ -796,6 +819,11 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
     private function isExternalLinkRequest()
     {
         return $this->request && $this->request->is('do=external-link');
+    }
+
+    private function isImageMetaRequest()
+    {
+        return $this->request && $this->request->is('do=image-meta');
     }
 
     private function isAttachmentDownloadRequest()

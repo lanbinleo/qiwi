@@ -2479,6 +2479,58 @@
      * 进入视口（下方预载 200px）再预解码还原，避免加载过程中闪占位符。 */
     var LAZY_PLACEHOLDER_SRC = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1 1\'%3E%3C/svg%3E';
 
+    /* 图片真实尺寸回传：PHP 未注入缓存宽高（无 data-dims、作者也没手写）的图
+     * 加载成功后，把 naturalWidth/naturalHeight 报给 QiwiTheme 缓存，
+     * 下一次渲染即可按真实比例预留空间。地址由 footer.php 写入全局变量。 */
+    function reportImageDims(url, width, height) {
+        var endpoint = window.QIWI_IMAGE_DIMS_ENDPOINT || '';
+        if (!endpoint || !url || !width || !height) return;
+
+        var payload;
+        try {
+            payload = new URLSearchParams();
+            payload.set('url', url);
+            payload.set('width', String(width));
+            payload.set('height', String(height));
+            if (navigator.sendBeacon && navigator.sendBeacon(endpoint, payload)) {
+                return;
+            }
+        } catch (error) {}
+
+        try {
+            fetch(endpoint, {
+                method: 'POST',
+                body: payload,
+                keepalive: true,
+                credentials: 'same-origin'
+            }).catch(function () {});
+        } catch (error) {}
+    }
+
+    /* 回传判定：尺寸未知时必报；已注入缓存但真实比例偏差超过 5% 时补报一次，
+     * 同 URL 换图或缓存脏数据即可在下次渲染自动纠正，之后不再重复上报 */
+    function reportImageDimsIfUnknown(img, temp, realSrc) {
+        var naturalWidth = temp.naturalWidth;
+        var naturalHeight = temp.naturalHeight;
+        if (!naturalWidth || !naturalHeight) return;
+
+        if (!img.hasAttribute('data-dims')) {
+            if (!(img.hasAttribute('width') && img.hasAttribute('height'))) {
+                reportImageDims(realSrc, naturalWidth, naturalHeight);
+            }
+            return;
+        }
+
+        var cachedWidth = parseInt(img.getAttribute('width'), 10) || 0;
+        var cachedHeight = parseInt(img.getAttribute('height'), 10) || 0;
+        if (cachedWidth <= 0 || cachedHeight <= 0) return;
+        var realRatio = naturalWidth / naturalHeight;
+        var cachedRatio = cachedWidth / cachedHeight;
+        if (Math.abs(realRatio - cachedRatio) / realRatio > 0.05) {
+            reportImageDims(realSrc, naturalWidth, naturalHeight);
+        }
+    }
+
     function loadLazyImage(img, observer) {
         var realSrc = img.getAttribute('data-src');
         if (!realSrc) {
@@ -2498,6 +2550,9 @@
         temp.onload = function () {
             img.classList.add('is-loaded');
             img.src = realSrc;
+            // 未注入缓存尺寸（作者也没手写）时回传真实尺寸，供下次渲染预留空间；
+            // 已注入但真实比例与缓存偏差过大（同 URL 换图或脏数据）时也回传一次自愈
+            reportImageDimsIfUnknown(img, temp, realSrc);
         };
         temp.onerror = function () {
             // 失败时还原真实地址，交给浏览器呈现 alt/破图状态
