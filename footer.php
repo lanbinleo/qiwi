@@ -691,7 +691,7 @@ function initCommentTargetHighlight() {
 
 function initArticleImages() {
     if (document.body && document.body.classList.contains('qiwi-v2')) return;
-    var images = document.querySelectorAll('.article-body img, .article-hero, .comment-item.is-trusted-comment .comment-text img, .moment-comment.is-trusted-comment .moment-comment-text img');
+    var images = document.querySelectorAll('.article-body img, .article-hero, .comment-item.is-trusted-comment .comment-text img, .moment-comment.is-trusted-comment .moment-comment-body img');
     if (!images.length) return;
 
     var lightboxMedia = window.matchMedia ? window.matchMedia('(min-width: 769px)') : null;
@@ -1174,7 +1174,7 @@ function initQiwiExternalLinks() {
 
     document.querySelectorAll('a[href]').forEach(enhanceAnchor);
 
-    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .comment-item.is-trusted-comment .comment-text, .moment-comment.is-trusted-comment .moment-comment-text, .post-copyright-body, .about-bio, .friends-extra, .sidebar-announcement-body').forEach(function(scope) {
+    document.querySelectorAll('.article-body, .page-intro, .archive-description, .moment-text, .comment-item.is-trusted-comment .comment-text, .moment-comment.is-trusted-comment .moment-comment-body, .post-copyright-body, .about-bio, .friends-extra, .sidebar-announcement-body').forEach(function(scope) {
         var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
             acceptNode: function(node) {
                 return isSkippableTextParent(node.parentElement)

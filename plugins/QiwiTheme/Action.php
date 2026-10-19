@@ -282,6 +282,10 @@ class QiwiTheme_Action extends Typecho_Widget implements Widget_Interface_Do
             'liked' => !empty($result['liked']),
             'count' => isset($result['count']) ? (int) $result['count'] : 0,
         );
+        $likers = QiwiTheme_Plugin::momentLikeSummaries(array($coid));
+        if (isset($likers[$coid])) {
+            $payload['likers'] = $likers[$coid];
+        }
         if (!empty($result['proof'])) {
             $payload['proof'] = (string) $result['proof'];
         }

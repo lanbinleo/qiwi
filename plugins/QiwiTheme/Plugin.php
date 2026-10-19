@@ -8,7 +8,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  *
  * @package QiwiTheme
  * @author  Leo 里奥
- * @version 2.4.1
+ * @version 2.4.2
  * @link    https://bboreo.com/
  */
 class QiwiTheme_Plugin implements Typecho_Plugin_Interface
@@ -1673,6 +1673,52 @@ class QiwiTheme_Plugin implements Typecho_Plugin_Interface
         }
 
         return $ids;
+    }
+
+    /**
+     * 说说点赞人汇总：留了称呼的按点赞先后列名（同名合并），其余计为游客。
+     */
+    public static function momentLikeSummaries(array $coids)
+    {
+        $summaries = array();
+        foreach ($coids as $coid) {
+            $coid = (int) $coid;
+            if ($coid > 0) {
+                $summaries[$coid] = array('names' => array(), 'guests' => 0);
+            }
+        }
+
+        if (empty($summaries) || !self::installMomentLikeTable()) {
+            return $summaries;
+        }
+
+        try {
+            $db = Typecho_Db::get();
+            $rows = $db->fetchAll($db->select('coid', 'author')
+                ->from(self::momentLikeTableName())
+                ->where('coid IN (' . implode(',', array_keys($summaries)) . ')')
+                ->order('created', Typecho_Db::SORT_ASC)
+                ->order('id', Typecho_Db::SORT_ASC));
+
+            foreach ($rows as $row) {
+                $coid = isset($row['coid']) ? (int) $row['coid'] : 0;
+                if (!isset($summaries[$coid])) {
+                    continue;
+                }
+                $author = isset($row['author']) ? trim((string) $row['author']) : '';
+                if ($author === '') {
+                    $summaries[$coid]['guests']++;
+                } elseif (!in_array($author, $summaries[$coid]['names'], true)) {
+                    $summaries[$coid]['names'][] = $author;
+                }
+            }
+        } catch (Exception $e) {
+            return $summaries;
+        } catch (Throwable $e) {
+            return $summaries;
+        }
+
+        return $summaries;
     }
 
     public static function normalizeMomentEmail($mail)

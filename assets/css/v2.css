@@ -63,7 +63,7 @@ button { cursor: pointer; }
 img { display: block; max-width: 100%; }
 /* 正文图片懒加载：仅 JS 接管后被换成占位符的图先隐藏，预载完成再淡入 */
 html.js .qiwi-v2 img.is-lazy { opacity: 0; }
-html.js .qiwi-v2 img.is-lazy.is-loaded { opacity: 1; transition: opacity .22s ease; }
+html.js .qiwi-v2 img.is-lazy.is-loaded { opacity: 1; transition: opacity .22s ease, filter .2s ease; }
 /* 注入过缓存宽高（data-dims）的图：height:auto 让 width/height 属性只提供比例，
  * 被 max-width 压缩时等比缩放，旧浏览器也不会按原始像素拉伸高度 */
 .qiwi-v2 img[data-dims] { height: auto; }
@@ -260,8 +260,14 @@ html:not(.js) .v2-submenu-toggle { display: none !important; }
 }
 .v2-lightbox.is-visible { display: grid; place-items: center; }
 .v2-lightbox.is-open { opacity: 1; }
-.v2-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--v2-radius); object-fit: contain; opacity: 0; transition: opacity .18s ease; }
+.v2-lightbox { --v2-lightbox-gap: 80px; }
+/* grid 行高为 auto 时百分比 max-height 不生效，长图会被裁切；改按视口限制，保证完整显示 */
+.v2-lightbox img { width: auto; height: auto; max-width: calc(100vw - var(--v2-lightbox-gap)); max-height: calc(100vh - var(--v2-lightbox-gap)); max-height: calc(100dvh - var(--v2-lightbox-gap)); border-radius: var(--v2-radius); object-fit: contain; opacity: 0; transition: opacity .18s ease; }
 .v2-lightbox img.is-open { opacity: 1; }
+/* 两档缩放：适配屏幕 / 原始尺寸，原图放大后可拖动查看 */
+.v2-lightbox img.is-zoomable { cursor: zoom-in; }
+.v2-lightbox img.is-zoomed { position: fixed; top: 0; left: 0; max-width: none; max-height: none; border-radius: 0; cursor: grab; user-select: none; -webkit-user-drag: none; }
+.v2-lightbox img.is-dragging { cursor: grabbing; }
 .v2-lightbox-nav {
     position: absolute;
     top: 50%;
@@ -836,7 +842,6 @@ body.qiwi-lightbox-open { overflow: hidden; }
     filter: saturate(.92);
     transition: filter .25s ease, opacity .25s ease, border-color .25s ease;
 }
-.qiwi-v2 .article-hero:hover { filter: saturate(1); opacity: .94; }
 .qiwi-v2 .article-body { color: var(--v2-text); }
 .qiwi-v2 .article-body p,
 .qiwi-v2 .page-content p,
@@ -910,7 +915,6 @@ body.qiwi-lightbox-open { overflow: hidden; }
     line-height: 2;
 }
 .qiwi-v2 .article-body img { border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); filter: saturate(.92); transition: filter .25s ease, opacity .25s ease, border-color .25s ease; }
-.qiwi-v2 .article-body img:hover { filter: saturate(1); opacity: .94; }
 .qiwi-v2 .article-body figure { margin: 0 0 2em; }
 .qiwi-v2 .article-body figcaption { margin-top: 9px; color: var(--v2-muted); font-size: .76rem; letter-spacing: 1px; text-align: center; }
 .qiwi-v2 .article-body hr { margin: 3em 0; border: 0; border-top: 1px dashed var(--v2-border-soft); }
@@ -1712,10 +1716,59 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .moment-action.is-active { color: var(--v2-accent); }
 .qiwi-v2 .moment-action.is-error { color: var(--v2-accent-strong); animation: v2-like-shake .3s ease; }
 @keyframes v2-like-shake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-2px); } 60% { transform: translateX(2px); } }
-.qiwi-v2 .moment-comments { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-surface); }
-.qiwi-v2 .moment-comments:empty { display: none; }
-.qiwi-v2 .moment-comments > .moment-comments-list > .comment-item + .comment-item { margin-top: 22px; }
-.qiwi-v2 .moment-comment-actions button { padding: 0; border: 0; background: transparent; color: var(--v2-muted); font-size: inherit; }
+/* 说说评论：朋友圈式平铺，无头像无缩进，"A 回复 B："表达对话 */
+.qiwi-v2 .moment-comments { margin-top: 14px; padding: 9px 12px; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); background: var(--v2-surface); font-size: .88rem; letter-spacing: .04em; line-height: 1.8; }
+.qiwi-v2 .moment-comments[hidden] { display: none; }
+.qiwi-v2 .moment-likers { display: flex; gap: 7px; margin: 0; color: var(--v2-accent); overflow-wrap: anywhere; }
+.qiwi-v2 .moment-likers[hidden] { display: none; }
+.qiwi-v2 .moment-likers i { flex: 0 0 auto; color: var(--v2-muted); font-size: .76rem; line-height: inherit; }
+.qiwi-v2 .moment-comments.has-replies .moment-likers { margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px dashed var(--v2-border-soft); }
+/* 注册为颜色属性后才能插值：行背景与浮层渐变共用同一个过渡值，悬停时同步变色 */
+@property --moment-comment-bg { syntax: "<color>"; inherits: true; initial-value: transparent; }
+.qiwi-v2 .moment-comment { --moment-comment-bg: var(--v2-surface); position: relative; margin: 0 -6px; padding: 2px 6px; border-radius: var(--v2-radius); background: var(--moment-comment-bg); cursor: pointer; transition: --moment-comment-bg .18s ease; }
+.qiwi-v2 .moment-comment:hover { --moment-comment-bg: color-mix(in srgb, var(--v2-border-soft) 45%, var(--v2-surface)); }
+.qiwi-v2 .moment-comment.is-waiting { opacity: .68; }
+.qiwi-v2 .moment-comment-text { min-width: 0; color: var(--v2-text); overflow-wrap: anywhere; }
+.qiwi-v2 .moment-comment-text .qiwi-text-fold-segment { display: inline; }
+.qiwi-v2 .moment-comment-author { color: var(--v2-accent); }
+.qiwi-v2 .moment-comment .comment-owner-badge { display: inline-block; width: 13px; height: 13px; margin-left: 3px; vertical-align: -1px; }
+.qiwi-v2 .moment-comment-reply-word { margin: 0 .3em; color: var(--v2-muted); }
+.qiwi-v2 .moment-comment-colon { color: var(--v2-muted); }
+.qiwi-v2 .moment-comment-body,
+.qiwi-v2 .moment-comment-body p { display: inline; margin: 0; }
+/* 折叠态多段拼成一行，展开后恢复原换行 */
+.qiwi-v2 .moment-comment-body p + p::before { content: " "; }
+.qiwi-v2 .moment-comment-text[data-v2-text-fold-expanded="1"] .moment-comment-body p + p::before { content: "\A"; white-space: pre; }
+.qiwi-v2 .moment-comment-body code { padding: 0 .3em; border-radius: 2px; background: var(--v2-code-bg); color: var(--v2-code-text); font-size: .9em; }
+/* 评论图片始终是行内小缩略图，点击进灯箱看原图 */
+.qiwi-v2 .moment-comment-body img.comment-image { display: inline-block; width: auto; height: 1.8em; max-width: 4.5em; margin: 0 .2em; border: 1px solid var(--v2-border-soft); border-radius: 2px; vertical-align: -.5em; object-fit: cover; }
+
+/* 可点开灯箱的图片：悬停轻微压暗 + 手型指针，提示可点击（范围与灯箱选择器一致，排除表情与博主徽标） */
+.qiwi-v2 .article-body img:not(.comment-sticker):not(.comment-owner-badge),
+.qiwi-v2 .article-hero,
+.qiwi-v2 .moment-image,
+.qiwi-v2 .comment-item.is-trusted-comment .comment-text img:not(.comment-sticker):not(.comment-owner-badge),
+.qiwi-v2 .moment-comment.is-trusted-comment .moment-comment-body img:not(.comment-sticker) { cursor: pointer; transition: filter .2s ease, opacity .25s ease, border-color .25s ease, transform .45s cubic-bezier(.22, .61, .36, 1); }
+.qiwi-v2 .article-body img:not(.comment-sticker):not(.comment-owner-badge):hover,
+.qiwi-v2 .article-hero:hover,
+.qiwi-v2 .moment-image:hover,
+.qiwi-v2 .comment-item.is-trusted-comment .comment-text img:not(.comment-sticker):not(.comment-owner-badge):hover,
+.qiwi-v2 .moment-comment.is-trusted-comment .moment-comment-body img:not(.comment-sticker):hover { filter: saturate(1) brightness(.88); }
+.qiwi-v2 .moment-comment-status { margin-left: .3em; color: var(--v2-muted); font-size: .9em; }
+.qiwi-v2 .moment-comment-text .qiwi-text-fold-toggle { margin: 0 0 0 .3em; padding: 0; font-size: .74rem; line-height: inherit; vertical-align: baseline; }
+/* 元信息浮在评论右下角，不占行；悬停时盖住末尾内容，若恰好盖住展开按钮则在浮层内补一个同功能入口 */
+.qiwi-v2 .moment-comment-meta { position: absolute; right: 6px; bottom: 2px; z-index: 1; display: flex; align-items: baseline; gap: 9px; padding-left: 2.4em; background: linear-gradient(to right, transparent, var(--moment-comment-bg) 2em); color: var(--v2-muted); font-size: .7rem; line-height: inherit; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .18s ease; }
+.qiwi-v2 .moment-comment:hover .moment-comment-meta,
+.qiwi-v2 .moment-comment:has(:focus-visible) .moment-comment-meta { opacity: 1; pointer-events: auto; }
+.qiwi-v2 .moment-comment-meta button { padding: 0; border: 0; background: transparent; color: var(--v2-muted); font-size: inherit; transition: color .2s ease; }
+.qiwi-v2 .moment-comment-meta button:hover { color: var(--v2-accent); }
+.qiwi-v2 .moment-comment-meta .moment-comment-fold { color: var(--v2-accent-strong); }
+.qiwi-v2 .moment-comment-meta [hidden] { display: none; }
+@media (hover: none) {
+    .qiwi-v2 .moment-comment:hover { --moment-comment-bg: var(--v2-surface); }
+    /* 触屏无悬停：点整行即回复，展开/收起用正文末尾的按钮 */
+    .qiwi-v2 .moment-comment-meta { display: none; }
+}
 .qiwi-v2 .moment-publisher { margin-top: 54px; padding: 18px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: color-mix(in srgb, var(--v2-surface) 70%, transparent); box-shadow: none; }
 .qiwi-v2 .publisher-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 14px; }
 .qiwi-v2 .publisher-title { color: var(--v2-heading); font-size: .88rem; font-weight: 500; letter-spacing: 2px; }
@@ -1793,7 +1846,7 @@ body.qiwi-lightbox-open { overflow: hidden; }
 .qiwi-v2 .plog-item img,
 .qiwi-v2 .plog-entry-media img { width: 100%; height: 100%; border: 1px solid var(--v2-border-soft); border-radius: var(--v2-radius); object-fit: cover; filter: saturate(.88); transition: filter .25s ease, opacity .25s ease, border-color .25s ease; }
 .qiwi-v2 .plog-item:hover img,
-.qiwi-v2 .plog-entry-media:hover img { border-color: var(--v2-accent); filter: saturate(1); opacity: .92; }
+.qiwi-v2 .plog-entry-media:hover img { border-color: var(--v2-accent); filter: saturate(1) brightness(.88); opacity: 1; }
 html.js .qiwi-v2 .plog-item img,
 html.js .qiwi-v2 .plog-entry-media img { opacity: 0; }
 html.js .qiwi-v2 .plog-item.is-loaded img,
@@ -1916,7 +1969,7 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
     margin: 0;
     border: 0;
     border-radius: 0;
-    cursor: zoom-in;
+    cursor: pointer;
     filter: saturate(.92);
     transition: filter .25s ease, transform .45s cubic-bezier(.22, .61, .36, 1);
 }
@@ -2462,11 +2515,11 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 
 /* 图集沿用旧版的信息遮罩与沉浸式灯箱，取消图片缩放 */
 .qiwi-v2 .plog-item,
-.qiwi-v2 .plog-entry-media { position: relative; overflow: hidden; cursor: zoom-in; }
+.qiwi-v2 .plog-entry-media { position: relative; overflow: hidden; cursor: pointer; }
 .qiwi-v2 .plog-item img,
 .qiwi-v2 .plog-entry-media img { transition: filter .25s ease, opacity .25s ease; }
 .qiwi-v2 .plog-item:hover img,
-.qiwi-v2 .plog-entry-media:hover img { border-color: var(--v2-border-soft); filter: saturate(1); opacity: 1; }
+.qiwi-v2 .plog-entry-media:hover img { border-color: var(--v2-border-soft); filter: saturate(1) brightness(.88); opacity: 1; }
 .qiwi-v2 .plog-item::before,
 .qiwi-v2 .plog-entry-media::before {
     content: "";
@@ -2558,7 +2611,7 @@ html.v2-lightbox-open body { max-width: 100%; overflow: hidden; overscroll-behav
 html.v2-lightbox-open { padding-right: var(--qiwi-scrollbar-width, 0px); }
 
 @media (max-width: 700px) {
-    .v2-lightbox { padding: 18px; }
+    .v2-lightbox { --v2-lightbox-gap: 36px; padding: 18px; }
     .v2-lightbox-nav { width: 40px; height: 40px; }
     .v2-lightbox-prev { left: 8px; }
     .v2-lightbox-next { right: 8px; }
