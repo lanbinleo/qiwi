@@ -84,6 +84,9 @@ foreach ($comments as $comment) {
 }
 
 $momentLikeCounts = class_exists('QiwiTheme_Plugin') ? QiwiTheme_Plugin::momentLikeCounts($momentCoids) : [];
+$momentLikeSummaries = class_exists('QiwiTheme_Plugin') && method_exists('QiwiTheme_Plugin', 'momentLikeSummaries')
+    ? QiwiTheme_Plugin::momentLikeSummaries($momentCoids)
+    : [];
 $momentLikedHash = '';
 if ($this->user->hasLogin() && class_exists('QiwiTheme_Plugin')) {
     $userMailHash = QiwiTheme_Plugin::momentMailHash(isset($this->user->mail) ? $this->user->mail : '');
@@ -304,7 +307,8 @@ function renderMomentCommentText($text) {
     if (function_exists('qiwiRenderCommentStickers')) {
         $text = qiwiRenderCommentStickers($text);
     }
-    return nl2br($text);
+    // 与可信评论一致按段落输出，折叠态才能把多段拼成一行
+    return function_exists('qiwiRenderCommentParagraphs') ? qiwiRenderCommentParagraphs($text) : nl2br($text);
 }
 
 function renderTrustedMomentCommentText($text) {
@@ -315,47 +319,80 @@ function renderTrustedMomentCommentText($text) {
     return renderMomentCommentText($text);
 }
 
-function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvatar, $level = 0) {
+function formatMomentLikers($summary, $count) {
+    $names = isset($summary['names']) && is_array($summary['names']) ? $summary['names'] : [];
+    $guests = isset($summary['guests']) ? (int) $summary['guests'] : max(0, (int) $count - count($names));
+    $text = implode('、', $names);
+    if ($guests > 0) {
+        $text .= ($text !== '' ? ' 和 ' : '') . $guests . ' 位游客';
+    }
+    return $text;
+}
+
+function collectMomentReplies($parent, $repliesByParent, &$rows) {
     if (empty($repliesByParent[$parent])) {
         return;
     }
-
-    echo '<div class="comment-list moment-comments-list" data-comment-level="' . (int) $level . '">';
     foreach ($repliesByParent[$parent] as $reply) {
-        $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
-        $avatar = $isOwner ? $ownerAvatar : renderMomentAvatar(isset($reply['mail']) ? $reply['mail'] : '', $ownerAvatar, 40);
+        $rows[] = $reply;
+        collectMomentReplies((int) $reply['coid'], $repliesByParent, $rows);
+    }
+}
+
+// 朋友圈式评论：同一条说说下的所有回复拍平成一列，按时间先后排列，用"A 回复 B"表达对话关系。
+function renderMomentReplyTree($momentCoid, $repliesByParent, $authorUid) {
+    $rows = [];
+    collectMomentReplies((int) $momentCoid, $repliesByParent, $rows);
+    if (empty($rows)) {
+        return;
+    }
+    usort($rows, function ($a, $b) {
+        $diff = (int) $a['created'] - (int) $b['created'];
+        return $diff !== 0 ? $diff : (int) $a['coid'] - (int) $b['coid'];
+    });
+    $authors = [];
+    foreach ($rows as $reply) {
+        $authors[(int) $reply['coid']] = isset($reply['author']) ? (string) $reply['author'] : '';
+    }
+
+    $canCopyReplyLink = function_exists('qiwiUserHasLogin') ? qiwiUserHasLogin() : false;
+    echo '<div class="moment-comments-list">';
+    foreach ($rows as $reply) {
         $coid = isset($reply['coid']) ? (int) $reply['coid'] : 0;
+        $parent = isset($reply['parent']) ? (int) $reply['parent'] : 0;
+        $isOwner = isset($reply['authorId']) && (int) $reply['authorId'] === (int) $authorUid;
         $isTrustedReply = isset($reply['authorId']) && (int) $reply['authorId'] > 0;
-        $canCopyReplyLink = function_exists('qiwiUserHasLogin') ? qiwiUserHasLogin() : false;
         $isWaiting = isset($reply['status']) && (string) $reply['status'] === 'waiting';
         $created = isset($reply['created']) ? (int) $reply['created'] : 0;
         $location = function_exists('qiwiGetCommentLocationLabel') ? qiwiGetCommentLocationLabel($reply) : '';
-        echo '<article class="comment-item moment-comment' . ($level > 0 ? ' comment-child' : '') . ($isWaiting ? ' is-waiting' : '') . ($isTrustedReply ? ' is-trusted-comment' : '') . '" id="comment-' . $coid . '">';
-        echo '<div class="comment-main">';
-        echo '<div class="comment-avatar"><img src="' . htmlspecialchars($avatar, ENT_QUOTES, 'UTF-8') . '" alt=""></div>';
-        echo '<div class="comment-content">';
-        echo '<div class="comment-author-line"><span class="comment-author-row"><span class="comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
+        $text = isset($reply['text']) ? $reply['text'] : '';
+        echo '<div class="moment-comment' . ($isWaiting ? ' is-waiting' : '') . ($isTrustedReply ? ' is-trusted-comment' : '') . '" id="comment-' . $coid . '" data-moment-reply-row="' . $coid . '">';
+        echo '<div class="moment-comment-text">';
+        echo '<span class="moment-comment-author">' . htmlspecialchars(isset($reply['author']) ? $reply['author'] : '', ENT_QUOTES, 'UTF-8') . '</span>';
         if ($isOwner) {
             echo '<img class="comment-owner-badge" src="' . htmlspecialchars(qiwiGetThemeAssetUrl('assets/img/admin-badge.png'), ENT_QUOTES, 'UTF-8') . '" alt="博主" title="博主">';
         }
-        echo '</span>';
+        if ($parent !== (int) $momentCoid && isset($authors[$parent])) {
+            echo '<span class="moment-comment-reply-word">回复</span><span class="moment-comment-author">' . htmlspecialchars($authors[$parent], ENT_QUOTES, 'UTF-8') . '</span>';
+        }
+        echo '<span class="moment-comment-colon">：</span>';
+        echo '<div class="moment-comment-body">' . ($isTrustedReply ? renderTrustedMomentCommentText($text) : renderMomentCommentText($text)) . '</div>';
         if ($isWaiting) {
-            echo '<span class="comment-status-note">您的评论正在等待审核</span>';
+            echo '<span class="moment-comment-status">（审核中）</span>';
         }
         echo '</div>';
-        echo '<div class="comment-text moment-comment-text">' . ($isTrustedReply ? renderTrustedMomentCommentText(isset($reply['text']) ? $reply['text'] : '') : renderMomentCommentText(isset($reply['text']) ? $reply['text'] : '')) . '</div>';
-        echo '<div class="comment-footnote moment-comment-actions">';
-        echo '<time class="comment-date moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time>';
+        echo '<div class="moment-comment-meta">';
+        echo '<time class="moment-comment-time" datetime="' . htmlspecialchars(gmdate('c', $created), ENT_QUOTES, 'UTF-8') . '" data-qiwi-local-time data-timestamp="' . $created . '">' . htmlspecialchars(date('Y-m-d H:i', $created), ENT_QUOTES, 'UTF-8') . '</time>';
         if ($location !== '') {
-            echo '<span class="comment-location moment-comment-location">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '</span>';
+            echo '<span class="moment-comment-location">' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '</span>';
         }
         echo '<button type="button" class="moment-comment-reply" data-moment-reply="' . $coid . '">回复</button>';
+        echo '<button type="button" class="moment-comment-fold" data-moment-comment-fold aria-expanded="false" hidden>展开</button>';
         if ($canCopyReplyLink && $coid > 0) {
             echo '<button type="button" class="moment-comment-copy-link qiwi-copy-link" data-qiwi-copy-link="#comment-' . $coid . '" aria-label="复制评论链接" title="复制评论链接"><i class="fa-solid fa-link" aria-hidden="true"></i></button>';
         }
-        echo '</div></div></div>';
-        renderMomentReplyTree($coid, $repliesByParent, $authorUid, $ownerAvatar, $level + 1);
-        echo '</article>';
+        echo '</div>';
+        echo '</div>';
     }
     echo '</div>';
 }
@@ -467,11 +504,14 @@ function renderMomentReplyTree($parent, $repliesByParent, $authorUid, $ownerAvat
                             </button>
                         </div>
                     </div>
-                    <?php if ($replyCount > 0): ?>
-                    <section class="moment-comments" aria-label="评论">
-                        <?php renderMomentReplyTree($coid, $momentRepliesByParent, $authorUid, $ownerAvatar); ?>
+                    <?php $likersText = $likeCount > 0 ? formatMomentLikers(isset($momentLikeSummaries[$coid]) ? $momentLikeSummaries[$coid] : null, $likeCount) : ''; ?>
+                    <section class="moment-comments<?php if ($likersText !== '' && $replyCount > 0): ?> has-likers has-replies<?php elseif ($likersText !== ''): ?> has-likers<?php endif; ?>" aria-label="点赞与评论" data-moment-comments<?php if ($likersText === '' && $replyCount === 0): ?> hidden<?php endif; ?>>
+                        <p class="moment-likers" data-moment-likers<?php if ($likersText === ''): ?> hidden<?php endif; ?>>
+                            <i class="fa-regular fa-heart" aria-hidden="true"></i>
+                            <span data-moment-likers-text><?php echo htmlspecialchars($likersText, ENT_QUOTES, 'UTF-8'); ?></span>
+                        </p>
+                        <?php renderMomentReplyTree($coid, $momentRepliesByParent, $authorUid); ?>
                     </section>
-                    <?php endif; ?>
                 </div>
             </article>
             <?php endforeach; ?>
@@ -904,8 +944,19 @@ function initMomentInteractions() {
     });
 
     document.querySelectorAll('[data-moment-reply]').forEach(function(button) {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function(event) {
+            event.stopPropagation();
             placeComposer(button.getAttribute('data-moment-reply'), button);
+        });
+    });
+
+    // 朋友圈式：点评论整行即回复该评论；行内链接、图片、按钮保留各自行为，选中文字时不触发。
+    document.querySelectorAll('[data-moment-reply-row]').forEach(function(row) {
+        row.addEventListener('click', function(event) {
+            if (event.target.closest('a, button, img:not(.comment-sticker):not(.comment-owner-badge)')) return;
+            const selection = window.getSelection ? window.getSelection() : null;
+            if (selection && !selection.isCollapsed && row.contains(selection.anchorNode)) return;
+            placeComposer(row.getAttribute('data-moment-reply-row'), row);
         });
     });
 
@@ -946,6 +997,26 @@ function initMomentInteractions() {
             button.classList.remove('is-error');
             button.removeAttribute('title');
         }, 2400);
+    };
+
+    const renderLikers = function(button, likers) {
+        const item = button.closest('.moment-item');
+        const section = item ? item.querySelector('[data-moment-comments]') : null;
+        const line = section ? section.querySelector('[data-moment-likers]') : null;
+        const text = line ? line.querySelector('[data-moment-likers-text]') : null;
+        if (!section || !line || !text) return;
+
+        const names = Array.isArray(likers.names) ? likers.names : [];
+        const guests = parseInt(likers.guests, 10) || 0;
+        let label = names.join('、');
+        if (guests > 0) label += (label ? ' 和 ' : '') + guests + ' 位游客';
+
+        const hasReplies = !!section.querySelector('.moment-comment');
+        text.textContent = label;
+        line.hidden = label === '';
+        section.classList.toggle('has-likers', label !== '');
+        section.classList.toggle('has-replies', label !== '' && hasReplies);
+        section.hidden = label === '' && !hasReplies;
     };
 
     document.querySelectorAll('[data-moment-like]').forEach(function(button) {
@@ -997,6 +1068,7 @@ function initMomentInteractions() {
                 button.classList.toggle('is-active', !!data.liked);
                 button.setAttribute('aria-pressed', data.liked ? 'true' : 'false');
                 if (count) count.textContent = data.count || 0;
+                if (data.likers) renderLikers(button, data.likers);
                 if (icon) {
                     icon.classList.toggle('fa-solid', !!data.liked);
                     icon.classList.toggle('fa-regular', !data.liked);

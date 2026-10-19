@@ -689,24 +689,35 @@
     function isStandaloneMomentMedia(node) {
         if (!node || node.nodeType !== 1) return false;
         if (node.matches('.moment-image-grid, .moment-single-image, figure, video')) return true;
-        if (node.matches('img:not(.comment-sticker)')) return true;
+        if (node.matches('img:not(.comment-sticker):not(.comment-owner-badge)')) return true;
         if (!node.matches('p')) return false;
 
-        var media = node.querySelector('img:not(.comment-sticker), figure, video');
+        var media = node.querySelector('img:not(.comment-sticker):not(.comment-owner-badge), figure, video');
         if (!media) return false;
         var clone = node.cloneNode(true);
-        clone.querySelectorAll('img:not(.comment-sticker), figure, video, br').forEach(function (item) { item.remove(); });
+        clone.querySelectorAll('img:not(.comment-sticker):not(.comment-owner-badge), figure, video, br').forEach(function (item) { item.remove(); });
         return !clone.textContent.trim();
+    }
+
+    // 说说评论：折叠态限两行、段落拼成一行，图片以行内缩略图出现，不切分段落
+    function isMomentCommentFold(target) {
+        return target.classList.contains('moment-comment-text');
+    }
+
+    function getMomentCommentFoldProxy(target) {
+        var row = isMomentCommentFold(target) ? target.closest('.moment-comment') : null;
+        return row ? row.querySelector('[data-moment-comment-fold]') : null;
     }
 
     function prepareMomentTextFold(target) {
         if (target.dataset.v2TextFoldReady === '1') return;
         target.dataset.v2TextFoldReady = '1';
 
+        var inlineOnly = isMomentCommentFold(target);
         var nodes = Array.prototype.slice.call(target.childNodes);
         var segment = null;
         nodes.forEach(function (node) {
-            if (isStandaloneMomentMedia(node)) {
+            if (!inlineOnly && isStandaloneMomentMedia(node)) {
                 segment = null;
                 return;
             }
@@ -731,6 +742,39 @@
             animateMomentTextFold(target);
         });
         target.appendChild(button);
+
+        // 评论悬停浮层里的展开/收起，与正文末尾按钮同步
+        var proxy = getMomentCommentFoldProxy(target);
+        if (proxy) {
+            proxy.addEventListener('click', function (event) {
+                event.stopPropagation();
+                button.click();
+            });
+            // 本地化时间等会改变浮层宽度，悬停时按实际位置重新判断是否遮挡
+            target.closest('.moment-comment').addEventListener('mouseenter', function () {
+                syncMomentCommentFoldProxy(target);
+            });
+        }
+    }
+
+    // 浮层只在真正盖住正文末尾的展开/收起按钮时才提供替代入口
+    function syncMomentCommentFoldProxy(target) {
+        var proxy = getMomentCommentFoldProxy(target);
+        if (!proxy) return;
+        var button = target.querySelector('.qiwi-text-fold-toggle');
+        var meta = proxy.parentElement;
+        proxy.hidden = true;
+        if (!button || button.hidden || !meta) return;
+
+        var a = button.getBoundingClientRect();
+        var b = meta.getBoundingClientRect();
+        var covered = a.width > 0 && a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
+        if (!covered) return;
+
+        var expanded = button.getAttribute('aria-expanded') === 'true';
+        proxy.hidden = false;
+        proxy.textContent = expanded ? '收起' : '展开';
+        proxy.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     }
 
     var MOMENT_TEXT_FOLD_MAX_LINES = 4;
@@ -762,7 +806,12 @@
 
         measureMomentTextFold(target);
 
-        var endHeight = target.scrollHeight;
+        // 固定高度下 scrollHeight 不会小于当前高度，收起时会量成"没变"而在结束时突然塌掉；
+        // 先撤掉固定高度量出自然高度，再锁回起点开始过渡
+        target.style.removeProperty('height');
+        var endHeight = target.getBoundingClientRect().height;
+        target.style.height = startHeight + 'px';
+        void target.offsetHeight;
         target.classList.add('is-text-fold-animating');
 
         var timer = null;
@@ -820,7 +869,7 @@
         }, []);
     }
 
-    function truncateMomentTextNode(node, lineBottom) {
+    function truncateMomentTextNode(node, lineBottom, guard) {
         var chars = Array.from(node.data);
         var low = 0;
         var high = chars.length;
@@ -830,7 +879,7 @@
             node.data = chars.slice(0, mid).join('') + MOMENT_TEXT_FOLD_ELLIPSIS;
             var overflows = Array.prototype.some.call(getMomentTextNodeRects(node), function (rect) {
                 return rect.top >= lineBottom - 1;
-            });
+            }) || (guard && guard.getBoundingClientRect().top >= lineBottom - 1);
             if (overflows) {
                 high = mid - 1;
             } else {
@@ -859,12 +908,16 @@
             }
         });
 
+        var inlineOnly = isMomentCommentFold(target);
+        var maxLines = inlineOnly ? 2 : MOMENT_TEXT_FOLD_MAX_LINES;
         var lines = getMomentTextLines(textNodes);
-        var overflow = lines.length > MOMENT_TEXT_FOLD_MAX_LINES;
+        // 评论折叠态把段落拼成一行，原文有换行时也给出展开入口，便于看回原排版
+        var multiParagraph = inlineOnly && target.querySelectorAll('.moment-comment-body p').length > 1;
+        var overflow = lines.length > maxLines || multiParagraph;
         var cutSegment = null;
 
-        if (overflow && !expanded) {
-            var limitLine = lines[MOMENT_TEXT_FOLD_MAX_LINES - 1];
+        if (lines.length > maxLines && !expanded) {
+            var limitLine = lines[maxLines - 1];
             var cutNode = null;
             var cutIndex = -1;
             for (var i = textNodes.length - 1; i >= 0; i--) {
@@ -877,7 +930,6 @@
 
             if (cutNode) {
                 var backup = [{ node: cutNode, data: cutNode.data }];
-                truncateMomentTextNode(cutNode, limitLine.bottom);
                 for (i = cutIndex + 1; i < textNodes.length; i++) {
                     backup.push({ node: textNodes[i], data: textNodes[i].data });
                     textNodes[i].data = '';
@@ -886,9 +938,11 @@
 
                 var hidden = [];
                 segments.forEach(function (segment) {
-                    Array.prototype.forEach.call(segment.children, function (child) {
+                    Array.prototype.forEach.call(segment.querySelectorAll('*'), function (child) {
+                        if (child.contains(cutNode)) return;
                         var afterCut = (cutNode.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
-                        if (afterCut && !child.textContent.trim()) {
+                        var hiddenAncestor = hidden.length && hidden[hidden.length - 1].contains(child);
+                        if (afterCut && !hiddenAncestor && !child.textContent.trim()) {
                             child.classList.add('is-text-fold-hidden');
                             hidden.push(child);
                         }
@@ -896,7 +950,23 @@
                     if (segment.contains(cutNode)) cutSegment = segment;
                 });
                 target._v2TextFoldHidden = hidden;
+
+                // 评论的按钮与文字同行：先就位再截断，保证"…⌄展开"收在第二行末尾
+                var guard = null;
+                if (inlineOnly && cutSegment) {
+                    button.hidden = false;
+                    cutSegment.insertAdjacentElement('afterend', button);
+                    guard = button;
+                }
+                truncateMomentTextNode(cutNode, limitLine.bottom, guard);
             }
+        }
+
+        if (overflow && expanded && textNodes.length) {
+            var lastText = textNodes[textNodes.length - 1];
+            segments.forEach(function (segment) {
+                if (segment.contains(lastText)) cutSegment = segment;
+            });
         }
 
         button.hidden = !overflow;
@@ -908,6 +978,8 @@
         } else if (!cutSegment) {
             target.appendChild(button);
         }
+
+        syncMomentCommentFoldProxy(target);
     }
 
     function refreshMomentTextFolds() {
@@ -2733,7 +2805,7 @@
     }
 
     /* 灯箱相册取材：当前内容区里所有可点开预览的图片（正文/头图/动态/可信评论），表情贴纸除外 */
-    var LIGHTBOX_IMAGE_SELECTOR = '#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image, #qiwi-pjax .comment-item.is-trusted-comment .comment-text img, #qiwi-pjax .moment-comment.is-trusted-comment .moment-comment-text img';
+    var LIGHTBOX_IMAGE_SELECTOR = '#qiwi-pjax .article-body img, #qiwi-pjax .article-hero, #qiwi-pjax .moment-image, #qiwi-pjax .comment-item.is-trusted-comment .comment-text img, #qiwi-pjax .moment-comment.is-trusted-comment .moment-comment-body img';
 
     function getLightboxGallery(source) {
         var container = currentContainer() || document;
@@ -2753,9 +2825,57 @@
         if (next) next.hidden = !multiple;
     }
 
+    // 只有精确指针（鼠标/触控笔）提供原图放大与拖动，触屏保持点按关闭、左右滑动切换
+    var lightboxZoomMedia = window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine)') : null;
+
+    function isLightboxZoomable(preview) {
+        if (!lightboxZoomMedia || !lightboxZoomMedia.matches || !preview.naturalWidth) return false;
+        var rect = preview.getBoundingClientRect();
+        return preview.naturalWidth > rect.width + 1 || preview.naturalHeight > rect.height + 1;
+    }
+
+    function clampLightboxOffset(offset, size, viewport) {
+        if (size <= viewport) return (viewport - size) / 2;
+        return Math.min(0, Math.max(viewport - size, offset));
+    }
+
+    function applyLightboxZoom(lightbox, preview, x, y) {
+        var w = preview.naturalWidth;
+        var h = preview.naturalHeight;
+        x = clampLightboxOffset(x, w, window.innerWidth);
+        y = clampLightboxOffset(y, h, window.innerHeight);
+        lightbox._qiwiZoom = { x: x, y: y };
+        preview.style.width = w + 'px';
+        preview.style.height = h + 'px';
+        preview.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    }
+
+    function zoomLightboxAt(lightbox, preview, clientX, clientY) {
+        var rect = preview.getBoundingClientRect();
+        var rx = rect.width ? (clientX - rect.left) / rect.width : .5;
+        var ry = rect.height ? (clientY - rect.top) / rect.height : .5;
+        preview.classList.add('is-zoomed');
+        preview.classList.remove('is-zoomable');
+        // 让点击处保持在指针下方
+        applyLightboxZoom(lightbox, preview, clientX - rx * preview.naturalWidth, clientY - ry * preview.naturalHeight);
+    }
+
+    function resetLightboxZoom(lightbox, preview) {
+        lightbox._qiwiZoom = null;
+        lightbox._qiwiDrag = null;
+        if (!preview) return;
+        preview.classList.remove('is-zoomed', 'is-dragging');
+        preview.style.removeProperty('width');
+        preview.style.removeProperty('height');
+        preview.style.removeProperty('transform');
+        preview.classList.toggle('is-zoomable', isLightboxZoomable(preview));
+    }
+
     function showLightboxImage(lightbox, target) {
         var preview = lightbox.querySelector('img');
         if (!preview || !target) return;
+        resetLightboxZoom(lightbox, preview);
+        preview.classList.remove('is-zoomable');
         var requestId = (lightbox._qiwiRequest || 0) + 1;
         lightbox._qiwiRequest = requestId;
         lightbox._qiwiIndex = typeof target._qiwiGalleryIndex === 'number' ? target._qiwiGalleryIndex : 0;
@@ -2769,6 +2889,7 @@
         decoded.catch(function () {}).then(function () {
             if (lightbox._qiwiRequest !== requestId || !preview.src) return;
             preview.classList.add('is-open');
+            preview.classList.toggle('is-zoomable', isLightboxZoomable(preview));
         });
     }
 
@@ -2795,6 +2916,9 @@
         lightbox._qiwiCloseTimer = null;
         lightbox._qiwiGallery = null;
         lightbox._qiwiIndex = 0;
+        lightbox._qiwiZoom = null;
+        lightbox._qiwiDrag = null;
+        preview.classList.remove('is-zoomable', 'is-zoomed', 'is-dragging');
         lightbox.classList.remove('is-visible', 'is-open', 'is-closing');
         preview.classList.remove('is-open');
         preview.removeAttribute('src');
@@ -2846,7 +2970,54 @@
                     showLightboxNext(lightbox);
                     return;
                 }
+                var preview = lightbox.querySelector('img');
+                if (event.target === preview) {
+                    // 拖动结束时产生的 click 不视为点击
+                    if (lightbox._qiwiDragMoved) {
+                        lightbox._qiwiDragMoved = false;
+                        return;
+                    }
+                    if (lightbox._qiwiZoom) {
+                        resetLightboxZoom(lightbox, preview);
+                        return;
+                    }
+                    if (isLightboxZoomable(preview)) {
+                        zoomLightboxAt(lightbox, preview, event.clientX, event.clientY);
+                        return;
+                    }
+                }
                 closeLightbox(lightbox);
+            });
+            lightbox.addEventListener('pointerdown', function (event) {
+                var preview = lightbox.querySelector('img');
+                if (event.target !== preview || !lightbox._qiwiZoom || event.button !== 0) return;
+                event.preventDefault();
+                lightbox._qiwiDragMoved = false;
+                lightbox._qiwiDrag = { id: event.pointerId, startX: event.clientX, startY: event.clientY, x: lightbox._qiwiZoom.x, y: lightbox._qiwiZoom.y };
+                try { preview.setPointerCapture(event.pointerId); } catch (error) {}
+                preview.classList.add('is-dragging');
+            });
+            lightbox.addEventListener('pointermove', function (event) {
+                var drag = lightbox._qiwiDrag;
+                if (!drag || drag.id !== event.pointerId) return;
+                var dx = event.clientX - drag.startX;
+                var dy = event.clientY - drag.startY;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) lightbox._qiwiDragMoved = true;
+                applyLightboxZoom(lightbox, lightbox.querySelector('img'), drag.x + dx, drag.y + dy);
+            });
+            var endLightboxDrag = function (event) {
+                var drag = lightbox._qiwiDrag;
+                if (!drag || drag.id !== event.pointerId) return;
+                lightbox._qiwiDrag = null;
+                lightbox.querySelector('img').classList.remove('is-dragging');
+            };
+            lightbox.addEventListener('pointerup', endLightboxDrag);
+            lightbox.addEventListener('pointercancel', endLightboxDrag);
+            window.addEventListener('resize', function () {
+                if (!lightbox.classList.contains('is-visible')) return;
+                var preview = lightbox.querySelector('img');
+                if (lightbox._qiwiZoom) applyLightboxZoom(lightbox, preview, lightbox._qiwiZoom.x, lightbox._qiwiZoom.y);
+                else preview.classList.toggle('is-zoomable', isLightboxZoomable(preview));
             });
             lightbox.addEventListener('keydown', function (event) {
                 if (event.key !== 'Tab') return;
