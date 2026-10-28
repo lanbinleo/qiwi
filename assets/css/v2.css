@@ -2483,6 +2483,8 @@ html.js .qiwi-v2 .plog-entry-media.is-loaded img { opacity: 1; }
 .qiwi-v2 .captcha-script .qiwi-gt-captcha-root { width: 100%; max-width: 100%; }
 .qiwi-v2 .captcha-script .qiwi-cap-captcha,
 .qiwi-v2 .captcha-script cap-widget { display: block; width: 100%; max-width: 100%; }
+/* cap 胶囊在 shadow DOM 内默认固定 260px 宽，容器更窄时会带背景溢出盖住同行按钮；改为随容器收缩 */
+.qiwi-v2 .captcha-script cap-widget { --cap-widget-width: min(100%, 260px); }
 .qiwi-v2 .captcha-script .qiwi-cap-status { margin: 4px 0 0; color: var(--v2-muted); font-size: .68rem; line-height: 1.5; }
 .qiwi-v2 .captcha-script .qiwi-cap-status.is-error { color: var(--v2-accent-strong); }
 .qiwi-v2 .captcha-script .qiwi-cap-status.is-verified { color: var(--v2-accent); }
@@ -2709,13 +2711,18 @@ html.v2-lightbox-open { padding-right: var(--qiwi-scrollbar-width, 0px); }
     .qiwi-v2 .post-head { flex-wrap: wrap; }
     .qiwi-v2 .post-foot { align-items: flex-start; font-size: .72rem; line-height: 1.7; }
     .qiwi-v2 .latest-moment { padding: 12px 14px; }
-    .qiwi-v2 .comment-form-footer { flex-wrap: nowrap; }
+    /* 文章评论工具栏：验证码独占一行（嵌套回复时表单额外缩进，同行会被压到不足 120px） */
+    .qiwi-v2 .comment-form-footer { flex-wrap: wrap; }
+    .qiwi-v2 .comment-form-footer .captcha-script { flex: 1 1 100%; }
     .qiwi-v2 .comment-item .comment-respond { margin-top: 16px; }
     .qiwi-v2 .comment-profile-modal.is-logged-profile .comment-profile-panel { gap: 6px; padding-right: 10px; padding-left: 10px; }
     .qiwi-v2 .comment-profile-account-actions { gap: 4px; }
     .qiwi-v2 .comment-profile-account-actions a { padding: 6px 8px; }
     .qiwi-v2 .captcha-script { width: auto; min-width: 0; order: 0; }
     .qiwi-v2 .comment-send-button { margin-left: 0; }
+    /* 说说回复表单：验证码独占一行，表情/身份/提交按钮换到下一行，避免窄屏挤压溢出遮挡 */
+    .qiwi-v2 .moment-reply-footer { flex-wrap: wrap; }
+    .qiwi-v2 .moment-reply-footer .captcha-script { flex: 1 1 100%; }
     .qiwi-v2 .comment-item > .comment-list { margin-left: 34px; }
     .qiwi-v2 .article-item.has-thumbnail .article-item-inner { grid-template-columns: 1fr; }
     .qiwi-v2 .article-thumbnail-wrapper { order: -1; }
