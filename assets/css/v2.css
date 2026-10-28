@@ -2711,7 +2711,9 @@ html.v2-lightbox-open { padding-right: var(--qiwi-scrollbar-width, 0px); }
     .qiwi-v2 .post-head { flex-wrap: wrap; }
     .qiwi-v2 .post-foot { align-items: flex-start; font-size: .72rem; line-height: 1.7; }
     .qiwi-v2 .latest-moment { padding: 12px 14px; }
-    .qiwi-v2 .comment-form-footer { flex-wrap: nowrap; }
+    /* 文章评论工具栏：验证码独占一行（嵌套回复时表单额外缩进，同行会被压到不足 120px） */
+    .qiwi-v2 .comment-form-footer { flex-wrap: wrap; }
+    .qiwi-v2 .comment-form-footer .captcha-script { flex: 1 1 100%; }
     .qiwi-v2 .comment-item .comment-respond { margin-top: 16px; }
     .qiwi-v2 .comment-profile-modal.is-logged-profile .comment-profile-panel { gap: 6px; padding-right: 10px; padding-left: 10px; }
     .qiwi-v2 .comment-profile-account-actions { gap: 4px; }

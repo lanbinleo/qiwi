@@ -311,7 +311,7 @@ HTML;
         echo <<<HTML
 <style>
 .qiwi-cap-login { margin: 0 0 1em; }
-.qiwi-cap-login cap-widget { display: block; width: 100%; }
+.qiwi-cap-login cap-widget { display: block; width: 100%; --cap-widget-width: min(100%, 260px); }
 .qiwi-cap-status { margin: .55em 0 0; color: #999; font-size: 12px; line-height: 1.6; }
 .qiwi-cap-status.is-error { color: #c0392b; }
 .qiwi-cap-status.is-verified { color: #2e7d32; }
